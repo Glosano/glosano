@@ -78,7 +78,7 @@ describe('ReviewPage session flow', () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
     fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
-    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 'correct'))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
     expect(await screen.findByText('mundo')).toBeTruthy()
     expect(screen.getByText('2 / 2')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Показать перевод' }))
@@ -97,7 +97,7 @@ describe('ReviewPage session flow', () => {
     fireEvent.keyDown(window, { key: ' ' })
     expect(await screen.findByRole('button', { name: '✓ Знаю' })).toBeTruthy()
     fireEvent.keyDown(window, { key: '2' })
-    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 'correct'))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
   })
 
   it('failed answer keeps card and shows retryable error', async () => {

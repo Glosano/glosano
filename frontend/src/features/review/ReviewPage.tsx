@@ -57,7 +57,11 @@ export function ReviewPage({ lang, lessonId }: Props) {
   const [showGraduationToast, setShowGraduationToast] = useState(false)
 
   const answerMutation = useMutation({
-    mutationFn: ({ id, a }: { id: string; a: 'correct' | 'wrong' }) => reviewApi.answer(id, a),
+    mutationFn: ({ id, a }: { id: string; a: 'correct' | 'wrong' }) => {
+      // Shim: convert old API (correct/wrong) to new quality-based API (0..5)
+      const quality = a === 'correct' ? 4 : 2
+      return reviewApi.answer(id, quality)
+    },
     onSuccess: (res, { a }) => {
       setAnswerError(null)
       setFlipped(false)
