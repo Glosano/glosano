@@ -40,6 +40,9 @@ export function ReviewPage({ lang, lessonId }: Props) {
 
   const restart = () => {
     setSession(null)
+    // Устаревший graduation-тост от прошлой сессии не должен всплыть на первой
+    // карточке новой — сбрасываем явно, а не полагаемся на следующий ответ.
+    setShowGraduationToast(false)
     // Подсветка/списки могли устареть после ответов — сбрасываем перед новой очередью.
     void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
     void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
