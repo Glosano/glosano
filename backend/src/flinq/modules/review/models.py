@@ -74,6 +74,7 @@ class ReviewEvent(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     answer_value: Mapped[str] = mapped_column(String(8))
+    quality: Mapped[int | None] = mapped_column(SmallInteger)
     previous_confidence: Mapped[int | None] = mapped_column(SmallInteger)
     new_confidence: Mapped[int | None] = mapped_column(SmallInteger)
     previous_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -84,5 +85,9 @@ class ReviewEvent(Base):
 
     __table_args__ = (
         CheckConstraint("answer_value IN ('correct', 'wrong')", name="ck_review_events_answer"),
+        CheckConstraint(
+            "quality IS NULL OR (quality >= 0 AND quality <= 5)",
+            name="ck_review_events_quality_range",
+        ),
         Index("ix_review_events_user_time", "user_id", "reviewed_at"),
     )

@@ -143,3 +143,65 @@ async def test_backfill_sql_creates_active_items_for_tracked():
             "interval_days": 0.0,
             "repetitions": 0,
         }
+
+
+async def test_review_event_quality_roundtrip():
+    now = datetime.now(UTC)
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        ri = ReviewItem(
+            user_id=user_id,
+            item_kind="token",
+            item_id=uuid.uuid4(),
+            language_code="pt",
+            algorithm_state_json={},
+            due_at=now,
+        )
+        s.add(ri)
+        await s.flush()
+        s.add(
+            ReviewEvent(
+                review_item_id=ri.id,
+                user_id=user_id,
+                answer_value="correct",
+                quality=4,
+                previous_confidence=1,
+                new_confidence=2,
+                previous_due_at=now,
+                new_due_at=now,
+            )
+        )
+        # старые события без quality остаются валидными
+        s.add(
+            ReviewEvent(
+                review_item_id=ri.id,
+                user_id=user_id,
+                answer_value="wrong",
+                previous_confidence=1,
+                new_confidence=0,
+                previous_due_at=now,
+                new_due_at=now,
+            )
+        )
+        await s.commit()
+    async with session_scope() as s:
+        rows = (
+            (await s.execute(select(ReviewEvent).order_by(ReviewEvent.reviewed_at))).scalars().all()
+        )
+        assert {r.quality for r in rows} == {4, None}
+
+
+def test_migration_0013_chains_from_0012():
+    spec = importlib.util.spec_from_file_location(
+        "0013_review_quality",
+        Path(__file__).parent.parent.parent.parent
+        / "migrations"
+        / "versions"
+        / "0013_review_quality.py",
+    )
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.revision == "0013_review_quality"
+    assert mod.down_revision == "0012_review"
+    assert callable(mod.upgrade) and callable(mod.downgrade)
