@@ -13,6 +13,7 @@ from flinq.modules.review import service
 from flinq.modules.review.schemas import (
     AnswerRequest,
     AnswerResponse,
+    CountsResponse,
     DailyOut,
     QueueItemOut,
     QueueResponse,
@@ -35,12 +36,13 @@ async def queue(
     request: Request,
     lang: LangCode,
     session: Annotated[AsyncSession, Depends(get_session)],
+    mode: Literal["due", "new", "practice"] = "due",
     lesson_id: uuid.UUID | None = None,
 ) -> QueueResponse:
     user_id = _require_user(request)
     try:
         items, daily = await service.get_queue(
-            session, user_id=user_id, language_code=lang, lesson_id=lesson_id
+            session, user_id=user_id, language_code=lang, mode=mode, lesson_id=lesson_id
         )
     except service.LessonNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None
@@ -86,3 +88,14 @@ async def answer(
         due_at=res.due_at,
         done_today=res.done_today,
     )
+
+
+@router.get("/counts", response_model=CountsResponse)
+async def counts(
+    request: Request,
+    lang: LangCode,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> CountsResponse:
+    user_id = _require_user(request)
+    c = await service.get_counts(session, user_id=user_id, language_code=lang)
+    return CountsResponse(due=c.due, new=c.new, practice=c.practice, ai_enabled=c.ai_enabled)

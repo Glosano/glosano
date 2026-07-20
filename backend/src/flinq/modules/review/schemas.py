@@ -41,3 +41,10 @@ class AnswerResponse(BaseModel):
     new_status: Literal["tracked", "known"]
     due_at: datetime
     done_today: int
+
+
+class CountsResponse(BaseModel):
+    due: int
+    new: int
+    practice: int
+    ai_enabled: bool

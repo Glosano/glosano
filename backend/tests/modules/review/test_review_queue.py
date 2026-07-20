@@ -8,12 +8,13 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from flinq.core.config import get_settings
 from flinq.core.db import session_scope
 from flinq.core.security import hash_password
 from flinq.modules.identity.repo import UserRepo
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import LessonNotFound, get_queue
+from flinq.modules.review.service import LessonNotFound, get_counts, get_queue
 from flinq.modules.vocabulary import service as vocab
 from flinq.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
 
@@ -196,3 +197,120 @@ async def test_lesson_queue_foreign_lesson_raises():
                 lesson_id=lesson.id,
                 now=NOW,
             )
+
+
+async def test_new_mode_returns_unreviewed_newest_first():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        a = await _tracked_token(s, user_id, "um")
+        await _tracked_token(s, user_id, "dois")
+        # отвеченное слово выпадает из режима new
+        ri_a = (
+            (await s.execute(select(ReviewItem).where(ReviewItem.item_id == a.id))).scalars().one()
+        )
+        ri_a.last_reviewed_at = NOW
+        await s.commit()
+        items, daily = await get_queue(s, user_id=user_id, language_code="pt", mode="new", now=NOW)
+        assert [i.text for i in items] == ["dois"]
+        assert not daily.limit_reached
+
+
+async def test_practice_mode_returns_confident_items_and_ignores_limit():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        strong = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="forte",
+            status="tracked",
+            confidence=4,
+        )
+        await _tracked_token(s, user_id, "fraco")  # confidence 1 — не попадает
+        ri = (
+            (await s.execute(select(ReviewItem).where(ReviewItem.item_id == strong.id)))
+            .scalars()
+            .one()
+        )
+        for _ in range(20):  # дневной лимит исчерпан
+            s.add(
+                ReviewEvent(
+                    review_item_id=ri.id,
+                    user_id=user_id,
+                    answer_value="correct",
+                    previous_confidence=4,
+                    new_confidence=4,
+                    previous_due_at=NOW,
+                    new_due_at=NOW,
+                    reviewed_at=NOW,
+                )
+            )
+        await s.commit()
+        items, daily = await get_queue(
+            s, user_id=user_id, language_code="pt", mode="practice", now=NOW
+        )
+        assert [i.text for i in items] == ["forte"]  # лимит не режет practice
+        assert daily.limit_reached is False
+
+
+async def test_practice_mode_mixes_kinds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Слитый список перемешивается: phrase-элементы не вытесняются токенами."""
+    import flinq.modules.review.service as review_service
+
+    # Детерминированность: «перемешивание» = reverse, phrase-строки (добавленные
+    # вторыми) оказываются в голове списка.
+    def _reverse_shuffle(lst: list[object]) -> None:
+        lst.reverse()
+
+    monkeypatch.setattr(review_service.random, "shuffle", _reverse_shuffle)
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        for i in range(5):
+            await vocab.create_item(
+                s,
+                user_id=user_id,
+                kind="token",
+                language_code="pt",
+                text=f"tok{i}",
+                status="tracked",
+                confidence=4,
+            )
+        await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="phrase",
+            language_code="pt",
+            text="bom dia",
+            status="tracked",
+            confidence=4,
+        )
+        items, _ = await get_queue(s, user_id=user_id, language_code="pt", mode="practice", now=NOW)
+        assert len(items) == 5
+        assert any(i.item_kind == "phrase" for i in items)
+
+
+async def test_counts_reports_due_new_practice(monkeypatch: pytest.MonkeyPatch) -> None:
+    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
+    monkeypatch.setattr(get_settings(), "llm_enabled", False)
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        a = await _tracked_token(s, user_id, "um")  # due + new
+        strong = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="forte",
+            status="tracked",
+            confidence=4,
+        )
+        # флейк-поправка: lifecycle-синк ставит due_at=real now(); тест
+        # фиксирует NOW=2026-07-20 12:00 UTC — без явной пиновки due-счётчик
+        # флейкует после полудня. Каждый item должен быть due относительно NOW.
+        await _set_due(s, a.id, NOW - timedelta(hours=1))
+        await _set_due(s, strong.id, NOW - timedelta(hours=1))
+        counts = await get_counts(s, user_id=user_id, language_code="pt", now=NOW)
+        assert counts.due == 2 and counts.new == 2 and counts.practice == 1
+        assert counts.ai_enabled is False  # llm выключен в тестовом окружении

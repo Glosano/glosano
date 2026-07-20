@@ -7,6 +7,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
+from flinq.core.config import get_settings
 from flinq.core.db import session_scope
 from flinq.main import create_app
 from flinq.modules.review.models import ReviewEvent, ReviewItem
@@ -125,3 +126,26 @@ async def test_lesson_queue_unknown_lesson_404():
             params={"lang": "pt", "lesson_id": str(uuid.uuid4())},
         )
         assert r.status_code == 404
+
+
+async def test_counts_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
+    monkeypatch.setattr(get_settings(), "llm_enabled", False)
+    async with await _client() as c:
+        csrf = await _register(c)
+        await _create_tracked(c, csrf)
+        r = await c.get("/api/review/counts", params={"lang": "pt"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["due"] == 1 and body["new"] == 1
+        assert body["practice"] == 0 and body["ai_enabled"] is False
+
+
+async def test_queue_mode_new():
+    async with await _client() as c:
+        csrf = await _register(c)
+        await _create_tracked(c, csrf)
+        r = await c.get("/api/review/queue", params={"lang": "pt", "mode": "new"})
+        assert r.status_code == 200
+        assert len(r.json()["items"]) == 1

@@ -7,13 +7,16 @@ sync_review_item/deactivate_review_items вызываются из write-пут�
 
 from __future__ import annotations
 
+import random
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, tuple_, update
+from sqlalchemy import ColumnElement, func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from flinq.core.config import get_settings
 from flinq.modules.identity.models import UserSettings
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.review.models import ReviewEvent, ReviewItem
@@ -89,6 +92,13 @@ async def deactivate_review_items(
 
 MAX_QUEUE_SIZE = 100
 DEFAULT_DAILY_LIMIT = 20
+NEW_SESSION_LIMIT = 20
+PRACTICE_SESSION_LIMIT = 5
+
+_VOCAB_MODEL_BY_KIND: dict[str, type[TokenItem] | type[PhraseItem]] = {
+    "token": TokenItem,
+    "phrase": PhraseItem,
+}
 
 
 class LessonNotFound(Exception):  # noqa: N818 -- matches vocabulary exception naming
@@ -112,6 +122,14 @@ class DailyInfo:
     limit: int
     done_today: int
     limit_reached: bool
+
+
+@dataclass
+class CountsInfo:
+    due: int
+    new: int
+    practice: int
+    ai_enabled: bool
 
 
 def _day_start_utc(now: datetime) -> datetime:
@@ -215,6 +233,7 @@ async def get_queue(
     *,
     user_id: uuid.UUID,
     language_code: str,
+    mode: str = "due",
     lesson_id: uuid.UUID | None = None,
     now: datetime | None = None,
 ) -> tuple[list[QueueItem], DailyInfo]:
@@ -247,6 +266,51 @@ async def get_queue(
         # due первыми, внутри групп — по due_at
         pairs.sort(key=lambda p: (p[0].due_at > now, p[0].due_at))
         # мягкий лимит: lesson-режим не блокируется
+        daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
+        return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
+
+    def _mode_stmt(kind: str, model: type[TokenItem] | type[PhraseItem]):
+        return (
+            select(ReviewItem, model)
+            .join(model, ReviewItem.item_id == model.id)
+            .where(
+                ReviewItem.user_id == user_id,
+                ReviewItem.item_kind == kind,
+                ReviewItem.language_code == language_code,
+                ReviewItem.is_active.is_(True),
+                model.status == "tracked",
+            )
+        )
+
+    if mode == "new":
+        if daily.limit_reached:
+            return [], daily
+        fetch = min(NEW_SESSION_LIMIT, max(0, daily.limit - daily.done_today))
+        pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
+        for kind, model in _VOCAB_MODEL_BY_KIND.items():
+            stmt = (
+                _mode_stmt(kind, model)
+                .where(ReviewItem.last_reviewed_at.is_(None))
+                .order_by(ReviewItem.created_at.desc())
+                .limit(fetch)
+            )
+            pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
+        pairs.sort(key=lambda p: p[0].created_at, reverse=True)
+        pairs = pairs[:fetch]
+        return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
+
+    if mode == "practice":
+        pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
+        for kind, model in _VOCAB_MODEL_BY_KIND.items():
+            stmt = (
+                _mode_stmt(kind, model)
+                .where(model.confidence >= 4)
+                .order_by(func.random())
+                .limit(PRACTICE_SESSION_LIMIT)
+            )
+            pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
+        random.shuffle(pairs)
+        pairs = pairs[:PRACTICE_SESSION_LIMIT]
         daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
         return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
@@ -285,12 +349,6 @@ async def get_queue(
 
 class ReviewItemNotFound(Exception):  # noqa: N818 -- matches vocabulary exception naming
     """Review item does not exist, is inactive, or is not owned by the user."""
-
-
-_VOCAB_MODEL_BY_KIND: dict[str, type[TokenItem] | type[PhraseItem]] = {
-    "token": TokenItem,
-    "phrase": PhraseItem,
-}
 
 
 @dataclass
@@ -366,3 +424,39 @@ async def answer(
         due_at=due_at,
         done_today=daily.done_today,
     )
+
+
+async def get_counts(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    language_code: str,
+    now: datetime | None = None,
+) -> CountsInfo:
+    now = now or datetime.now(UTC)
+
+    async def _count(
+        extra_where: Callable[[type[TokenItem] | type[PhraseItem]], list[ColumnElement[bool]]],
+    ) -> int:
+        total = 0
+        for kind, model in _VOCAB_MODEL_BY_KIND.items():
+            stmt = (
+                select(func.count())
+                .select_from(ReviewItem)
+                .join(model, ReviewItem.item_id == model.id)
+                .where(
+                    ReviewItem.user_id == user_id,
+                    ReviewItem.item_kind == kind,
+                    ReviewItem.language_code == language_code,
+                    ReviewItem.is_active.is_(True),
+                    model.status == "tracked",
+                    *extra_where(model),
+                )
+            )
+            total += (await session.execute(stmt)).scalar_one()
+        return total
+
+    due = await _count(lambda m: [ReviewItem.due_at <= now])
+    new = await _count(lambda m: [ReviewItem.last_reviewed_at.is_(None)])
+    practice = await _count(lambda m: [m.confidence >= 4])
+    return CountsInfo(due=due, new=new, practice=practice, ai_enabled=get_settings().llm_enabled)
