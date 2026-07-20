@@ -306,7 +306,7 @@ async def answer(
     *,
     user_id: uuid.UUID,
     review_item_id: uuid.UUID,
-    answer_value: str,
+    quality: int,
     now: datetime | None = None,
 ) -> AnswerResult:
     now = now or datetime.now(UTC)
@@ -317,27 +317,31 @@ async def answer(
     if item is None or item.user_id != user_id or item.status != "tracked":
         raise ReviewItemNotFound(str(review_item_id))
 
-    correct = answer_value == "correct"
     prev_confidence = item.confidence if item.confidence is not None else 0
     prev_due = ri.due_at
 
     new_state, due_at = apply_answer(
-        state_from_json(ri.algorithm_state_json), quality=4 if correct else 2, now=now
+        state_from_json(ri.algorithm_state_json), quality=quality, now=now
     )
     ri.algorithm_state_json = state_to_json(new_state)
     ri.due_at = due_at
     ri.last_reviewed_at = now
 
     new_confidence: int | None
-    if correct and prev_confidence >= 5:
-        # Graduation (ADR-0005): «верно» при confidence 5 -> known, review закрывается.
+    if quality >= 4 and prev_confidence >= 5:
+        # Graduation (spec §3): q>=4 при confidence 5 -> known, review закрывается.
         item.status = "known"
         item.confidence = None
         ri.is_active = False
         new_confidence = None
         new_status = "known"
     else:
-        new_confidence = min(5, prev_confidence + 1) if correct else max(0, prev_confidence - 1)
+        if quality >= 4:
+            new_confidence = min(5, prev_confidence + 1)
+        elif quality == 3:
+            new_confidence = prev_confidence
+        else:
+            new_confidence = max(0, prev_confidence - 1)
         item.confidence = new_confidence
         new_status = "tracked"
 
@@ -345,7 +349,8 @@ async def answer(
         ReviewEvent(
             review_item_id=ri.id,
             user_id=user_id,
-            answer_value=answer_value,
+            answer_value="correct" if quality >= 3 else "wrong",
+            quality=quality,
             previous_confidence=prev_confidence,
             new_confidence=new_confidence,
             previous_due_at=prev_due,

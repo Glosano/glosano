@@ -84,7 +84,7 @@ async def test_answer_flow_updates_confidence_and_counts():
         r = await c.post(
             "/api/review/answer",
             headers={"X-CSRF-Token": csrf},
-            json={"review_item_id": review_item_id, "answer": "correct"},
+            json={"review_item_id": review_item_id, "quality": 4},
         )
         assert r.status_code == 200
         body = r.json()
@@ -104,7 +104,7 @@ async def test_answer_invalid_value_422_and_foreign_404():
         r = await c.post(
             "/api/review/answer",
             headers={"X-CSRF-Token": csrf},
-            json={"review_item_id": review_item_id, "answer": "maybe"},
+            json={"review_item_id": review_item_id, "quality": 7},
         )
         assert r.status_code == 422
     async with await _client() as c2:
@@ -112,7 +112,7 @@ async def test_answer_invalid_value_422_and_foreign_404():
         r = await c2.post(
             "/api/review/answer",
             headers={"X-CSRF-Token": csrf2},
-            json={"review_item_id": review_item_id, "answer": "correct"},
+            json={"review_item_id": review_item_id, "quality": 4},
         )
         assert r.status_code == 404
 

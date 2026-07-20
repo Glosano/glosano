@@ -76,7 +76,7 @@ async def answer(
             session,
             user_id=user_id,
             review_item_id=body.review_item_id,
-            answer_value=body.answer,
+            quality=body.quality,
         )
     except service.ReviewItemNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None

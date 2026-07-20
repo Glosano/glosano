@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class QueueItemOut(BaseModel):
@@ -33,7 +33,7 @@ class QueueResponse(BaseModel):
 
 class AnswerRequest(BaseModel):
     review_item_id: uuid.UUID
-    answer: Literal["correct", "wrong"]
+    quality: int = Field(ge=0, le=5)
 
 
 class AnswerResponse(BaseModel):
