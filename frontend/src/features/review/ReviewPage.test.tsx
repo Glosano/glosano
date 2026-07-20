@@ -139,5 +139,19 @@ describe('ReviewPage session flow', () => {
     expect(invalidateSpy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: ['vocab-list'] }),
     )
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['phrases'] }),
+    )
+  })
+
+  it('shows graduation toast when answer graduates the item to known (spec §6)', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: null, new_status: 'known', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
+    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
+    expect(await screen.findByText('Слово выучено ✓')).toBeTruthy()
   })
 })

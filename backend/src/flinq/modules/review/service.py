@@ -11,7 +11,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.modules.identity.models import UserSettings
@@ -142,6 +142,7 @@ async def _build_queue_items(
     preferred_target = settings.preferred_translation_language_code if settings else None
 
     refs = [(ri.item_kind, ri.item_id) for ri, _ in rows]
+    ref_set = set(refs)
     translations: dict[tuple[str, uuid.UUID], str] = {}
     notes: dict[tuple[str, uuid.UUID], str] = {}
     if refs:
@@ -150,21 +151,27 @@ async def _build_queue_items(
                 select(PersonalTranslation).where(
                     PersonalTranslation.owner_user_id == user_id,
                     PersonalTranslation.is_primary.is_(True),
+                    tuple_(PersonalTranslation.item_kind, PersonalTranslation.item_id).in_(refs),
                 )
             )
         ).scalars()
         for t in t_rows:
             key = (t.item_kind, t.item_id)
-            if key not in refs:
+            if key not in ref_set:
                 continue
             # предпочесть перевод на preferred_translation_language_code
             if key not in translations or t.target_language_code == preferred_target:
                 translations[key] = t.translation_text
         n_rows = (
-            await session.execute(select(PersonalNote).where(PersonalNote.owner_user_id == user_id))
+            await session.execute(
+                select(PersonalNote).where(
+                    PersonalNote.owner_user_id == user_id,
+                    tuple_(PersonalNote.item_kind, PersonalNote.item_id).in_(refs),
+                )
+            )
         ).scalars()
         for n in n_rows:
-            if (n.item_kind, n.item_id) in refs:
+            if (n.item_kind, n.item_id) in ref_set:
                 notes[(n.item_kind, n.item_id)] = n.note_text
 
     # Контекст токенов: created_from_occurrence_id -> occurrence -> segment.text
@@ -246,6 +253,11 @@ async def get_queue(
     if daily.limit_reached:
         return [], daily
 
+    # remaining/MAX_QUEUE_SIZE bound each query in SQL — the Python merge below
+    # only sorts+slices two already-bounded, already-sorted lists, so it stays correct.
+    remaining = max(0, daily.limit - daily.done_today)
+    fetch_limit = min(remaining, MAX_QUEUE_SIZE)
+
     def _due_stmt(kind: str, model: type[TokenItem] | type[PhraseItem]):
         return (
             select(ReviewItem, model)
@@ -258,6 +270,8 @@ async def get_queue(
                 ReviewItem.due_at <= now,
                 model.status == "tracked",
             )
+            .order_by(ReviewItem.due_at.asc())
+            .limit(fetch_limit)
         )
 
     token_result = await session.execute(_due_stmt("token", TokenItem))
@@ -265,8 +279,7 @@ async def get_queue(
     token_pairs = [(ri, it) for ri, it in token_result.all()]
     phrase_pairs = [(ri, it) for ri, it in phrase_result.all()]
     pairs = sorted(token_pairs + phrase_pairs, key=lambda p: p[0].due_at)
-    remaining = max(0, daily.limit - daily.done_today)
-    pairs = pairs[: min(remaining, MAX_QUEUE_SIZE)]
+    pairs = pairs[:fetch_limit]
     return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
 

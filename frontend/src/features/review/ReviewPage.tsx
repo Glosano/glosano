@@ -43,17 +43,22 @@ export function ReviewPage({ lang, lessonId }: Props) {
     // Подсветка/списки могли устареть после ответов — сбрасываем перед новой очередью.
     void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
     void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
+    void queryClient.invalidateQueries({ queryKey: ['phrases'] })
     void refetch()
   }
 
   const [flipped, setFlipped] = useState(false)
   const [answerError, setAnswerError] = useState<string | null>(null)
+  // Graduation-тост (spec §6): показываем при new_status === 'known', сбрасываем
+  // на следующем ответе (пересчитывается в onSuccess) либо по авто-таймеру.
+  const [showGraduationToast, setShowGraduationToast] = useState(false)
 
   const answerMutation = useMutation({
     mutationFn: ({ id, a }: { id: string; a: 'correct' | 'wrong' }) => reviewApi.answer(id, a),
-    onSuccess: (_res, { a }) => {
+    onSuccess: (res, { a }) => {
       setAnswerError(null)
       setFlipped(false)
+      setShowGraduationToast(res.new_status === 'known')
       setSession((s) => {
         if (s === null) return s
         return {
@@ -74,6 +79,7 @@ export function ReviewPage({ lang, lessonId }: Props) {
     if (session && session.idx >= session.items.length) {
       void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
       void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
+      void queryClient.invalidateQueries({ queryKey: ['phrases'] })
     }
   }, [session, queryClient])
 
@@ -147,6 +153,9 @@ export function ReviewPage({ lang, lessonId }: Props) {
         <button type="button" className="mt-3 underline" onClick={restart}>
           {lessonId ? 'Пройти ещё раз' : 'Повторить ошибки'}
         </button>
+        {showGraduationToast && (
+          <GraduationToast onDismiss={() => setShowGraduationToast(false)} />
+        )}
       </Shell>
     )
   }
@@ -164,7 +173,32 @@ export function ReviewPage({ lang, lessonId }: Props) {
         onFlip={() => setFlipped(true)}
         onAnswer={handleAnswer}
       />
+      {showGraduationToast && <GraduationToast onDismiss={() => setShowGraduationToast(false)} />}
     </Shell>
+  )
+}
+
+const GRADUATION_TOAST_MS = 3000
+
+function GraduationToast({ onDismiss }: { onDismiss: () => void }) {
+  const onDismissRef = useRef(onDismiss)
+  onDismissRef.current = onDismiss
+
+  // Тот же паттерн, что UndoToast: таймер взводится один раз при монтировании.
+  useEffect(() => {
+    const timer = window.setTimeout(() => onDismissRef.current(), GRADUATION_TOAST_MS)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  return (
+    <div
+      data-testid="graduation-toast"
+      className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
+    >
+      <div className="rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
+        Слово выучено ✓
+      </div>
+    </div>
   )
 }
 
