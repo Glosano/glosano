@@ -98,6 +98,7 @@ async def test_queue_includes_translation_and_confidence():
             translation_text="каждый",
             source_type="user",
         )
+        await _set_due(s, item.id, NOW - timedelta(hours=1))
         items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
         assert items[0].translation == "каждый" and items[0].confidence == 1
 
