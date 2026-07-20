@@ -322,7 +322,7 @@ async def answer(
     prev_due = ri.due_at
 
     new_state, due_at = apply_answer(
-        state_from_json(ri.algorithm_state_json), correct=correct, now=now
+        state_from_json(ri.algorithm_state_json), quality=4 if correct else 2, now=now
     )
     ri.algorithm_state_json = state_to_json(new_state)
     ri.due_at = due_at
