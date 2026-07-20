@@ -16,6 +16,7 @@ from flinq.core.textnorm import normalize_token
 from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.lesson_library.tokenization import normalize_phrase
+from flinq.modules.review.service import deactivate_review_items, sync_review_item
 from flinq.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
@@ -143,6 +144,14 @@ async def create_item(
             existing_phrase.status = status
             existing_phrase.confidence = confidence
             _promote_to_user(existing_phrase)
+            await sync_review_item(
+                session,
+                user_id=user_id,
+                item_kind="phrase",
+                item_id=existing_phrase.id,
+                language_code=language_code,
+                status=status,
+            )
             await session.commit()
             return existing_phrase
         phrase = PhraseItem(
@@ -156,6 +165,15 @@ async def create_item(
         )
         session.add(phrase)
         try:
+            await session.flush()
+            await sync_review_item(
+                session,
+                user_id=user_id,
+                item_kind="phrase",
+                item_id=phrase.id,
+                language_code=language_code,
+                status=status,
+            )
             await session.commit()
         except IntegrityError:
             # Lost a create-create race: another transaction inserted the same
@@ -170,6 +188,14 @@ async def create_item(
             existing_phrase.status = status
             existing_phrase.confidence = confidence
             _promote_to_user(existing_phrase)
+            await sync_review_item(
+                session,
+                user_id=user_id,
+                item_kind="phrase",
+                item_id=existing_phrase.id,
+                language_code=language_code,
+                status=status,
+            )
             await session.commit()
             return existing_phrase
         return phrase
@@ -181,6 +207,14 @@ async def create_item(
         existing.status = status
         existing.confidence = confidence
         _promote_to_user(existing)
+        await sync_review_item(
+            session,
+            user_id=user_id,
+            item_kind="token",
+            item_id=existing.id,
+            language_code=language_code,
+            status=status,
+        )
         await session.commit()
         return existing
     item = TokenItem(
@@ -193,6 +227,15 @@ async def create_item(
     )
     session.add(item)
     try:
+        await session.flush()
+        await sync_review_item(
+            session,
+            user_id=user_id,
+            item_kind="token",
+            item_id=item.id,
+            language_code=language_code,
+            status=status,
+        )
         await session.commit()
     except IntegrityError:
         # Same create-create race as the phrase branch (uq_token_items_user_lang_text).
@@ -205,6 +248,14 @@ async def create_item(
         existing.status = status
         existing.confidence = confidence
         _promote_to_user(existing)
+        await sync_review_item(
+            session,
+            user_id=user_id,
+            item_kind="token",
+            item_id=existing.id,
+            language_code=language_code,
+            status=status,
+        )
         await session.commit()
         return existing
     return item
@@ -224,6 +275,14 @@ async def patch_item(
     item.status = status
     item.confidence = confidence
     _promote_to_user(item)
+    await sync_review_item(
+        session,
+        user_id=user_id,
+        item_kind=kind,
+        item_id=item.id,
+        language_code=item.language_code,
+        status=status,
+    )
     await session.commit()
     return item
 
@@ -650,9 +709,7 @@ async def list_items(
         )
     if kind in ("phrase", "all"):
         branches.append(
-            _branch_select(
-                PhraseItem, "phrase", _branch_conditions(PhraseItem, "phrase", **common)
-            )
+            _branch_select(PhraseItem, "phrase", _branch_conditions(PhraseItem, "phrase", **common))
         )
     base = branches[0] if len(branches) == 1 else union_all(*branches)
     sub = base.subquery()
@@ -663,10 +720,7 @@ async def list_items(
     order_by = order_col.asc() if sort_dir == "asc" else order_col.desc()
     rows = (
         await session.execute(
-            select(sub)
-            .order_by(order_by, sub.c.id)
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            select(sub).order_by(order_by, sub.c.id).offset((page - 1) * page_size).limit(page_size)
         )
     ).all()
     if not rows:
@@ -838,6 +892,7 @@ async def bulk_action(
                 .where(model.id.in_(ids))
                 .values(status=new_status, confidence=None, added_by="user")
             )
+            await deactivate_review_items(session, user_id=user_id, item_kind=kind, item_ids=ids)
     elif action == "delete":
         for kind, ids in owned_by_kind.items():
             for satellite in (PersonalTranslation, PersonalNote, ItemTag):
@@ -850,6 +905,7 @@ async def bulk_action(
                 )
             model = _MODEL_BY_KIND[kind]
             await session.execute(delete(model).where(model.id.in_(ids)))
+            await deactivate_review_items(session, user_id=user_id, item_kind=kind, item_ids=ids)
     elif action == "add_tag":
         assert tag_name is not None  # validated at the API layer
         for kind, ids in owned_by_kind.items():
