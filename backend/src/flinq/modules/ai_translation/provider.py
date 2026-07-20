@@ -36,7 +36,7 @@ class LLMCompletion:
 
 
 class LLMProvider(Protocol):
-    async def complete(self, *, system: str, user: str) -> LLMCompletion: ...
+    async def complete(self, *, system: str, user: str, max_tokens: int = 100) -> LLMCompletion: ...
 
 
 class OpenAICompatibleProvider:
@@ -44,7 +44,7 @@ class OpenAICompatibleProvider:
         self._settings = settings
         self._client = client
 
-    async def complete(self, *, system: str, user: str) -> LLMCompletion:
+    async def complete(self, *, system: str, user: str, max_tokens: int = 100) -> LLMCompletion:
         s = self._settings
         payload = {
             "model": s.llm_model,
@@ -53,7 +53,7 @@ class OpenAICompatibleProvider:
                 {"role": "user", "content": user},
             ],
             "temperature": 0.2,
-            "max_tokens": 100,
+            "max_tokens": max_tokens,
         }
         headers: dict[str, str] = {}
         if s.llm_api_key:

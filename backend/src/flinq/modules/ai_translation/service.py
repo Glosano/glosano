@@ -62,7 +62,7 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-async def _write_audit(
+async def write_audit(
     session: AsyncSession,
     *,
     request_id: uuid.UUID,
@@ -137,7 +137,7 @@ async def translate_hints(
     try:
         completion = await provider.complete(system=system, user=user)
     except ProviderUnavailable:
-        await _write_audit(
+        await write_audit(
             session,
             request_id=request_id,
             user_id=user_id,
@@ -151,7 +151,7 @@ async def translate_hints(
         )
         raise
     except ProviderRejected:
-        await _write_audit(
+        await write_audit(
             session,
             request_id=request_id,
             user_id=user_id,
@@ -168,7 +168,7 @@ async def translate_hints(
     latency_ms = int((time.monotonic() - started) * 1000)
     hints = parse_hints(completion.text)
     if not hints:
-        await _write_audit(
+        await write_audit(
             session,
             request_id=request_id,
             user_id=user_id,
@@ -183,7 +183,7 @@ async def translate_hints(
             output_tokens=completion.output_tokens,
         )
         raise AIEmptyResponse
-    await _write_audit(
+    await write_audit(
         session,
         request_id=request_id,
         user_id=user_id,
@@ -233,7 +233,7 @@ async def translate_sentence(
     try:
         completion = await provider.complete(system=system, user=user)
     except ProviderUnavailable:
-        await _write_audit(
+        await write_audit(
             session,
             request_id=request_id,
             user_id=user_id,
@@ -247,7 +247,7 @@ async def translate_sentence(
         )
         raise
     except ProviderRejected:
-        await _write_audit(
+        await write_audit(
             session,
             request_id=request_id,
             user_id=user_id,
@@ -264,7 +264,7 @@ async def translate_sentence(
     latency_ms = int((time.monotonic() - started) * 1000)
     text = completion.text.strip()
     if not text:
-        await _write_audit(
+        await write_audit(
             session,
             request_id=request_id,
             user_id=user_id,
@@ -279,7 +279,7 @@ async def translate_sentence(
             output_tokens=completion.output_tokens,
         )
         raise AIEmptyResponse
-    await _write_audit(
+    await write_audit(
         session,
         request_id=request_id,
         user_id=user_id,

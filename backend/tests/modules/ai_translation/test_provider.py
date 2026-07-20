@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -145,6 +147,25 @@ async def test_malformed_body_raises_rejected() -> None:
     )
     with pytest.raises(ProviderRejected):
         await p.complete(system="s", user="u")
+
+
+async def test_complete_passes_max_tokens() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return _ok_response()
+
+    p = OpenAICompatibleProvider(
+        _settings(), client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+
+    await p.complete(system="s", user="u")
+    await p.complete(system="s", user="u", max_tokens=800)
+
+    default_body, explicit_body = (json.loads(request.content) for request in seen)
+    assert default_body["max_tokens"] == 100
+    assert explicit_body["max_tokens"] == 800
 
 
 async def test_non_json_2xx_body_raises_rejected() -> None:

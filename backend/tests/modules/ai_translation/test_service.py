@@ -30,7 +30,7 @@ class FakeProvider:
         self.error = error
         self.calls = 0
 
-    async def complete(self, *, system: str, user: str) -> LLMCompletion:
+    async def complete(self, *, system: str, user: str, max_tokens: int = 100) -> LLMCompletion:
         self.calls += 1
         if self.error is not None:
             raise self.error
