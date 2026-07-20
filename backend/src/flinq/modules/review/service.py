@@ -95,7 +95,7 @@ DEFAULT_DAILY_LIMIT = 20
 NEW_SESSION_LIMIT = 20
 PRACTICE_SESSION_LIMIT = 5
 
-_VOCAB_MODEL_BY_KIND: dict[str, type[TokenItem] | type[PhraseItem]] = {
+VOCAB_MODEL_BY_KIND: dict[str, type[TokenItem] | type[PhraseItem]] = {
     "token": TokenItem,
     "phrase": PhraseItem,
 }
@@ -287,7 +287,7 @@ async def get_queue(
             return [], daily
         fetch = min(NEW_SESSION_LIMIT, max(0, daily.limit - daily.done_today))
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
-        for kind, model in _VOCAB_MODEL_BY_KIND.items():
+        for kind, model in VOCAB_MODEL_BY_KIND.items():
             stmt = (
                 _mode_stmt(kind, model)
                 .where(ReviewItem.last_reviewed_at.is_(None))
@@ -301,7 +301,7 @@ async def get_queue(
 
     if mode == "practice":
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
-        for kind, model in _VOCAB_MODEL_BY_KIND.items():
+        for kind, model in VOCAB_MODEL_BY_KIND.items():
             stmt = (
                 _mode_stmt(kind, model)
                 .where(model.confidence >= 4)
@@ -371,7 +371,7 @@ async def answer(
     ri = await session.get(ReviewItem, review_item_id)
     if ri is None or ri.user_id != user_id or not ri.is_active:
         raise ReviewItemNotFound(str(review_item_id))
-    item = await session.get(_VOCAB_MODEL_BY_KIND[ri.item_kind], ri.item_id)
+    item = await session.get(VOCAB_MODEL_BY_KIND[ri.item_kind], ri.item_id)
     if item is None or item.user_id != user_id or item.status != "tracked":
         raise ReviewItemNotFound(str(review_item_id))
 
@@ -439,7 +439,7 @@ async def get_counts(
         extra_where: Callable[[type[TokenItem] | type[PhraseItem]], list[ColumnElement[bool]]],
     ) -> int:
         total = 0
-        for kind, model in _VOCAB_MODEL_BY_KIND.items():
+        for kind, model in VOCAB_MODEL_BY_KIND.items():
             stmt = (
                 select(func.count())
                 .select_from(ReviewItem)
