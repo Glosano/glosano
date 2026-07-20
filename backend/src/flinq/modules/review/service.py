@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from flinq.modules.identity.models import UserSettings
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.sm2 import INITIAL_STATE, state_to_json
+from flinq.modules.review.sm2 import INITIAL_STATE, apply_answer, state_from_json, state_to_json
 from flinq.modules.vocabulary.models import PersonalNote, PersonalTranslation, PhraseItem, TokenItem
 
 
@@ -268,3 +268,83 @@ async def get_queue(
     remaining = max(0, daily.limit - daily.done_today)
     pairs = pairs[: min(remaining, MAX_QUEUE_SIZE)]
     return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
+
+
+class ReviewItemNotFound(Exception):  # noqa: N818 -- matches vocabulary exception naming
+    """Review item does not exist, is inactive, or is not owned by the user."""
+
+
+_VOCAB_MODEL_BY_KIND: dict[str, type[TokenItem] | type[PhraseItem]] = {
+    "token": TokenItem,
+    "phrase": PhraseItem,
+}
+
+
+@dataclass
+class AnswerResult:
+    new_confidence: int | None
+    new_status: str
+    due_at: datetime
+    done_today: int
+
+
+async def answer(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    review_item_id: uuid.UUID,
+    answer_value: str,
+    now: datetime | None = None,
+) -> AnswerResult:
+    now = now or datetime.now(UTC)
+    ri = await session.get(ReviewItem, review_item_id)
+    if ri is None or ri.user_id != user_id or not ri.is_active:
+        raise ReviewItemNotFound(str(review_item_id))
+    item = await session.get(_VOCAB_MODEL_BY_KIND[ri.item_kind], ri.item_id)
+    if item is None or item.user_id != user_id or item.status != "tracked":
+        raise ReviewItemNotFound(str(review_item_id))
+
+    correct = answer_value == "correct"
+    prev_confidence = item.confidence if item.confidence is not None else 0
+    prev_due = ri.due_at
+
+    new_state, due_at = apply_answer(
+        state_from_json(ri.algorithm_state_json), correct=correct, now=now
+    )
+    ri.algorithm_state_json = state_to_json(new_state)
+    ri.due_at = due_at
+    ri.last_reviewed_at = now
+
+    new_confidence: int | None
+    if correct and prev_confidence >= 5:
+        # Graduation (ADR-0005): «верно» при confidence 5 -> known, review закрывается.
+        item.status = "known"
+        item.confidence = None
+        ri.is_active = False
+        new_confidence = None
+        new_status = "known"
+    else:
+        new_confidence = min(5, prev_confidence + 1) if correct else max(0, prev_confidence - 1)
+        item.confidence = new_confidence
+        new_status = "tracked"
+
+    session.add(
+        ReviewEvent(
+            review_item_id=ri.id,
+            user_id=user_id,
+            answer_value=answer_value,
+            previous_confidence=prev_confidence,
+            new_confidence=new_confidence,
+            previous_due_at=prev_due,
+            new_due_at=due_at,
+            reviewed_at=now,
+        )
+    )
+    await session.commit()
+    daily = await _daily_info(session, user_id=user_id, now=now)
+    return AnswerResult(
+        new_confidence=new_confidence,
+        new_status=new_status,
+        due_at=due_at,
+        done_today=daily.done_today,
+    )
