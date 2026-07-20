@@ -43,7 +43,7 @@ export function QuizSession({ lang, kind }: { lang: string; kind: QuizKind }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const states = SessionStates(s, SUBTITLES[kind])
+  const states = SessionStates(s, SUBTITLES[kind], { showWriting: true })
   if (states) return states
   const item = s.current!
   const payload = exercise.data?.payload

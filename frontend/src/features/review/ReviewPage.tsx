@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 
 import type { ReviewMode } from '@/api/review'
 import { GradeBar } from './GradeBar'
@@ -8,6 +7,7 @@ import { NewWordsSession } from './NewWordsSession'
 import { QuizSession } from './QuizSession'
 import { ReviewCard } from './ReviewCard'
 import { GraduationToast, SessionShell, SessionStates } from './sessionUi'
+import { TranslationSession } from './TranslationSession'
 import { useReviewSession } from './useReviewSession'
 
 interface Props {
@@ -23,24 +23,7 @@ export function ReviewPage({ lang, lessonId, mode }: Props) {
   if (mode === 'new') return <NewWordsSession lang={lang} />
   if (mode === 'cloze') return <QuizSession lang={lang} kind="cloze" />
   if (mode === 'reverse') return <QuizSession lang={lang} kind="reverse" />
-  // Task 12 заменяет эту заглушку на настоящую сессию
-  return <ModePlaceholder lang={lang} />
-}
-
-function ModePlaceholder({ lang }: { lang: string }) {
-  const navigate = useNavigate()
-  return (
-    <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center px-4 text-center">
-      <p>Режим в разработке</p>
-      <button
-        type="button"
-        className="mt-3 underline"
-        onClick={() => void navigate({ to: '/learn/$lang/review', params: { lang }, search: {} })}
-      >
-        Назад
-      </button>
-    </div>
-  )
+  return <TranslationSession lang={lang} />
 }
 
 function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | undefined }) {

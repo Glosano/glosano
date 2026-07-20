@@ -3,6 +3,7 @@
 - Статус: Accepted
 - Дата: 2026-04-11
 - Амендмент: 2026-07-12 — bulk-known распространён на sentence mode («next sentence» = «next page» для текущего предложения); уточнена семантика `confidence 0` (floor SRS, при создании не используется — новые items стартуют с `1`)
+- Амендмент: 2026-07-20 — FLQ-20: самооценка 0..5 заменяет бинарный ответ ревью; правило confidence: q≤2 → −1, q=3 → 0, q≥4 → +1; graduation: q≥4 при confidence 5. Источник правил — docs/superpowers/specs/2026-07-20-word-trainer-design.md §3.
 - Supersedes: `docs/adr/ADR-0002-word-status-model-and-reader-ui.md`
 - Связан со: `docs/specs/2026-04-11-mvp-product-alignment-design.md` §9, ADR-0001, `docs/architecture/2026-04-11-mvp-architecture-overview.md` §7.4, §10.3
 
@@ -48,7 +49,7 @@ ADR-0002 явно рассмотрел оба аргумента в раздел
 | `new` | `tracked` | клик по слову + «Add to study» в карточке; `confidence` стартует с `1` (или с выбранного пользователем значения при сохранении) |
 | `new` | `known` | **bulk при переходе вперёд:** «next page» переводит все `new` occurrences текущей страницы в `known`; в sentence mode то же делает «next sentence» для текущего предложения |
 | `new` | `ignored` | клик по слову + «Ignore» в карточке |
-| `tracked` | `tracked` (`confidence ±1`) | ответ в review session (правильно → `+1`, ошибка → `-1`, не опускаясь ниже `0`) |
+| `tracked` | `tracked` (`confidence ±1`) | ответ в review session (quality q≥4 → +1, q=3 → 0, q≤2 → −1, не опускаясь ниже 0) |
 | `tracked` | `known` | SRS-graduation по достижении `confidence = 5` и очередного успешного повторения, **или** ручная пометка «Move to known» в карточке |
 | `tracked` | `ignored` | ручная пометка «Move to ignored» в карточке |
 | `known` | `tracked` | ручной revert «Move back to tracked» в карточке (edge case) |

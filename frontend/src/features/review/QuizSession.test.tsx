@@ -76,3 +76,44 @@ describe('QuizSession (cloze)', () => {
     expect(await screen.findByText('✅ Верно!')).toBeTruthy()
   })
 })
+
+describe('QuizSession final screen — writing exercise', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
+    vi.mocked(reviewApi.exercise).mockResolvedValue(CLOZE)
+  })
+
+  it('shows writing exercise button on mistake (quality < 4), renders text on click', async () => {
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: 1, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+    renderQuiz()
+    fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
+    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
+    expect(await screen.findByText('Сессия завершена')).toBeTruthy()
+
+    const writingButton = screen.getByRole('button', { name: 'Письменное упражнение по ошибкам' })
+    vi.mocked(reviewApi.exercise).mockResolvedValue({
+      payload: { text: '1. ___ dia...\nОтветы: Cada' }, model: 'm', latency_ms: 5,
+    })
+    fireEvent.click(writingButton)
+    await waitFor(() =>
+      expect(reviewApi.exercise).toHaveBeenCalledWith({ kind: 'writing', review_item_ids: ['R1'] }),
+    )
+    expect(await screen.findByText(/Ответы: Cada/)).toBeTruthy()
+  })
+
+  it('hides writing exercise button when all answers are correct (quality >= 4)', async () => {
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: 3, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+    renderQuiz()
+    fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
+    fireEvent.click(screen.getByRole('button', { name: /^5/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 5))
+    expect(await screen.findByText('Сессия завершена')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Письменное упражнение по ошибкам' })).toBeNull()
+  })
+})

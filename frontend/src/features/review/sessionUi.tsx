@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import { useMutation } from '@tanstack/react-query'
 
+import { reviewApi } from '@/api/review'
 import type { ReviewSessionResult } from './useReviewSession'
 
 interface SessionShellProps {
@@ -55,6 +57,7 @@ interface SessionSummaryProps {
   graduated: boolean
   dismissGraduation: () => void
   lessonId?: string
+  showWriting?: boolean
 }
 
 export function SessionSummary({
@@ -63,9 +66,19 @@ export function SessionSummary({
   graduated,
   dismissGraduation,
   lessonId,
+  showWriting,
 }: SessionSummaryProps) {
   const avg = results.length > 0 ? results.reduce((sum, r) => sum + r.quality, 0) / results.length : 0
   const toRepeat = results.filter((r) => r.quality < 4)
+
+  const writing = useMutation({
+    mutationFn: () =>
+      reviewApi.exercise<{ text: string }>({
+        kind: 'writing',
+        review_item_ids: toRepeat.map((r) => r.item.review_item_id),
+      }),
+  })
+
   return (
     <>
       <p className="text-lg font-medium">Сессия завершена</p>
@@ -82,6 +95,36 @@ export function SessionSummary({
       <button type="button" className="mt-3 underline" onClick={restart}>
         {lessonId ? 'Пройти ещё раз' : 'Повторить ошибки'}
       </button>
+      {showWriting && toRepeat.length > 0 && (
+        <div className="mt-4">
+          {!writing.data && (
+            <button
+              type="button"
+              className="underline"
+              disabled={writing.isPending}
+              onClick={() => writing.mutate()}
+            >
+              Письменное упражнение по ошибкам
+            </button>
+          )}
+          {writing.isPending && (
+            <p className="mt-2 text-sm text-muted-foreground">Готовим упражнение…</p>
+          )}
+          {writing.isError && (
+            <div className="mt-2">
+              <p className="text-sm text-destructive">Не удалось сгенерировать упражнение</p>
+              <button type="button" className="underline" onClick={() => writing.mutate()}>
+                Повторить
+              </button>
+            </div>
+          )}
+          {writing.data && (
+            <pre className="mt-4 whitespace-pre-wrap text-left text-sm">
+              {writing.data.payload.text}
+            </pre>
+          )}
+        </div>
+      )}
       {graduated && <GraduationToast onDismiss={dismissGraduation} />}
     </>
   )
@@ -94,7 +137,7 @@ export function SessionSummary({
 export function SessionStates(
   s: ReviewSessionResult,
   subtitle?: string,
-  opts?: { lessonId?: string },
+  opts?: { lessonId?: string; showWriting?: boolean },
 ) {
   if (s.status === 'loading') {
     return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
@@ -136,6 +179,7 @@ export function SessionStates(
           graduated={s.graduated}
           dismissGraduation={s.dismissGraduation}
           lessonId={opts?.lessonId}
+          showWriting={opts?.showWriting}
         />
       </SessionShell>
     )
