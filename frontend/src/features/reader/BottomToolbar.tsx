@@ -7,6 +7,8 @@ interface Props {
   onToggleMode: () => void
   /** Сжать сетку действий на ширину открытой боковой панели WordCard. */
   panelOpen?: boolean
+  /** Переход к lesson-scoped review (FLQ-7). Кнопка активна, если передан. */
+  onReview?: () => void
 }
 
 interface ActionProps {
@@ -34,7 +36,7 @@ function Action({ icon, label, onClick, disabled, title }: ActionProps) {
   )
 }
 
-export function BottomToolbar({ mode, onToggleMode, panelOpen }: Props) {
+export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview }: Props) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-[var(--z-fixed)] border-t border-border bg-background">
       <div
@@ -49,7 +51,13 @@ export function BottomToolbar({ mode, onToggleMode, panelOpen }: Props) {
           label={mode === 'sentence' ? 'Показать всю страницу' : 'По предложениям'}
           onClick={onToggleMode}
         />
-        <Action icon="✓" label="Повторить лексику" disabled title="Скоро (FLQ-7)" />
+        <Action
+          icon="✓"
+          label="Повторить лексику"
+          onClick={onReview}
+          disabled={!onReview}
+          title={onReview ? undefined : 'Скоро (FLQ-7)'}
+        />
       </div>
     </div>
   )

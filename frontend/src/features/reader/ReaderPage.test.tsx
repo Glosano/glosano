@@ -445,4 +445,23 @@ describe('ReaderPage', () => {
     )
     expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
   })
+
+  it('кнопка «Повторить лексику» ведёт на review с lessonId', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+
+    renderPage()
+
+    const btn = await screen.findByRole('button', { name: /Повторить лексику/ })
+    expect((btn as HTMLButtonElement).disabled).toBe(false)
+
+    fireEvent.click(btn)
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/learn/$lang/review',
+      params: { lang: 'en' },
+      search: { lessonId: 'lesson-1' },
+    })
+  })
 })

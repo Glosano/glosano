@@ -483,6 +483,13 @@ export function ReaderPage({ lang, lessonId }: Props) {
         mode={mode}
         onToggleMode={() => setMode(mode === 'page' ? 'sentence' : 'page')}
         panelOpen={selectedWord !== null}
+        onReview={() =>
+          void navigate({
+            to: '/learn/$lang/review',
+            params: { lang },
+            search: { lessonId },
+          })
+        }
       />
 
       <WordCard
