@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { reviewApi, type ReviewDaily, type ReviewQueueItem } from '@/api/review'
@@ -57,7 +57,7 @@ export function useReviewSession(
   // на следующем ответе (пересчитывается в onSuccess) либо по авто-таймеру.
   const [graduated, setGraduated] = useState(false)
 
-  const restart = () => {
+  const restart = useCallback(() => {
     setSession(null)
     // Устаревший graduation-тост от прошлой сессии не должен всплыть на первой
     // карточке новой — сбрасываем явно, а не полагаемся на следующий ответ.
@@ -67,7 +67,7 @@ export function useReviewSession(
     void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
     void queryClient.invalidateQueries({ queryKey: ['phrases'] })
     void refetch()
-  }
+  }, [queryClient, refetch])
 
   const answerMutation = useMutation({
     mutationFn: ({ id, quality }: { id: string; quality: number }) => reviewApi.answer(id, quality),
@@ -100,18 +100,22 @@ export function useReviewSession(
   }, [session, queryClient])
 
   const current = session?.items[session.idx]
+  const { isPending: isAnswering, mutate: mutateAnswer } = answerMutation
 
-  const grade = (quality: number) => {
-    if (!current || answerMutation.isPending) return
-    answerMutation.mutate({ id: current.review_item_id, quality })
-  }
+  const grade = useCallback(
+    (quality: number) => {
+      if (!current || isAnswering) return
+      mutateAnswer({ id: current.review_item_id, quality })
+    },
+    [current, isAnswering, mutateAnswer],
+  )
 
-  const skip = () => {
+  const skip = useCallback(() => {
     setSession((s) => {
       if (s === null) return s
       return { ...s, idx: s.idx + 1 }
     })
-  }
+  }, [])
 
   let status: ReviewSessionResult['status']
   if (isPending) {
@@ -126,6 +130,9 @@ export function useReviewSession(
     status = 'done'
   }
 
+  const dismissGraduation = useCallback(() => setGraduated(false), [])
+  const retryQueue = useCallback(() => void refetch(), [refetch])
+
   return {
     status,
     daily: data?.daily,
@@ -136,10 +143,10 @@ export function useReviewSession(
     answering: answerMutation.isPending,
     answerError,
     graduated,
-    dismissGraduation: () => setGraduated(false),
+    dismissGraduation,
     grade,
     skip,
     restart,
-    retryQueue: () => void refetch(),
+    retryQueue,
   }
 }
