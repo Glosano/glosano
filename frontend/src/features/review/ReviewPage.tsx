@@ -5,6 +5,7 @@ import type { ReviewMode } from '@/api/review'
 import { GradeBar } from './GradeBar'
 import { ModeSelect } from './ModeSelect'
 import { NewWordsSession } from './NewWordsSession'
+import { QuizSession } from './QuizSession'
 import { ReviewCard } from './ReviewCard'
 import { GraduationToast, SessionShell, SessionStates } from './sessionUi'
 import { useReviewSession } from './useReviewSession'
@@ -20,7 +21,9 @@ export function ReviewPage({ lang, lessonId, mode }: Props) {
   if (!mode) return <ModeSelect lang={lang} />
   if (mode === 'cards') return <CardsSession lang={lang} lessonId={undefined} />
   if (mode === 'new') return <NewWordsSession lang={lang} />
-  // Tasks 11-12 заменяют эти заглушки на настоящие сессии
+  if (mode === 'cloze') return <QuizSession lang={lang} kind="cloze" />
+  if (mode === 'reverse') return <QuizSession lang={lang} kind="reverse" />
+  // Task 12 заменяет эту заглушку на настоящую сессию
   return <ModePlaceholder lang={lang} />
 }
 
