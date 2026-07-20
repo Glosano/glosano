@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { reviewApi, type ReviewQueueItem } from '@/api/review'
+import { ReviewCard } from './ReviewCard'
 
 interface Props {
   lang: string
@@ -45,6 +46,65 @@ export function ReviewPage({ lang, lessonId }: Props) {
     void refetch()
   }
 
+  const [flipped, setFlipped] = useState(false)
+  const [answerError, setAnswerError] = useState<string | null>(null)
+
+  const answerMutation = useMutation({
+    mutationFn: ({ id, a }: { id: string; a: 'correct' | 'wrong' }) => reviewApi.answer(id, a),
+    onSuccess: (_res, { a }) => {
+      setAnswerError(null)
+      setFlipped(false)
+      setSession((s) => {
+        if (s === null) return s
+        return {
+          ...s,
+          idx: s.idx + 1,
+          correct: s.correct + (a === 'correct' ? 1 : 0),
+          wrong: s.wrong + (a === 'wrong' ? 1 : 0),
+        }
+      })
+    },
+    onError: () => setAnswerError('Не удалось сохранить ответ'),
+  })
+
+  // Сессия завершена: подсветка reader и списки словаря должны подтянуть
+  // новые confidence/status (spec §6). Держим инвалидацию вне setSession —
+  // апдейтер должен оставаться чистым (StrictMode/concurrent re-invocation).
+  useEffect(() => {
+    if (session && session.idx >= session.items.length) {
+      void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
+      void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
+    }
+  }, [session, queryClient])
+
+  const current = session?.items[session.idx]
+
+  const handleAnswer = useCallback(
+    (a: 'correct' | 'wrong') => {
+      if (!current || answerMutation.isPending) return
+      answerMutation.mutate({ id: current.review_item_id, a })
+    },
+    [current, answerMutation],
+  )
+
+  // хоткеи: Space — flip, 1 — ошибка, 2 — знаю (после переворота)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (!current) return
+      if (e.key === ' ') {
+        e.preventDefault()
+        setFlipped(true)
+      } else if (flipped && e.key === '1') {
+        handleAnswer('wrong')
+      } else if (flipped && e.key === '2') {
+        handleAnswer('correct')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [current, flipped, handleAnswer])
+
   if (isPending) {
     return <Shell lessonId={lessonId}>Загрузка…</Shell>
   }
@@ -77,9 +137,7 @@ export function ReviewPage({ lang, lessonId }: Props) {
     )
   }
 
-  const current = session.items[session.idx]
   if (!current) {
-    // Финальный экран — дополняется в Task 9 (кнопка «Повторить ошибки»).
     return (
       <Shell lessonId={lessonId}>
         <p className="text-lg font-medium">Сессия завершена</p>
@@ -98,8 +156,14 @@ export function ReviewPage({ lang, lessonId }: Props) {
       <p className="mb-4 text-sm text-muted-foreground">
         {session.idx + 1} / {session.items.length}
       </p>
-      {/* Task 9 заменяет этот блок на <ReviewCard …> */}
-      <p className="text-2xl">{current.text}</p>
+      <ReviewCard
+        item={current}
+        flipped={flipped}
+        answering={answerMutation.isPending}
+        error={answerError}
+        onFlip={() => setFlipped(true)}
+        onAnswer={handleAnswer}
+      />
     </Shell>
   )
 }
