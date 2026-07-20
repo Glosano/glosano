@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -59,6 +59,7 @@ export function addedAfterFromPreset(preset: 'all' | '7d' | '30d'): string | und
 }
 
 export function VocabularyPage({ lang, tab }: Props) {
+  const navigate = useNavigate()
   const q = useVocabularyStore((s) => s.q)
   const statuses = useVocabularyStore((s) => s.statuses)
   const confidence = useVocabularyStore((s) => s.confidence)
@@ -204,6 +205,14 @@ export function VocabularyPage({ lang, tab }: Props) {
             </SelectContent>
           </Select>
           <BulkActionsMenu count={selection.length} onAction={handleBulkAction} />
+          <Button
+            type="button"
+            size="lg"
+            className="bg-[#45B082] text-[13px] font-medium text-white hover:bg-[#3da075]"
+            onClick={() => { navigate({ to: '/learn/$lang/review', params: { lang } }) }}
+          >
+            ⟳ Повтор лексики
+          </Button>
         </div>
       </div>
       <div className="py-6">

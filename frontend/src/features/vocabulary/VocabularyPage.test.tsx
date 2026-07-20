@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
+
 vi.mock('@tanstack/react-router', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
   Link: ({ children, className, to }: { children?: ReactNode; className?: string; to?: string }) => (
     <a className={className} href={to}>{children}</a>
   ),
@@ -258,5 +260,21 @@ describe('VocabularyPage states', () => {
     const dueButton = screen.getByRole('button', { name: 'К повторению' })
     expect(dueButton).toBeDisabled()
     expect(dueButton).toHaveAttribute('title', 'Появится позже')
+  })
+
+  it('renders the «⟳ Повтор лексики» button and navigates to the global review route on click', async () => {
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 25 })
+
+    renderPage()
+
+    await screen.findAllByRole('button', { name: 'abaixaram' })
+
+    const reviewButton = screen.getByRole('button', { name: '⟳ Повтор лексики' })
+    fireEvent.click(reviewButton)
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/learn/$lang/review',
+      params: { lang: 'pt' },
+    })
   })
 })

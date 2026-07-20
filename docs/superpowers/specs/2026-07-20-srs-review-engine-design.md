@@ -97,6 +97,7 @@ Confidence (в `review/service.py`, не в sm2.py): верно → `min(5, c+1)
   - Graduation в ответе (`new_status: 'known'`) → тост «Слово выучено ✓».
   - По завершении сессии — инвалидация vocabulary/reader query-ключей (подсветка и списки подтянут новые confidence/status).
 - **Mini-review**: `BottomToolbar.tsx` — кнопка «Повторить лексику» (стаб на строке ~52) получает `lessonId`, `navigate` на `/learn/$lang/review?lessonId=...`.
+- Точка входа в глобальный review: кнопка "⟳ Повтор лексики" в шапке страницы словаря; lesson-scoped вход — из reader BottomToolbar.
 - **Мобильный**: одна колонка, карточка на всю ширину, крупные кнопки ответа внизу.
 
 ## 7. Обработка ошибок
