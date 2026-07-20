@@ -11,8 +11,8 @@ const ITEM = {
 
 function renderCard(over: Partial<Parameters<typeof ReviewCard>[0]> = {}) {
   const props = {
-    item: ITEM, flipped: false, answering: false, error: null,
-    onFlip: vi.fn(), onAnswer: vi.fn(),
+    item: ITEM, flipped: false, error: null,
+    onFlip: vi.fn(),
     ...over,
   }
   render(<ReviewCard {...props} />)
@@ -34,14 +34,12 @@ describe('ReviewCard', () => {
     expect(p.onFlip).toHaveBeenCalled()
   })
 
-  it('back shows translation, notes and answer buttons', () => {
-    const p = renderCard({ flipped: true })
+  it('back shows translation and notes, no answer buttons', () => {
+    renderCard({ flipped: true })
     expect(screen.getByText('каждый')).toBeTruthy()
     expect(screen.getByText('заметка')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '✗ Ошибка' }))
-    expect(p.onAnswer).toHaveBeenCalledWith('wrong')
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
-    expect(p.onAnswer).toHaveBeenCalledWith('correct')
+    expect(screen.queryByRole('button', { name: '✗ Ошибка' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '✓ Знаю' })).toBeNull()
   })
 
   it('back without translation shows dash', () => {
@@ -49,12 +47,8 @@ describe('ReviewCard', () => {
     expect(screen.getByText('—')).toBeTruthy()
   })
 
-  it('answer buttons disabled while answering, error shown', () => {
-    const p = renderCard({ flipped: true, answering: true, error: 'Не удалось сохранить ответ' })
+  it('shows error on back', () => {
+    renderCard({ flipped: true, error: 'Не удалось сохранить ответ' })
     expect(screen.getByText('Не удалось сохранить ответ')).toBeTruthy()
-    const btn = screen.getByRole('button', { name: '✓ Знаю' }) as HTMLButtonElement
-    expect(btn.disabled).toBe(true)
-    fireEvent.click(btn)
-    expect(p.onAnswer).not.toHaveBeenCalled()
   })
 })

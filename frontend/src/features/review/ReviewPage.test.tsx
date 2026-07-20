@@ -3,17 +3,21 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/review', () => ({
-  reviewApi: { queue: vi.fn(), answer: vi.fn() },
+  reviewApi: { queue: vi.fn(), answer: vi.fn(), counts: vi.fn() },
 }))
 
+const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
+vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigateMock }))
+
+import type { ReviewMode } from '@/api/review'
 import { reviewApi } from '@/api/review'
 import { ReviewPage } from './ReviewPage'
 
-function renderPage(lessonId?: string) {
+function renderPage({ lessonId, mode }: { lessonId?: string; mode?: ReviewMode } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const result = render(
     <QueryClientProvider client={qc}>
-      <ReviewPage lang="pt" lessonId={lessonId} />
+      <ReviewPage lang="pt" lessonId={lessonId} mode={mode} />
     </QueryClientProvider>,
   )
   return { ...result, qc }
@@ -31,7 +35,7 @@ describe('ReviewPage queue states', () => {
 
   it('shows empty state when queue is empty', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
-    renderPage()
+    renderPage({ mode: 'cards' })
     expect(await screen.findByText('Всё повторено')).toBeTruthy()
   })
 
@@ -40,63 +44,66 @@ describe('ReviewPage queue states', () => {
       items: [],
       daily: { limit: 20, done_today: 20, limit_reached: true },
     })
-    renderPage()
+    renderPage({ mode: 'cards' })
     expect(await screen.findByText('Дневной лимит достигнут')).toBeTruthy()
   })
 
   it('shows error state on queue failure', async () => {
     vi.mocked(reviewApi.queue).mockRejectedValue(new Error('boom'))
-    renderPage()
+    renderPage({ mode: 'cards' })
     expect(await screen.findByText('Не удалось загрузить очередь')).toBeTruthy()
   })
 
   it('renders first card and progress counter when queue has items', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
-    renderPage()
+    renderPage({ mode: 'cards' })
     expect(await screen.findByText('cada')).toBeTruthy()
     expect(screen.getByText('1 / 1')).toBeTruthy()
   })
 
   it('passes lessonId to queue and shows lesson subtitle', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
-    renderPage('L1')
+    renderPage({ lessonId: 'L1' })
     expect(await screen.findByText('Слова урока')).toBeTruthy()
-    expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1')
+    expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined)
   })
 })
 
 const ITEM2 = { ...ITEM, review_item_id: 'R2', item_id: 'I2', text: 'mundo', translation: 'мир' }
 
-describe('ReviewPage session flow', () => {
+describe('ReviewPage session flow (cards mode)', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('flip -> correct answer -> next card -> final screen', async () => {
+  it('flip -> GradeBar click -> next card -> final screen with stats', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM, ITEM2], daily: DAILY })
     vi.mocked(reviewApi.answer).mockResolvedValue({
       new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
     })
-    renderPage()
+    renderPage({ mode: 'cards' })
     fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
-    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
+    fireEvent.click(screen.getByRole('button', { name: /^5/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 5))
     expect(await screen.findByText('mundo')).toBeTruthy()
     expect(screen.getByText('2 / 2')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Показать перевод' }))
-    fireEvent.click(screen.getByRole('button', { name: '✗ Ошибка' }))
+    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R2', 2))
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
-    expect(screen.getByText('Верно: 1 · Ошибки: 1')).toBeTruthy()
+    expect(screen.getByText('Средняя оценка: 3.5')).toBeTruthy()
+    expect(screen.getByText(/Повторите ещё раз: mundo — мир/)).toBeTruthy()
+    expect(screen.queryByText(/Повторите ещё раз: cada/)).toBeNull()
   })
 
-  it('keyboard: Space flips, 2 answers correct', async () => {
+  it('keyboard: Space flips, 4 grades the card', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
     vi.mocked(reviewApi.answer).mockResolvedValue({
       new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
     })
-    renderPage()
+    renderPage({ mode: 'cards' })
     await screen.findByText('cada')
     fireEvent.keyDown(window, { key: ' ' })
-    expect(await screen.findByRole('button', { name: '✓ Знаю' })).toBeTruthy()
-    fireEvent.keyDown(window, { key: '2' })
+    expect(await screen.findByRole('button', { name: /^4/ })).toBeTruthy()
+    fireEvent.keyDown(window, { key: '4' })
     await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
   })
 
@@ -105,12 +112,12 @@ describe('ReviewPage session flow', () => {
     vi.mocked(reviewApi.answer).mockRejectedValueOnce(new Error('boom')).mockResolvedValue({
       new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
     })
-    renderPage()
+    renderPage({ mode: 'cards' })
     fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
+    fireEvent.click(screen.getByRole('button', { name: /^4/ }))
     expect(await screen.findByText('Не удалось сохранить ответ')).toBeTruthy()
     expect(screen.getByText('cada')).toBeTruthy() // карточка осталась
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' })) // retry
+    fireEvent.click(screen.getByRole('button', { name: /^4/ })) // retry
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
   })
 
@@ -122,10 +129,10 @@ describe('ReviewPage session flow', () => {
     vi.mocked(reviewApi.answer).mockResolvedValue({
       new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
     })
-    const { qc } = renderPage()
+    const { qc } = renderPage({ mode: 'cards' })
     const invalidateSpy = vi.spyOn(qc, 'invalidateQueries')
     fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
+    fireEvent.click(screen.getByRole('button', { name: /^4/ }))
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
     expect(reviewApi.queue).toHaveBeenCalledTimes(1)
 
@@ -149,9 +156,9 @@ describe('ReviewPage session flow', () => {
     vi.mocked(reviewApi.answer).mockResolvedValue({
       new_confidence: null, new_status: 'known', due_at: '2026-07-21T12:00:00Z', done_today: 1,
     })
-    renderPage()
+    renderPage({ mode: 'cards' })
     fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
+    fireEvent.click(screen.getByRole('button', { name: /^5/ }))
     expect(await screen.findByText('Слово выучено ✓')).toBeTruthy()
   })
 
@@ -162,14 +169,26 @@ describe('ReviewPage session flow', () => {
     vi.mocked(reviewApi.answer).mockResolvedValue({
       new_confidence: null, new_status: 'known', due_at: '2026-07-21T12:00:00Z', done_today: 1,
     })
-    renderPage()
+    renderPage({ mode: 'cards' })
     fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
-    fireEvent.click(screen.getByRole('button', { name: '✓ Знаю' }))
+    fireEvent.click(screen.getByRole('button', { name: /^5/ }))
     expect(await screen.findByText('Слово выучено ✓')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Повторить ошибки' }))
 
     expect(await screen.findByText('mundo')).toBeTruthy()
     expect(screen.queryByText('Слово выучено ✓')).toBeNull()
+  })
+})
+
+describe('ReviewPage mode select', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renders ModeSelect with tiles and counts when no mode is given', async () => {
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 3, new: 2, practice: 1, ai_enabled: true })
+    renderPage({})
+    expect(await screen.findByText('Карточки')).toBeTruthy()
+    expect(screen.getByText('Новые слова')).toBeTruthy()
+    expect(reviewApi.queue).not.toHaveBeenCalled()
   })
 })

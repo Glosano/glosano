@@ -1,106 +1,67 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 
-import { reviewApi, type ReviewQueueItem } from '@/api/review'
+import type { ReviewMode } from '@/api/review'
+import { GradeBar } from './GradeBar'
+import { ModeSelect } from './ModeSelect'
 import { ReviewCard } from './ReviewCard'
+import { useReviewSession } from './useReviewSession'
 
 interface Props {
   lang: string
   lessonId: string | undefined
+  mode: ReviewMode | undefined
 }
 
-interface SessionState {
-  items: ReviewQueueItem[]
-  idx: number
-  correct: number
-  wrong: number
+export function ReviewPage({ lang, lessonId, mode }: Props) {
+  if (lessonId) return <CardsSession lang={lang} lessonId={lessonId} />
+  if (!mode) return <ModeSelect lang={lang} />
+  if (mode === 'cards') return <CardsSession lang={lang} lessonId={undefined} />
+  // Tasks 10-12 заменяют эти заглушки на настоящие сессии
+  return <ModePlaceholder lang={lang} />
 }
 
-export function ReviewPage({ lang, lessonId }: Props) {
-  const queryClient = useQueryClient()
-  const { data, isPending, isError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ['review-queue', lang, lessonId ?? null],
-    queryFn: () => reviewApi.queue(lang, lessonId),
-    staleTime: Infinity,
-    gcTime: 0,
-    refetchOnWindowFocus: false,
-  })
-  // Сессия — локальный снапшот очереди: рефетчи посреди сессии её не трогают.
-  const [session, setSession] = useState<SessionState | null>(null)
-  // Отслеживаем момент последнего сидирования, чтобы restart() не пересеял сессию
-  // тем же устаревшим data, пока идёт refetch (TanStack хранит старые данные in-flight).
-  const seededAtRef = useRef(0)
+function ModePlaceholder({ lang }: { lang: string }) {
+  const navigate = useNavigate()
+  return (
+    <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center px-4 text-center">
+      <p>Режим в разработке</p>
+      <button
+        type="button"
+        className="mt-3 underline"
+        onClick={() => void navigate({ to: '/learn/$lang/review', params: { lang }, search: {} })}
+      >
+        Назад
+      </button>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    if (data && session === null && data.items.length > 0 && dataUpdatedAt > seededAtRef.current) {
-      seededAtRef.current = dataUpdatedAt
-      setSession({ items: data.items, idx: 0, correct: 0, wrong: 0 })
-    }
-  }, [data, dataUpdatedAt, session])
-
-  const restart = () => {
-    setSession(null)
-    // Устаревший graduation-тост от прошлой сессии не должен всплыть на первой
-    // карточке новой — сбрасываем явно, а не полагаемся на следующий ответ.
-    setShowGraduationToast(false)
-    // Подсветка/списки могли устареть после ответов — сбрасываем перед новой очередью.
-    void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
-    void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
-    void queryClient.invalidateQueries({ queryKey: ['phrases'] })
-    void refetch()
-  }
+function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | undefined }) {
+  const {
+    status,
+    daily,
+    current,
+    idx,
+    total,
+    results,
+    answering,
+    answerError,
+    graduated,
+    dismissGraduation,
+    grade,
+    restart,
+    retryQueue,
+  } = useReviewSession(lang, { serverMode: 'due', lessonId })
 
   const [flipped, setFlipped] = useState(false)
-  const [answerError, setAnswerError] = useState<string | null>(null)
-  // Graduation-тост (spec §6): показываем при new_status === 'known', сбрасываем
-  // на следующем ответе (пересчитывается в onSuccess) либо по авто-таймеру.
-  const [showGraduationToast, setShowGraduationToast] = useState(false)
 
-  const answerMutation = useMutation({
-    mutationFn: ({ id, a }: { id: string; a: 'correct' | 'wrong' }) => {
-      // Shim: convert old API (correct/wrong) to new quality-based API (0..5)
-      const quality = a === 'correct' ? 4 : 2
-      return reviewApi.answer(id, quality)
-    },
-    onSuccess: (res, { a }) => {
-      setAnswerError(null)
-      setFlipped(false)
-      setShowGraduationToast(res.new_status === 'known')
-      setSession((s) => {
-        if (s === null) return s
-        return {
-          ...s,
-          idx: s.idx + 1,
-          correct: s.correct + (a === 'correct' ? 1 : 0),
-          wrong: s.wrong + (a === 'wrong' ? 1 : 0),
-        }
-      })
-    },
-    onError: () => setAnswerError('Не удалось сохранить ответ'),
-  })
-
-  // Сессия завершена: подсветка reader и списки словаря должны подтянуть
-  // новые confidence/status (spec §6). Держим инвалидацию вне setSession —
-  // апдейтер должен оставаться чистым (StrictMode/concurrent re-invocation).
+  // Флип сбрасывается при переходе к следующей карточке (idx меняется после grade()).
   useEffect(() => {
-    if (session && session.idx >= session.items.length) {
-      void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
-      void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
-      void queryClient.invalidateQueries({ queryKey: ['phrases'] })
-    }
-  }, [session, queryClient])
+    setFlipped(false)
+  }, [idx])
 
-  const current = session?.items[session.idx]
-
-  const handleAnswer = useCallback(
-    (a: 'correct' | 'wrong') => {
-      if (!current || answerMutation.isPending) return
-      answerMutation.mutate({ id: current.review_item_id, a })
-    },
-    [current, answerMutation],
-  )
-
-  // хоткеи: Space — flip, 1 — ошибка, 2 — знаю (после переворота)
+  // хоткеи: Space — flip, 0..5 — оценка (после переворота)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
@@ -108,40 +69,38 @@ export function ReviewPage({ lang, lessonId }: Props) {
       if (e.key === ' ') {
         e.preventDefault()
         setFlipped(true)
-      } else if (flipped && e.key === '1') {
-        handleAnswer('wrong')
-      } else if (flipped && e.key === '2') {
-        handleAnswer('correct')
+      } else if (flipped && /^[0-5]$/.test(e.key)) {
+        grade(Number(e.key))
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [current, flipped, handleAnswer])
+  }, [current, flipped, grade])
 
-  if (isPending) {
+  if (status === 'loading') {
     return <Shell lessonId={lessonId}>Загрузка…</Shell>
   }
-  if (isError) {
+  if (status === 'error') {
     return (
       <Shell lessonId={lessonId}>
         <p className="text-destructive">Не удалось загрузить очередь</p>
-        <button type="button" className="mt-2 underline" onClick={() => void refetch()}>
+        <button type="button" className="mt-2 underline" onClick={() => void retryQueue()}>
           Повторить
         </button>
       </Shell>
     )
   }
-  if (session === null) {
-    if (data.daily.limit_reached) {
-      return (
-        <Shell lessonId={lessonId}>
-          <p className="text-lg font-medium">Дневной лимит достигнут</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Сегодня: {data.daily.done_today} / {data.daily.limit}. Возвращайтесь завтра!
-          </p>
-        </Shell>
-      )
-    }
+  if (status === 'limit') {
+    return (
+      <Shell lessonId={lessonId}>
+        <p className="text-lg font-medium">Дневной лимит достигнут</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Сегодня: {daily?.done_today} / {daily?.limit}. Возвращайтесь завтра!
+        </p>
+      </Shell>
+    )
+  }
+  if (status === 'empty') {
     return (
       <Shell lessonId={lessonId}>
         <p className="text-lg font-medium">Всё повторено</p>
@@ -150,37 +109,42 @@ export function ReviewPage({ lang, lessonId }: Props) {
     )
   }
 
-  if (!current) {
+  if (status === 'done') {
+    const avg = results.length > 0 ? results.reduce((sum, r) => sum + r.quality, 0) / results.length : 0
+    const toRepeat = results.filter((r) => r.quality < 4)
     return (
       <Shell lessonId={lessonId}>
         <p className="text-lg font-medium">Сессия завершена</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Верно: {session.correct} · Ошибки: {session.wrong}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Средняя оценка: {avg.toFixed(1)}</p>
+        {toRepeat.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+            {toRepeat.map((r) => (
+              <li key={r.item.review_item_id}>
+                Повторите ещё раз: {r.item.text} — {r.item.translation ?? '—'}
+              </li>
+            ))}
+          </ul>
+        )}
         <button type="button" className="mt-3 underline" onClick={restart}>
           {lessonId ? 'Пройти ещё раз' : 'Повторить ошибки'}
         </button>
-        {showGraduationToast && (
-          <GraduationToast onDismiss={() => setShowGraduationToast(false)} />
-        )}
+        {graduated && <GraduationToast onDismiss={dismissGraduation} />}
       </Shell>
     )
   }
 
+  // status === 'active' (guaranteed non-empty by useReviewSession)
+  if (!current) {
+    return <Shell lessonId={lessonId}>Загрузка…</Shell>
+  }
   return (
     <Shell lessonId={lessonId}>
       <p className="mb-4 text-sm text-muted-foreground">
-        {session.idx + 1} / {session.items.length}
+        {idx + 1} / {total}
       </p>
-      <ReviewCard
-        item={current}
-        flipped={flipped}
-        answering={answerMutation.isPending}
-        error={answerError}
-        onFlip={() => setFlipped(true)}
-        onAnswer={handleAnswer}
-      />
-      {showGraduationToast && <GraduationToast onDismiss={() => setShowGraduationToast(false)} />}
+      <ReviewCard item={current} flipped={flipped} error={answerError} onFlip={() => setFlipped(true)} />
+      {flipped && <GradeBar onGrade={grade} disabled={answering} />}
+      {graduated && <GraduationToast onDismiss={dismissGraduation} />}
     </Shell>
   )
 }
