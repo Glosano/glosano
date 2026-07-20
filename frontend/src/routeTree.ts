@@ -9,6 +9,7 @@ import { learnLangRoute } from './routes/learn.$lang'
 import { learnLibraryRoute } from './routes/learn.$lang.library'
 import { learnLessonRoute } from './routes/learn.$lang.lessons.$lessonId'
 import { learnVocabularyRoute } from './routes/learn.$lang.vocabulary'
+import { learnReviewRoute } from './routes/learn.$lang.review'
 
 export { rootRoute } from './routes/__rootRoute'
 export type { RouterContext } from './routes/__rootRoute'
@@ -24,5 +25,10 @@ export const routeTree = rootRoute.addChildren([
   loginRoute,
   registerRoute,
   onboardingRoute,
-  learnLangRoute.addChildren([learnLibraryRoute, learnLessonRoute, learnVocabularyRoute]),
+  learnLangRoute.addChildren([
+    learnLibraryRoute,
+    learnLessonRoute,
+    learnVocabularyRoute,
+    learnReviewRoute,
+  ]),
 ])
