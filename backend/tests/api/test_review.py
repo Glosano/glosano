@@ -149,3 +149,61 @@ async def test_queue_mode_new():
         r = await c.get("/api/review/queue", params={"lang": "pt", "mode": "new"})
         assert r.status_code == 200
         assert len(r.json()["items"]) == 1
+
+
+async def test_exercise_returns_503_when_ai_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
+    monkeypatch.setattr(get_settings(), "llm_enabled", False)
+    async with await _client() as c:
+        csrf = await _register(c)
+        await _create_tracked(c, csrf)
+        r = await c.get("/api/review/queue", params={"lang": "pt"})
+        review_item_id = r.json()["items"][0]["review_item_id"]
+        r = await c.post(
+            "/api/review/exercise",
+            headers={"X-CSRF-Token": csrf},
+            json={"kind": "example", "review_item_id": review_item_id},
+        )
+        assert r.status_code == 503
+        assert r.json()["detail"] == "ai_disabled"
+
+
+async def test_exercise_validation_422():
+    async with await _client() as c:
+        csrf = await _register(c)
+        # writing без review_item_ids
+        r = await c.post(
+            "/api/review/exercise",
+            headers={"X-CSRF-Token": csrf},
+            json={"kind": "writing"},
+        )
+        assert r.status_code == 422
+        # example без review_item_id
+        r = await c.post(
+            "/api/review/exercise",
+            headers={"X-CSRF-Token": csrf},
+            json={"kind": "example"},
+        )
+        assert r.status_code == 422
+
+
+async def test_feedback_returns_503_when_ai_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
+    monkeypatch.setattr(get_settings(), "llm_enabled", False)
+    async with await _client() as c:
+        csrf = await _register(c)
+        await _create_tracked(c, csrf)
+        r = await c.get("/api/review/queue", params={"lang": "pt"})
+        review_item_id = r.json()["items"][0]["review_item_id"]
+        r = await c.post(
+            "/api/review/exercise/feedback",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "review_item_id": review_item_id,
+                "sentence_translation": "Каждый день уникален.",
+                "user_text": "Cada dia e unico.",
+            },
+        )
+        assert r.status_code == 503
