@@ -77,6 +77,43 @@ describe('QuizSession (cloze)', () => {
   })
 })
 
+describe('QuizSession (reverse)', () => {
+  const REVERSE = {
+    payload: {
+      sentence: 'Cada dia é único.',
+      options: [
+        { text: 'каждый', is_correct: true },
+        { text: 'весь', is_correct: false },
+        { text: 'любой', is_correct: false },
+        { text: 'никакой', is_correct: false },
+      ],
+    },
+    model: 'm',
+    latency_ms: 5,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
+    vi.mocked(reviewApi.exercise).mockResolvedValue(REVERSE)
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+  })
+
+  it('renders word and sentence, correct option shows feedback then grade bar posts quality', async () => {
+    renderQuiz('reverse')
+    expect(await screen.findByText('Cada dia é único.')).toBeTruthy()
+    expect(reviewApi.exercise).toHaveBeenCalledWith({ kind: 'reverse', review_item_id: 'R1' })
+    expect(screen.getByText('cada')).toBeTruthy()
+    expect(screen.queryByText('___ dia é único.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'каждый' }))
+    expect(await screen.findByText('✅ Верно!')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /4.*/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
+  })
+})
+
 describe('QuizSession final screen — writing exercise', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -103,6 +140,23 @@ describe('QuizSession final screen — writing exercise', () => {
       expect(reviewApi.exercise).toHaveBeenCalledWith({ kind: 'writing', review_item_ids: ['R1'] }),
     )
     expect(await screen.findByText(/Ответы: Cada/)).toBeTruthy()
+  })
+
+  it('shows only the retry CTA (not the original button) after writing mutation fails', async () => {
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: 1, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+    renderQuiz()
+    fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
+    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
+    expect(await screen.findByText('Сессия завершена')).toBeTruthy()
+
+    vi.mocked(reviewApi.exercise).mockRejectedValue(new Error('boom'))
+    fireEvent.click(screen.getByRole('button', { name: 'Письменное упражнение по ошибкам' }))
+    expect(await screen.findByText('Не удалось сгенерировать упражнение')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Письменное упражнение по ошибкам' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Повторить' })).toBeTruthy()
   })
 
   it('hides writing exercise button when all answers are correct (quality >= 4)', async () => {

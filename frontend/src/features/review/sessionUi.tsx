@@ -75,7 +75,8 @@ export function SessionSummary({
     mutationFn: () =>
       reviewApi.exercise<{ text: string }>({
         kind: 'writing',
-        review_item_ids: toRepeat.map((r) => r.item.review_item_id),
+        // backend ExerciseRequest.review_item_ids ограничен max_length=20
+        review_item_ids: toRepeat.slice(0, 20).map((r) => r.item.review_item_id),
       }),
   })
 
@@ -97,7 +98,7 @@ export function SessionSummary({
       </button>
       {showWriting && toRepeat.length > 0 && (
         <div className="mt-4">
-          {!writing.data && (
+          {!writing.data && !writing.isError && (
             <button
               type="button"
               className="underline"
