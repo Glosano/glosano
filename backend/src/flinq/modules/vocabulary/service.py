@@ -131,18 +131,20 @@ def _apply_provenance(
     *,
     lesson_id: uuid.UUID | None,
     segment_id: uuid.UUID | None,
-    is_new: bool,
     status: str,
 ) -> None:
     """Первый урок выигрывает: непустой провенанс не перезаписывается.
 
-    У существующей записи провенанс проставляется только при переводе в
-    tracked — слово, отмеченное known в другом месте, не должно приписываться
-    уроку только потому, что его в нём открыли.
+    Провенанс — атрибут взятия слова в работу, а не атрибут создания записи
+    (решение человека, FLQ-21): пишется только при status == "tracked",
+    независимо от того, новая это запись или существующая. Слово, созданное
+    или открытое как known/ignored, не должно приписываться уроку — иначе
+    оно навсегда займёт провенанс и не попадёт в очередь урока, где его
+    позже реально возьмут в работу (тот же капкан, что был у bulk-known).
     """
     if lesson_id is None or item.created_from_lesson_id is not None:
         return
-    if not is_new and status != "tracked":
+    if status != "tracked":
         return
     item.created_from_lesson_id = lesson_id
     item.created_from_segment_id = segment_id
@@ -215,7 +217,6 @@ async def create_item(
                 existing_phrase,
                 lesson_id=lesson_id,
                 segment_id=segment_id,
-                is_new=False,
                 status=status,
             )
             await sync_review_item(
@@ -238,9 +239,7 @@ async def create_item(
             added_by="user",
         )
         session.add(phrase)
-        _apply_provenance(
-            phrase, lesson_id=lesson_id, segment_id=segment_id, is_new=True, status=status
-        )
+        _apply_provenance(phrase, lesson_id=lesson_id, segment_id=segment_id, status=status)
         try:
             await session.flush()
             await sync_review_item(
@@ -269,7 +268,6 @@ async def create_item(
                 existing_phrase,
                 lesson_id=lesson_id,
                 segment_id=segment_id,
-                is_new=False,
                 status=status,
             )
             await sync_review_item(
@@ -291,9 +289,7 @@ async def create_item(
         existing.status = status
         existing.confidence = confidence
         _promote_to_user(existing)
-        _apply_provenance(
-            existing, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status
-        )
+        _apply_provenance(existing, lesson_id=lesson_id, segment_id=segment_id, status=status)
         await sync_review_item(
             session,
             user_id=user_id,
@@ -313,7 +309,7 @@ async def create_item(
         added_by="user",
     )
     session.add(item)
-    _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, is_new=True, status=status)
+    _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, status=status)
     try:
         await session.flush()
         await sync_review_item(
@@ -336,9 +332,7 @@ async def create_item(
         existing.status = status
         existing.confidence = confidence
         _promote_to_user(existing)
-        _apply_provenance(
-            existing, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status
-        )
+        _apply_provenance(existing, lesson_id=lesson_id, segment_id=segment_id, status=status)
         await sync_review_item(
             session,
             user_id=user_id,
@@ -376,7 +370,7 @@ async def patch_item(
     )
     item.status = status
     item.confidence = confidence
-    _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status)
+    _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, status=status)
     _promote_to_user(item)
     await sync_review_item(
         session,
