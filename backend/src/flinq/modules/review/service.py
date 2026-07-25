@@ -320,17 +320,7 @@ async def get_queue(
         assert lesson is not None
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
         for kind, model in VOCAB_MODEL_BY_KIND.items():
-            stmt = (
-                select(ReviewItem, model)
-                .join(model, ReviewItem.item_id == model.id)
-                .where(
-                    ReviewItem.user_id == user_id,
-                    ReviewItem.item_kind == kind,
-                    ReviewItem.is_active.is_(True),
-                    model.status == "tracked",
-                    *_lesson_scope(model, lesson),
-                )
-            )
+            stmt = _mode_stmt(kind, model)
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
         # due первыми, внутри групп — по due_at
         pairs.sort(key=lambda p: (p[0].due_at > now, p[0].due_at))
@@ -489,7 +479,12 @@ async def get_counts(
             total += (await session.execute(stmt)).scalar_one()
         return total
 
-    due = await _count(lambda m: [ReviewItem.due_at <= now])
+    # Внутри скоупа урока due-счётчик не фильтрует по due_at — зеркалит
+    # lesson-ветку get_queue (FLQ-7: повторение урока = все слова урока,
+    # due первыми), иначе число на плитке и размер сессии расходятся.
+    # Вне скоупа урока — как раньше.
+    due_extra = [] if lesson is not None else [ReviewItem.due_at <= now]
+    due = await _count(lambda m: due_extra)
     new = await _count(lambda m: [ReviewItem.last_reviewed_at.is_(None)])
     practice = await _count(lambda m: [m.confidence >= 4])
     return CountsInfo(due=due, new=new, practice=practice, ai_enabled=get_settings().llm_enabled)

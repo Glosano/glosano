@@ -348,6 +348,40 @@ async def test_new_mode_respects_lesson_scope():
         assert [i.text for i in items] == ["cada"]
 
 
+async def test_practice_mode_respects_lesson_scope():
+    """До этой правки practice в скоупе урока был проверен только отрицательно
+    (mismatched-language тест). Позитивный сценарий: уверенное слово урока
+    (confidence >= 4) попадает в practice-очередь урока, слово без провенанса —
+    нет, даже если оно тоже confident."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        mine = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="tracked",
+            confidence=4,
+        )
+        await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="mundo",  # confident, но без провенанса урока
+            status="tracked",
+            confidence=4,
+        )
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        assert isinstance(mine, TokenItem)
+        await _attach(s, mine, lesson)
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", mode="practice", lesson_id=lesson.id, now=NOW
+        )
+        assert [i.text for i in items] == ["cada"]
+
+
 async def test_practice_mode_mixes_kinds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Слитый список перемешивается: phrase-элементы не вытесняются токенами."""
     import flinq.modules.review.service as review_service
@@ -426,6 +460,32 @@ async def test_counts_respect_lesson_scope():
         assert overall.new == 2
 
 
+async def test_lesson_counts_due_matches_queue_ignoring_due_at():
+    """Внутри скоупа урока due-счётчик не фильтрует по due_at — зеркалит
+    очередь (FLQ-7: повторение урока = все слова урока, due первыми). Вне
+    скоупа урока due по-прежнему считается как due_at <= now."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        item = await _tracked_token(s, user_id, "cada")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        await _attach(s, item, lesson)
+        await _set_due(s, item.id, NOW + timedelta(days=3))  # не due
+
+        scoped_counts = await get_counts(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        scoped_items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, mode="due", now=NOW
+        )
+        assert scoped_counts.due == 1
+        assert len(scoped_items) == 1
+
+        global_counts = await get_counts(s, user_id=user_id, language_code="pt", now=NOW)
+        global_items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
+        assert global_counts.due == 0
+        assert global_items == []
+
+
 async def test_counts_foreign_lesson_raises():
     async with session_scope() as s:
         user_id = await _make_user(s)
@@ -470,6 +530,26 @@ async def test_counts_and_queue_exclude_lesson_item_with_language_code_mutated_d
                 s, user_id=user_id, language_code="pt", mode=mode, lesson_id=lesson.id, now=NOW
             )
             assert items == [], mode
+
+
+async def test_lesson_due_queue_excludes_item_when_lang_param_mismatches_lesson_language():
+    """Lesson-ветка due раньше строила запрос вручную, без фильтра языка
+    (в _mode_stmt он есть для new/practice/counts). При lang, отличном от
+    языка урока (достижимо правкой URL), cards должна быть пустой — как и
+    counts, вместо того чтобы отдавать полную сессию."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        item = await _tracked_token(s, user_id, "cada")  # язык pt
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")  # язык урока pt
+        await _attach(s, item, lesson)
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="ru", lesson_id=lesson.id, mode="due", now=NOW
+        )
+        assert items == []
+        counts = await get_counts(
+            s, user_id=user_id, language_code="ru", lesson_id=lesson.id, now=NOW
+        )
+        assert counts.due == 0
 
 
 async def test_lesson_new_mode_ignores_daily_limit_but_global_new_mode_respects_it():
