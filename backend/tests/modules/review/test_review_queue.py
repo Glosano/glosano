@@ -335,6 +335,19 @@ async def test_practice_mode_returns_confident_items_and_ignores_limit():
         assert daily.limit_reached is False
 
 
+async def test_new_mode_respects_lesson_scope():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        mine = await _tracked_token(s, user_id, "cada")
+        await _tracked_token(s, user_id, "mundo")  # без провенанса
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        await _attach(s, mine, lesson)
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", mode="new", lesson_id=lesson.id, now=NOW
+        )
+        assert [i.text for i in items] == ["cada"]
+
+
 async def test_practice_mode_mixes_kinds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Слитый список перемешивается: phrase-элементы не вытесняются токенами."""
     import flinq.modules.review.service as review_service
@@ -395,6 +408,54 @@ async def test_counts_reports_due_new_practice(monkeypatch: pytest.MonkeyPatch) 
         counts = await get_counts(s, user_id=user_id, language_code="pt", now=NOW)
         assert counts.due == 2 and counts.new == 2 and counts.practice == 1
         assert counts.ai_enabled is False  # llm выключен в тестовом окружении
+
+
+async def test_counts_respect_lesson_scope():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        mine = await _tracked_token(s, user_id, "cada")
+        await _tracked_token(s, user_id, "mundo")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        await _attach(s, mine, lesson)
+        await _set_due(s, mine.id, NOW - timedelta(hours=1))
+        scoped = await get_counts(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        overall = await get_counts(s, user_id=user_id, language_code="pt", now=NOW)
+        assert scoped.due == 1 and scoped.new == 1
+        assert overall.new == 2
+
+
+async def test_counts_foreign_lesson_raises():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        other_id = await _make_user(s)
+        lesson = await _lesson_with_occurrence(s, other_id, "cada")
+        with pytest.raises(LessonNotFound):
+            await get_counts(s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW)
+
+
+async def test_counts_and_queue_exclude_lesson_item_with_language_code_mutated_directly():
+    """Провенанс на урок сохранён, но язык записи изменён напрямую (в обход
+    write-пути) на язык, отличный от языка урока. Счётчик и очередь должны
+    согласованно игнорировать такой item — иначе число на плитке и размер
+    сессии разойдутся."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        item = await _tracked_token(s, user_id, "cada")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        await _attach(s, item, lesson)
+        await _set_due(s, item.id, NOW - timedelta(hours=1))
+        item.language_code = "ru"  # имитация битых/устаревших данных
+        await s.commit()
+        counts = await get_counts(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        assert counts.due == 0 and counts.new == 0 and counts.practice == 0
+        assert items == []
 
 
 async def test_queue_context_sentence_comes_from_segment():

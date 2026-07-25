@@ -101,9 +101,15 @@ async def counts(
     request: Request,
     lang: LangCode,
     session: Annotated[AsyncSession, Depends(get_session)],
+    lesson_id: uuid.UUID | None = None,
 ) -> CountsResponse:
     user_id = _require_user(request)
-    c = await service.get_counts(session, user_id=user_id, language_code=lang)
+    try:
+        c = await service.get_counts(
+            session, user_id=user_id, language_code=lang, lesson_id=lesson_id
+        )
+    except service.LessonNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from None
     return CountsResponse(due=c.due, new=c.new, practice=c.practice, ai_enabled=c.ai_enabled)
 
 

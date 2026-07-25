@@ -240,36 +240,14 @@ async def get_queue(
     now = now or datetime.now(UTC)
     daily = await _daily_info(session, user_id=user_id, now=now)
 
+    lesson: Lesson | None = None
     if lesson_id is not None:
         lesson = await session.get(Lesson, lesson_id)
         if lesson is None or lesson.owner_user_id != user_id:
             raise LessonNotFound(str(lesson_id))
-        pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
-        for kind, model in VOCAB_MODEL_BY_KIND.items():
-            stmt = (
-                select(ReviewItem, model)
-                .join(model, ReviewItem.item_id == model.id)
-                .where(
-                    ReviewItem.user_id == user_id,
-                    ReviewItem.item_kind == kind,
-                    ReviewItem.is_active.is_(True),
-                    model.status == "tracked",
-                    model.created_from_lesson_id == lesson_id,
-                    # defense-in-depth: язык записи должен быть равен языку урока
-                    # (инвариант обеспечен на записи в _validate_provenance, но
-                    # старые/битые данные не должны всплывать в очереди урока).
-                    model.language_code == lesson.language_code,
-                )
-            )
-            pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
-        # due первыми, внутри групп — по due_at
-        pairs.sort(key=lambda p: (p[0].due_at > now, p[0].due_at))
-        # мягкий лимит: lesson-режим не блокируется
-        daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
-        return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
     def _mode_stmt(kind: str, model: type[TokenItem] | type[PhraseItem]):
-        return (
+        stmt = (
             select(ReviewItem, model)
             .join(model, ReviewItem.item_id == model.id)
             .where(
@@ -280,6 +258,9 @@ async def get_queue(
                 model.status == "tracked",
             )
         )
+        if lesson_id is not None:
+            stmt = stmt.where(model.created_from_lesson_id == lesson_id)
+        return stmt
 
     if mode == "new":
         if daily.limit_reached:
@@ -310,6 +291,33 @@ async def get_queue(
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
         random.shuffle(pairs)
         pairs = pairs[:PRACTICE_SESSION_LIMIT]
+        daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
+        return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
+
+    # mode == "due" (по умолчанию)
+    if lesson_id is not None:
+        assert lesson is not None
+        pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
+        for kind, model in VOCAB_MODEL_BY_KIND.items():
+            stmt = (
+                select(ReviewItem, model)
+                .join(model, ReviewItem.item_id == model.id)
+                .where(
+                    ReviewItem.user_id == user_id,
+                    ReviewItem.item_kind == kind,
+                    ReviewItem.is_active.is_(True),
+                    model.status == "tracked",
+                    model.created_from_lesson_id == lesson_id,
+                    # defense-in-depth: язык записи должен быть равен языку урока
+                    # (инвариант обеспечен на записи в _validate_provenance, но
+                    # старые/битые данные не должны всплывать в очереди урока).
+                    model.language_code == lesson.language_code,
+                )
+            )
+            pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
+        # due первыми, внутри групп — по due_at
+        pairs.sort(key=lambda p: (p[0].due_at > now, p[0].due_at))
+        # мягкий лимит: lesson-режим не блокируется
         daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
         return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
@@ -430,15 +438,31 @@ async def get_counts(
     *,
     user_id: uuid.UUID,
     language_code: str,
+    lesson_id: uuid.UUID | None = None,
     now: datetime | None = None,
 ) -> CountsInfo:
     now = now or datetime.now(UTC)
+
+    lesson: Lesson | None = None
+    if lesson_id is not None:
+        lesson = await session.get(Lesson, lesson_id)
+        if lesson is None or lesson.owner_user_id != user_id:
+            raise LessonNotFound(str(lesson_id))
 
     async def _count(
         extra_where: Callable[[type[TokenItem] | type[PhraseItem]], list[ColumnElement[bool]]],
     ) -> int:
         total = 0
         for kind, model in VOCAB_MODEL_BY_KIND.items():
+            lesson_where: list[ColumnElement[bool]] = []
+            if lesson_id is not None:
+                assert lesson is not None
+                lesson_where = [
+                    model.created_from_lesson_id == lesson_id,
+                    # тот же предикат скоупа, что и очередь урока (defense-in-depth
+                    # по языку) — иначе счётчик и размер сессии разойдутся.
+                    model.language_code == lesson.language_code,
+                ]
             stmt = (
                 select(func.count())
                 .select_from(ReviewItem)
@@ -450,6 +474,7 @@ async def get_counts(
                     ReviewItem.is_active.is_(True),
                     model.status == "tracked",
                     *extra_where(model),
+                    *lesson_where,
                 )
             )
             total += (await session.execute(stmt)).scalar_one()

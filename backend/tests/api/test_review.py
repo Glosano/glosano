@@ -151,6 +151,13 @@ async def test_queue_mode_new():
         assert len(r.json()["items"]) == 1
 
 
+async def test_counts_with_unknown_lesson_returns_404():
+    async with await _client() as c:
+        await _register(c)
+        r = await c.get("/api/review/counts", params={"lang": "pt", "lesson_id": str(uuid.uuid4())})
+        assert r.status_code == 404
+
+
 async def test_exercise_returns_503_when_ai_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
     # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
