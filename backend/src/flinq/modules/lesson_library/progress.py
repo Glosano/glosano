@@ -9,6 +9,7 @@ docs/superpowers/specs/2026-07-25-library-reading-progress-design.md §3.4.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -32,4 +33,8 @@ def read_percent(position: int | None, max_ordinal: int | None) -> int:
         return 0
     if max_ordinal == 0:
         return 100
-    return max(0, min(100, round(position / max_ordinal * 100)))
+    # Use math.floor(x + 0.5) for round-half-up to match JS Math.round() semantics.
+    # Python's round() uses round-half-to-even (banker's rounding), which would diverge
+    # from the reader bar for exact .5 percentages (e.g. position=1, max_ordinal=8 → 12.5%).
+    percent = math.floor(position / max_ordinal * 100 + 0.5)
+    return max(0, min(100, percent))

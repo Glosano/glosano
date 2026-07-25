@@ -41,6 +41,25 @@ def test_rounds_to_nearest_integer() -> None:
     assert read_percent(1, 3) == 33
 
 
+def test_half_up_rounding_12_5_percent() -> None:
+    """Regression: Python round() vs JS Math.round() semantics on .5 boundaries.
+
+    position=1, max_ordinal=8 → 1/8 * 100 = 12.5%
+    Python's round(12.5) == 12 (banker's rounding), but JS Math.round(12.5) === 13.
+    Must use math.floor(x + 0.5) to match the reader bar.
+    """
+    assert read_percent(1, 8) == 13
+
+
+def test_half_up_rounding_37_5_percent() -> None:
+    """Regression: another .5 boundary case.
+
+    position=3, max_ordinal=8 → 3/8 * 100 = 37.5%
+    Must round up to 38 to match JS Math.round().
+    """
+    assert read_percent(3, 8) == 38
+
+
 def test_zero_progress_constant_is_all_zeroes() -> None:
     assert ZERO_PROGRESS.read_percent == 0
     assert ZERO_PROGRESS.new_words_remaining == 0
