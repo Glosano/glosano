@@ -314,3 +314,19 @@ async def test_counts_reports_due_new_practice(monkeypatch: pytest.MonkeyPatch) 
         counts = await get_counts(s, user_id=user_id, language_code="pt", now=NOW)
         assert counts.due == 2 and counts.new == 2 and counts.practice == 1
         assert counts.ai_enabled is False  # llm выключен в тестовом окружении
+
+
+async def test_queue_context_sentence_comes_from_segment():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        item = await _tracked_token(s, user_id, "cada")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        seg_id = (
+            await s.execute(select(LessonSegment.id).where(LessonSegment.lesson_id == lesson.id))
+        ).scalar_one()
+        item.created_from_lesson_id = lesson.id
+        item.created_from_segment_id = seg_id
+        await _set_due(s, item.id, NOW - timedelta(hours=1))
+        await s.commit()
+        items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
+        assert [i.context_sentence for i in items] == ["cada mundo."]

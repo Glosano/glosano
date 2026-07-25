@@ -192,27 +192,27 @@ async def _build_queue_items(
             if (n.item_kind, n.item_id) in ref_set:
                 notes[(n.item_kind, n.item_id)] = n.note_text
 
-    # Контекст токенов: created_from_occurrence_id -> occurrence -> segment.text
-    occ_by_key: dict[tuple[str, uuid.UUID], uuid.UUID] = {
-        ("token", item.id): item.created_from_occurrence_id
-        for _, item in rows
-        if isinstance(item, TokenItem) and item.created_from_occurrence_id is not None
+    # Контекст: created_from_segment_id -> lesson_segments.text (слова и фразы)
+    seg_by_key: dict[tuple[str, uuid.UUID], uuid.UUID] = {
+        (ri.item_kind, item.id): item.created_from_segment_id
+        for ri, item in rows
+        if item.created_from_segment_id is not None
     }
     contexts: dict[uuid.UUID, str] = {}
-    if occ_by_key:
+    if seg_by_key:
         ctx_rows = await session.execute(
-            select(LessonTokenOccurrence.id, LessonSegment.text)
-            .join(LessonSegment, LessonTokenOccurrence.segment_id == LessonSegment.id)
-            .where(LessonTokenOccurrence.id.in_(occ_by_key.values()))
+            select(LessonSegment.id, LessonSegment.text).where(
+                LessonSegment.id.in_(set(seg_by_key.values()))
+            )
         )
-        for occ_id, seg_text in ctx_rows.all():
-            contexts[occ_id] = seg_text
+        for seg_id, seg_text in ctx_rows.all():
+            contexts[seg_id] = seg_text
 
     out: list[QueueItem] = []
     for ri, item in rows:
         key = (ri.item_kind, ri.item_id)
         text_value = item.token_text if isinstance(item, TokenItem) else item.display_text
-        occ_id = occ_by_key.get(key)
+        seg_id = seg_by_key.get(key)
         out.append(
             QueueItem(
                 review_item_id=ri.id,
@@ -222,7 +222,7 @@ async def _build_queue_items(
                 confidence=item.confidence if item.confidence is not None else 0,
                 translation=translations.get(key),
                 notes=notes.get(key),
-                context_sentence=contexts.get(occ_id) if occ_id else None,
+                context_sentence=contexts.get(seg_id) if seg_id else None,
             )
         )
     return out
