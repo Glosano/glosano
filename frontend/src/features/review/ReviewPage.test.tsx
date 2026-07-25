@@ -49,6 +49,10 @@ describe('ReviewPage queue states', () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
     renderPage({ lessonId: 'L1', mode: 'cards' })
     expect(await screen.findByText('В этом уроке пока нет слов')).toBeInTheDocument()
+    expect(
+      screen.getByText(/Здесь появятся слова и фразы, которые вы добавите в этом уроке/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/доступны в общем повторении/)).toBeInTheDocument()
     const link = screen.getByRole('link', { name: /Повторить весь словарь/ })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute('href', '/learn/$lang/review')

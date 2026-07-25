@@ -75,6 +75,10 @@ describe('TranslationSession', () => {
     renderSession('L1')
     expect(await screen.findByText('В этом уроке пока нет слов')).toBeInTheDocument()
     expect(
+      screen.getByText(/Здесь появятся слова и фразы, которые вы добавите в этом уроке/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/доступны в общем повторении/)).toBeInTheDocument()
+    expect(
       screen.queryByText('Нет предложений для практики'),
     ).not.toBeInTheDocument()
     const link = screen.getByRole('link', { name: /Повторить весь словарь/ })
