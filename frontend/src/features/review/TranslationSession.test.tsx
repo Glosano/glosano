@@ -16,11 +16,11 @@ const ITEM = {
 }
 const DAILY = { limit: 20, done_today: 0, limit_reached: false }
 
-function renderSession() {
+function renderSession(lessonId?: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <TranslationSession lang="pt" />
+      <TranslationSession lang="pt" lessonId={lessonId} />
     </QueryClientProvider>,
   )
 }
@@ -54,5 +54,11 @@ describe('TranslationSession', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Дальше' }))
     expect(await screen.findByText('Практика завершена')).toBeTruthy()
     expect(reviewApi.answer).not.toHaveBeenCalled()
+  })
+
+  it('в скоупе урока показывает подзаголовок "Слова урока" и передаёт lessonId в очередь', async () => {
+    renderSession('L1')
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice'))
+    expect(await screen.findByText(/Слова урока/)).toBeTruthy()
   })
 })

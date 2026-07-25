@@ -11,6 +11,8 @@ interface TranslationTaskExercise {
 }
 
 export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?: string }) {
+  const subtitle = lessonId ? `${SUBTITLE} · Слова урока` : SUBTITLE
+
   const queue = useQuery({
     queryKey: ['review-queue', lang, 'practice', lessonId ?? null],
     queryFn: () => reviewApi.queue(lang, lessonId, 'practice'),
@@ -63,11 +65,11 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
   }
 
   if (queue.isPending) {
-    return <SessionShell subtitle={SUBTITLE}>Загрузка…</SessionShell>
+    return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
   }
   if (queue.isError) {
     return (
-      <SessionShell subtitle={SUBTITLE}>
+      <SessionShell subtitle={subtitle}>
         <p className="text-destructive">Не удалось загрузить очередь</p>
         <button type="button" className="mt-2 underline" onClick={() => void queue.refetch()}>
           Повторить
@@ -77,14 +79,14 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
   }
   if (total === 0) {
     return (
-      <SessionShell subtitle={SUBTITLE}>
+      <SessionShell subtitle={subtitle}>
         <p className="text-lg font-medium">Нет предложений для практики</p>
       </SessionShell>
     )
   }
   if (!current) {
     return (
-      <SessionShell subtitle={SUBTITLE}>
+      <SessionShell subtitle={subtitle}>
         <p className="text-lg font-medium">Практика завершена</p>
         <button type="button" className="mt-3 underline" onClick={restart}>
           Ещё раз
@@ -94,7 +96,7 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
   }
 
   return (
-    <SessionShell subtitle={SUBTITLE} idx={idx} total={total}>
+    <SessionShell subtitle={subtitle} idx={idx} total={total}>
       <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
         {exercise.isPending && (
           <p className="text-center text-sm text-muted-foreground">Готовим предложение…</p>

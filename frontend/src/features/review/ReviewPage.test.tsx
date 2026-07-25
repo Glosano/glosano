@@ -67,6 +67,24 @@ describe('ReviewPage queue states', () => {
     await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined))
     expect(await screen.findByText('Слова урока')).toBeTruthy()
   })
+
+  it('с lessonId и mode=new грузит очередь урока', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderPage({ lessonId: 'L1', mode: 'new' })
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'new'))
+  })
+
+  it('с lessonId и mode=cloze грузит очередь урока', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderPage({ lessonId: 'L1', mode: 'cloze' })
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined))
+  })
+
+  it('с lessonId и mode=translation грузит очередь урока', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderPage({ lessonId: 'L1', mode: 'translation' })
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice'))
+  })
 })
 
 const ITEM2 = { ...ITEM, review_item_id: 'R2', item_id: 'I2', text: 'mundo', translation: 'мир' }

@@ -62,4 +62,23 @@ describe('NewWordsSession', () => {
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
     expect(reviewApi.answer).not.toHaveBeenCalled() // пропуск не пишет событие
   })
+
+  it('в скоупе урока на финальном экране кнопка "Пройти ещё раз", а не "Повторить ошибки"', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
+    vi.mocked(reviewApi.exercise).mockResolvedValue(EXAMPLE)
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <NewWordsSession lang="pt" lessonId="L1" />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Показать перевод' }))
+    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
+    expect(await screen.findByRole('button', { name: 'Пройти ещё раз' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Повторить ошибки' })).toBeNull()
+  })
 })

@@ -170,4 +170,21 @@ describe('QuizSession final screen — writing exercise', () => {
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Письменное упражнение по ошибкам' })).toBeNull()
   })
+
+  it('в скоупе урока на финальном экране кнопка "Пройти ещё раз", а не "Повторить ошибки"', async () => {
+    vi.mocked(reviewApi.answer).mockResolvedValue({
+      new_confidence: 1, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+    })
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <QuizSession lang="pt" kind="cloze" lessonId="L1" />
+      </QueryClientProvider>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
+    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
+    expect(await screen.findByRole('button', { name: 'Пройти ещё раз' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Повторить ошибки' })).toBeNull()
+  })
 })
