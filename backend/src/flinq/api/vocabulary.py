@@ -138,9 +138,17 @@ async def patch_item(
             item_id=item_id,
             status=body.status,
             confidence=body.confidence,
+            lesson_id=body.lesson_id,
+            segment_id=body.segment_id,
         )
     except service.ItemNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None
+    except service.LessonNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "lesson not found") from None
+    except service.InvalidProvenance:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "segment does not belong to lesson"
+        ) from None
     return ItemStateResponse(item_id=item.id, status=item.status, confidence=item.confidence)
 
 

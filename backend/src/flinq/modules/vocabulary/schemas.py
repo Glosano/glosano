@@ -53,6 +53,8 @@ class CreateItemRequest(BaseModel):
 class PatchItemRequest(BaseModel):
     status: ItemStatus
     confidence: int | None = Field(default=None, ge=0, le=5)
+    lesson_id: uuid.UUID | None = None
+    segment_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def _confidence_matches_status(self) -> PatchItemRequest:

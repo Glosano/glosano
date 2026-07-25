@@ -148,3 +148,120 @@ async def test_create_item_rejects_segment_without_lesson():
                 confidence=1,
                 segment_id=seg.id,
             )
+
+
+async def test_create_item_upsert_does_not_overwrite_provenance():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson_a, seg_a = await _lesson(s, user_id)
+        lesson_b, seg_b = await _lesson(s, user_id)
+        item = await service.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="tracked",
+            confidence=1,
+            lesson_id=lesson_a.id,
+            segment_id=seg_a.id,
+        )
+        assert item.created_from_lesson_id == lesson_a.id
+        again = await service.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="tracked",
+            confidence=3,
+            lesson_id=lesson_b.id,
+            segment_id=seg_b.id,
+        )
+        assert again.id == item.id
+        assert again.created_from_lesson_id == lesson_a.id
+        assert again.created_from_segment_id == seg_a.id
+
+
+async def test_patch_to_tracked_fills_empty_provenance():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson, seg = await _lesson(s, user_id)
+        item = await service.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="known",
+            confidence=None,
+        )
+        assert item.created_from_lesson_id is None
+        patched = await service.patch_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=item.id,
+            status="tracked",
+            confidence=1,
+            lesson_id=lesson.id,
+            segment_id=seg.id,
+        )
+        assert patched.created_from_lesson_id == lesson.id
+        assert patched.created_from_segment_id == seg.id
+
+
+async def test_patch_does_not_overwrite_existing_provenance():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson_a, seg_a = await _lesson(s, user_id)
+        lesson_b, seg_b = await _lesson(s, user_id)
+        item = await service.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="tracked",
+            confidence=1,
+            lesson_id=lesson_a.id,
+            segment_id=seg_a.id,
+        )
+        patched = await service.patch_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=item.id,
+            status="tracked",
+            confidence=3,
+            lesson_id=lesson_b.id,
+            segment_id=seg_b.id,
+        )
+        assert patched.created_from_lesson_id == lesson_a.id
+        assert patched.created_from_segment_id == seg_a.id
+
+
+async def test_patch_to_known_does_not_set_provenance():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson, seg = await _lesson(s, user_id)
+        item = await service.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="ignored",
+            confidence=None,
+        )
+        patched = await service.patch_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=item.id,
+            status="known",
+            confidence=None,
+            lesson_id=lesson.id,
+            segment_id=seg.id,
+        )
+        assert patched.created_from_lesson_id is None

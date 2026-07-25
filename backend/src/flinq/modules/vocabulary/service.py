@@ -347,11 +347,15 @@ async def patch_item(
     item_id: uuid.UUID,
     status: str,
     confidence: int | None,
+    lesson_id: uuid.UUID | None = None,
+    segment_id: uuid.UUID | None = None,
 ) -> VocabItem:
     _check_kind(kind)
+    await _validate_provenance(session, user_id=user_id, lesson_id=lesson_id, segment_id=segment_id)
     item = await _owned_item(session, user_id=user_id, kind=kind, item_id=item_id)
     item.status = status
     item.confidence = confidence
+    _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status)
     _promote_to_user(item)
     await sync_review_item(
         session,
