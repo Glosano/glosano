@@ -137,8 +137,8 @@ Slider «Начальный ↔ Продвинутый» (Figma `3:6`) **из в
 
 **Meta:**
 - `Title` — `lessons.title`, max 2 строки + ellipsis.
-- `Progress bar` — `lesson_progress.coverage_ratio` (`known_occurrence_count / occurrence_count`).
-- `0% • Новые слова` — текст под прогрессом. Для MVP: `{coverage_pct}% • {new_words_count} новых слов`. Источник `new_words_count` — `occurrence_count - known_occurrence_count - tracked_occurrence_count - ignored_occurrence_count`.
+- `Progress bar` — доля прочитанного: `reader_positions.current_token_ordinal / MAX(lesson_token_occurrences.ordinal_in_lesson)`. Не coverage: показывает, сколько текста пройдено, а не насколько знакома лексика. Решение и обоснование — `docs/superpowers/specs/2026-07-25-library-reading-progress-design.md` §2.
+- Подпись под баром — `{read_percent}% · {word_count} слов · {new_words_remaining} новых`. `new_words_remaining` — уникальные слова без `TokenItem`, встречающиеся **после** текущей позиции чтения.
 
 Click на card → `/learn/:lang/lessons/$lessonId` (открывает reader, resume по `reader_positions`).
 
@@ -229,9 +229,9 @@ API-вызовы делаются с `lang` из path (`/learn/:lang/library`). 
 - «Интерактивные уроки» tab — скрыт.
 - Sort — `created_at desc`, toggle вернётся в Phase 2.
 - Bulk-операции — отложены.
+- **`new_words_count` в card meta** — закрыто: считается on-the-fly, в уникальных словах, только по остатку текста после позиции чтения. Денормализация в `lesson_progress` отвергнута — признак «новое слово» принадлежит паре (user, language) и инвалидировался бы веером по всем урокам языка.
 
 **Остаётся открытым:**
-- **`new_words_count` в card meta** — формула `occurrence_count - known - tracked - ignored`. Кешировать ли в `lesson_progress.new_words_count` или считать on-the-fly. Решение к моменту имплементации Lesson Library.
 
 ## 15. Не входит в MVP
 
