@@ -10,7 +10,16 @@ docs/superpowers/specs/2026-07-25-library-reading-progress-design.md §3.4.
 from __future__ import annotations
 
 import math
+import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
+
+from sqlalchemy import and_, distinct, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from flinq.modules.lesson_library.models import LessonTokenOccurrence
+from flinq.modules.reader_state.models import ReaderPosition
+from flinq.modules.vocabulary.models import TokenItem
 
 
 @dataclass(frozen=True)
@@ -38,3 +47,64 @@ def read_percent(position: int | None, max_ordinal: int | None) -> int:
     # from the reader bar for exact .5 percentages (e.g. position=1, max_ordinal=8 → 12.5%).
     percent = math.floor(position / max_ordinal * 100 + 0.5)
     return max(0, min(100, percent))
+
+
+async def progress_for_lessons(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    lang: str,
+    lesson_ids: Sequence[uuid.UUID],
+) -> dict[uuid.UUID, LessonProgress]:
+    """Прогресс по странице списка уроков — один агрегат на всю страницу.
+
+    Ни один из LEFT JOIN не размножает строки: reader_positions уникален по
+    (user_id, lesson_id), token_items — по (user_id, language_code,
+    token_text). Поэтому MAX(rp.current_token_ordinal) — это способ протащить
+    позицию через GROUP BY, а COUNT(DISTINCT ...) считает ровно то, что
+    заявлено. Уроки без word-like токенов в результат не попадают — вызывающий
+    подставляет им ZERO_PROGRESS.
+    """
+    if not lesson_ids:
+        return {}
+
+    occ = LessonTokenOccurrence
+    stmt = (
+        select(
+            occ.lesson_id,
+            func.max(occ.ordinal_in_lesson),
+            func.max(ReaderPosition.current_token_ordinal),
+            func.count(distinct(occ.normalized_text)).filter(
+                TokenItem.id.is_(None),
+                occ.ordinal_in_lesson
+                > func.coalesce(ReaderPosition.current_token_ordinal, -1),
+            ),
+        )
+        .select_from(occ)
+        .outerjoin(
+            ReaderPosition,
+            and_(
+                ReaderPosition.lesson_id == occ.lesson_id,
+                ReaderPosition.user_id == user_id,
+            ),
+        )
+        .outerjoin(
+            TokenItem,
+            and_(
+                TokenItem.user_id == user_id,
+                TokenItem.language_code == lang,
+                TokenItem.token_text == occ.normalized_text,
+            ),
+        )
+        .where(occ.lesson_id.in_(lesson_ids), occ.is_word_like.is_(True))
+        .group_by(occ.lesson_id)
+    )
+
+    rows = (await session.execute(stmt)).all()
+    return {
+        lesson_id: LessonProgress(
+            read_percent=read_percent(position, max_ordinal),
+            new_words_remaining=new_remaining,
+        )
+        for lesson_id, max_ordinal, position, new_remaining in rows
+    }

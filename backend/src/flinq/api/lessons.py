@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
 from flinq.modules.lesson_library import service
+from flinq.modules.lesson_library.progress import ZERO_PROGRESS, progress_for_lessons
 from flinq.modules.lesson_library.repo import LessonRepo
 from flinq.modules.lesson_library.schemas import (
     CreateLessonRequest,
@@ -53,8 +54,21 @@ async def list_lessons(
         page=page,
         page_size=page_size,
     )
+    progress = await progress_for_lessons(
+        session, user_id=user_id, lang=lang, lesson_ids=[item.id for item in items]
+    )
     return LessonListResponse(
-        items=[LessonSummary.model_validate(item) for item in items],
+        items=[
+            LessonSummary.model_validate(item).model_copy(
+                update={
+                    "read_percent": progress.get(item.id, ZERO_PROGRESS).read_percent,
+                    "new_words_remaining": progress.get(
+                        item.id, ZERO_PROGRESS
+                    ).new_words_remaining,
+                }
+            )
+            for item in items
+        ],
         total=total,
         page=page,
         page_size=page_size,
