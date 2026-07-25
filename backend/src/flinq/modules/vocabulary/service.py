@@ -1,3 +1,4 @@
+# ruff: noqa: RUF002
 """Vocabulary WordCard service (FLQ-5). Session-first module functions."""
 
 from __future__ import annotations
@@ -53,6 +54,14 @@ class InvalidPhrase(Exception):  # noqa: N818 -- matches sibling exception namin
     """Phrase text has fewer than 2 or more than 8 word tokens."""
 
 
+class LessonNotFound(Exception):  # noqa: N818 -- matches sibling exception naming
+    """Урок провенанса не существует или не принадлежит пользователю."""
+
+
+class InvalidProvenance(Exception):  # noqa: N818 -- matches sibling exception naming
+    """segment_id не принадлежит lesson_id или передан без него."""
+
+
 @dataclass
 class LookupResult:
     item_id: uuid.UUID | None
@@ -88,6 +97,48 @@ def _promote_to_user(item: VocabItem) -> None:
     """Explicit user action on a bulk-created item claims it (spec FLQ-6.2 §1.2)."""
     if item.added_by != "user":
         item.added_by = "user"
+
+
+async def _validate_provenance(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    lesson_id: uuid.UUID | None,
+    segment_id: uuid.UUID | None,
+) -> None:
+    if lesson_id is None:
+        if segment_id is not None:
+            raise InvalidProvenance("segment_id requires lesson_id")
+        return
+    lesson = await session.get(Lesson, lesson_id)
+    if lesson is None or lesson.owner_user_id != user_id:
+        raise LessonNotFound(str(lesson_id))
+    if segment_id is not None:
+        segment = await session.get(LessonSegment, segment_id)
+        if segment is None or segment.lesson_id != lesson_id:
+            raise InvalidProvenance(str(segment_id))
+
+
+def _apply_provenance(
+    item: VocabItem,
+    *,
+    lesson_id: uuid.UUID | None,
+    segment_id: uuid.UUID | None,
+    is_new: bool,
+    status: str,
+) -> None:
+    """Первый урок выигрывает: непустой провенанс не перезаписывается.
+
+    У существующей записи провенанс проставляется только при переводе в
+    tracked — слово, отмеченное known в другом месте, не должно приписываться
+    уроку только потому, что его в нём открыли.
+    """
+    if lesson_id is None or item.created_from_lesson_id is not None:
+        return
+    if not is_new and status != "tracked":
+        return
+    item.created_from_lesson_id = lesson_id
+    item.created_from_segment_id = segment_id
 
 
 async def _get_token_item(
@@ -130,8 +181,11 @@ async def create_item(
     text: str,
     status: str,
     confidence: int | None,
+    lesson_id: uuid.UUID | None = None,
+    segment_id: uuid.UUID | None = None,
 ) -> VocabItem:
     _check_kind(kind)
+    await _validate_provenance(session, user_id=user_id, lesson_id=lesson_id, segment_id=segment_id)
     if kind == "phrase":
         normalized = normalize_phrase(text)
         word_count = len(normalized.split(" ")) if normalized else 0
@@ -144,6 +198,13 @@ async def create_item(
             existing_phrase.status = status
             existing_phrase.confidence = confidence
             _promote_to_user(existing_phrase)
+            _apply_provenance(
+                existing_phrase,
+                lesson_id=lesson_id,
+                segment_id=segment_id,
+                is_new=False,
+                status=status,
+            )
             await sync_review_item(
                 session,
                 user_id=user_id,
@@ -164,6 +225,9 @@ async def create_item(
             added_by="user",
         )
         session.add(phrase)
+        _apply_provenance(
+            phrase, lesson_id=lesson_id, segment_id=segment_id, is_new=True, status=status
+        )
         try:
             await session.flush()
             await sync_review_item(
@@ -188,6 +252,13 @@ async def create_item(
             existing_phrase.status = status
             existing_phrase.confidence = confidence
             _promote_to_user(existing_phrase)
+            _apply_provenance(
+                existing_phrase,
+                lesson_id=lesson_id,
+                segment_id=segment_id,
+                is_new=False,
+                status=status,
+            )
             await sync_review_item(
                 session,
                 user_id=user_id,
@@ -207,6 +278,9 @@ async def create_item(
         existing.status = status
         existing.confidence = confidence
         _promote_to_user(existing)
+        _apply_provenance(
+            existing, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status
+        )
         await sync_review_item(
             session,
             user_id=user_id,
@@ -226,6 +300,7 @@ async def create_item(
         added_by="user",
     )
     session.add(item)
+    _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, is_new=True, status=status)
     try:
         await session.flush()
         await sync_review_item(
@@ -248,6 +323,9 @@ async def create_item(
         existing.status = status
         existing.confidence = confidence
         _promote_to_user(existing)
+        _apply_provenance(
+            existing, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status
+        )
         await sync_review_item(
             session,
             user_id=user_id,

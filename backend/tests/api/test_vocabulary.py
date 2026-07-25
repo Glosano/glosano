@@ -235,3 +235,39 @@ async def test_translation_routes_404_on_foreign_translation():
             f"/api/vocabulary/items/token/{item_id}/translations/{missing}", headers=h
         )
         assert r.status_code == 404
+
+
+async def test_create_item_with_unknown_lesson_returns_404():
+    async with await _client() as c:
+        csrf = await _register(c)
+        r = await c.post(
+            "/api/vocabulary/items",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "kind": "token",
+                "language_code": "pt",
+                "text": "cada",
+                "status": "tracked",
+                "confidence": 1,
+                "lesson_id": str(uuid.uuid4()),
+            },
+        )
+        assert r.status_code == 404
+
+
+async def test_create_item_with_segment_without_lesson_returns_422():
+    async with await _client() as c:
+        csrf = await _register(c)
+        r = await c.post(
+            "/api/vocabulary/items",
+            headers={"X-CSRF-Token": csrf},
+            json={
+                "kind": "token",
+                "language_code": "pt",
+                "text": "cada",
+                "status": "tracked",
+                "confidence": 1,
+                "segment_id": str(uuid.uuid4()),
+            },
+        )
+        assert r.status_code == 422

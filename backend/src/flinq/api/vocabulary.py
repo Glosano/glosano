@@ -105,10 +105,18 @@ async def create_item(
             text=body.text,
             status=body.status,
             confidence=body.confidence,
+            lesson_id=body.lesson_id,
+            segment_id=body.segment_id,
         )
     except service.InvalidPhrase:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY, "phrase must contain 2..8 words"
+        ) from None
+    except service.LessonNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "lesson not found") from None
+    except service.InvalidProvenance:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "segment does not belong to lesson"
         ) from None
     return ItemStateResponse(item_id=item.id, status=item.status, confidence=item.confidence)
 

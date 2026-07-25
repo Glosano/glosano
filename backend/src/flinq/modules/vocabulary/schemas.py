@@ -40,6 +40,8 @@ class CreateItemRequest(BaseModel):
     text: str = Field(min_length=1, max_length=256)
     status: ItemStatus
     confidence: int | None = Field(default=None, ge=0, le=5)
+    lesson_id: uuid.UUID | None = None
+    segment_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def _confidence_matches_status(self) -> CreateItemRequest:
