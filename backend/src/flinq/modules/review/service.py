@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.config import get_settings
 from flinq.modules.identity.models import UserSettings
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from flinq.modules.lesson_library.models import Lesson, LessonSegment
 from flinq.modules.review.models import ReviewEvent, ReviewItem
 from flinq.modules.review.sm2 import INITIAL_STATE, apply_answer, state_from_json, state_to_json
 from flinq.modules.vocabulary.models import PersonalNote, PersonalTranslation, PhraseItem, TokenItem
@@ -244,25 +244,20 @@ async def get_queue(
         lesson = await session.get(Lesson, lesson_id)
         if lesson is None or lesson.owner_user_id != user_id:
             raise LessonNotFound(str(lesson_id))
-        stmt = (
-            select(ReviewItem, TokenItem)
-            .join(TokenItem, ReviewItem.item_id == TokenItem.id)
-            .join(
-                LessonTokenOccurrence,
-                LessonTokenOccurrence.normalized_text == TokenItem.token_text,
+        pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
+        for kind, model in VOCAB_MODEL_BY_KIND.items():
+            stmt = (
+                select(ReviewItem, model)
+                .join(model, ReviewItem.item_id == model.id)
+                .where(
+                    ReviewItem.user_id == user_id,
+                    ReviewItem.item_kind == kind,
+                    ReviewItem.is_active.is_(True),
+                    model.status == "tracked",
+                    model.created_from_lesson_id == lesson_id,
+                )
             )
-            .where(
-                LessonTokenOccurrence.lesson_id == lesson_id,
-                ReviewItem.user_id == user_id,
-                ReviewItem.item_kind == "token",
-                ReviewItem.is_active.is_(True),
-                TokenItem.user_id == user_id,
-                TokenItem.language_code == lesson.language_code,
-                TokenItem.status == "tracked",
-            )
-            .distinct()
-        )
-        pairs = [(ri, item) for ri, item in (await session.execute(stmt)).all()]
+            pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
         # due первыми, внутри групп — по due_at
         pairs.sort(key=lambda p: (p[0].due_at > now, p[0].due_at))
         # мягкий лимит: lesson-режим не блокируется

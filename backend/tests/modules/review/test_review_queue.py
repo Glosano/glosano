@@ -165,23 +165,77 @@ async def _lesson_with_occurrence(s: AsyncSession, user_id: uuid.UUID, token_tex
     return lesson
 
 
-async def test_lesson_queue_returns_all_tracked_ignoring_due_and_limit():
+async def _attach(s: AsyncSession, item: TokenItem | PhraseItem, lesson: Lesson) -> None:
+    item.created_from_lesson_id = lesson.id
+    await s.commit()
+
+
+async def test_lesson_queue_returns_items_added_in_lesson_ignoring_due():
     async with session_scope() as s:
         user_id = await _make_user(s)
         item = await _tracked_token(s, user_id, "cada")
-        await _tracked_token(s, user_id, "fora")  # tracked, но не в уроке
         lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        await _attach(s, item, lesson)
         await _set_due(s, item.id, NOW + timedelta(days=3))  # не due — всё равно попадает
         items, daily = await get_queue(
-            s,
-            user_id=user_id,
-            language_code="pt",
-            lesson_id=lesson.id,
-            now=NOW,
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
         )
         assert [i.text for i in items] == ["cada"]
-        assert items[0].context_sentence is None or "cada" in items[0].context_sentence
         assert not daily.limit_reached
+
+
+async def test_lesson_queue_excludes_word_added_in_another_lesson():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        mine = await _tracked_token(s, user_id, "cada")
+        foreign = await _tracked_token(s, user_id, "mundo")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        other = await _lesson_with_occurrence(s, user_id, "mundo")
+        await _attach(s, mine, lesson)
+        await _attach(s, foreign, other)
+        # "mundo" встречается в тексте первого урока ("cada mundo"), но добавлено в другом
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        assert [i.text for i in items] == ["cada"]
+
+
+async def test_lesson_queue_includes_phrase_added_in_lesson():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        seg_id = (
+            await s.execute(select(LessonSegment.id).where(LessonSegment.lesson_id == lesson.id))
+        ).scalar_one()
+        phrase = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="phrase",
+            language_code="pt",
+            text="cada mundo",
+            status="tracked",
+            confidence=1,
+        )
+        assert isinstance(phrase, PhraseItem)
+        await _attach(s, phrase, lesson)
+        phrase.created_from_segment_id = seg_id
+        await s.commit()
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        assert [i.text for i in items] == ["cada mundo"]
+        assert items[0].context_sentence == "cada mundo."
+
+
+async def test_lesson_queue_excludes_items_without_provenance():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        await _tracked_token(s, user_id, "cada")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        assert items == []
 
 
 async def test_lesson_queue_foreign_lesson_raises():
