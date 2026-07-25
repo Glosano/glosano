@@ -12,6 +12,8 @@ from flinq.modules.identity.repo import UserRepo
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.reader_state import bulk
 from flinq.modules.reader_state.models import BulkAction
+from flinq.modules.review import service as review_service
+from flinq.modules.review.models import ReviewEvent, ReviewItem
 from flinq.modules.vocabulary import service
 from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
@@ -31,7 +33,16 @@ async def _make_user(s: AsyncSession) -> uuid.UUID:
 async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFunction]
     yield
     async with session_scope() as s:
-        for model in (PersonalTranslation, PersonalNote, ItemTag, TokenItem, BulkAction, Lesson):
+        for model in (
+            ReviewEvent,
+            ReviewItem,
+            PersonalTranslation,
+            PersonalNote,
+            ItemTag,
+            TokenItem,
+            BulkAction,
+            Lesson,
+        ):
             await s.execute(delete(model))
 
 
@@ -258,10 +269,53 @@ async def test_list_items_filters_added_by():
     assert total == 2
 
 
-async def test_bulk_known_records_lesson_provenance():
+async def test_bulk_known_does_not_record_lesson_provenance():
+    """Решение человека: слова, попадающие в словарь как known через bulk-known,
+    не должны участвовать в повторении урока. bulk_mark_known срабатывает
+    автоматически на каждом перелистывании страницы — если бы он проставлял
+    created_from_lesson_id, почти весь словарь урока A получал бы провенанс A
+    просто от чтения, и слово, встреченное позже в уроке B и взятое в работу,
+    не могло бы попасть в очередь B (провенанс уже занят, _apply_provenance
+    непустой провенанс не перезаписывает)."""
     async with session_scope() as s:
         user_id = await _make_user(s)
         lesson = await _lesson_with_words(s, user_id, ["cada", "porta"])
         await bulk.bulk_mark_known(s, user_id=user_id, lesson=lesson, from_ordinal=0, to_ordinal=1)
         items = (await s.execute(select(TokenItem).where(TokenItem.user_id == user_id))).scalars()
-        assert {i.created_from_lesson_id for i in items} == {lesson.id}
+        assert {i.created_from_lesson_id for i in items} == {None}
+
+
+async def test_bulk_known_word_can_be_tracked_into_a_different_lesson_queue():
+    """Сквозной сценарий: слово bulk-known в уроке A, затем встречено и взято
+    в работу в уроке B через patch_item (lesson_id=B) — попадает в очередь
+    урока B, не в очередь урока A, потому что bulk-known больше не занимает
+    провенанс."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson_a = await _lesson_with_words(s, user_id, ["cada"])
+        lesson_b = await _lesson_with_words(s, user_id, ["cada"])
+        await bulk.bulk_mark_known(
+            s, user_id=user_id, lesson=lesson_a, from_ordinal=0, to_ordinal=0
+        )
+        item = (await s.execute(select(TokenItem).where(TokenItem.user_id == user_id))).scalar_one()
+        assert item.status == "known" and item.created_from_lesson_id is None
+
+        patched = await service.patch_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=item.id,
+            status="tracked",
+            confidence=1,
+            lesson_id=lesson_b.id,
+        )
+        assert patched.created_from_lesson_id == lesson_b.id
+
+        items_b, _ = await review_service.get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson_b.id
+        )
+        assert [i.text for i in items_b] == ["cada"]
+        items_a, _ = await review_service.get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson_a.id
+        )
+        assert items_a == []

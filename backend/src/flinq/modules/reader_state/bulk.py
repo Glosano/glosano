@@ -46,6 +46,12 @@ async def bulk_mark_known(
         )
     )
     if texts:
+        # created_from_lesson_id тут не проставляется (решение человека, FLQ-21):
+        # bulk-known срабатывает автоматически на каждом перелистывании
+        # страницы, поэтому провенанс урока занял бы почти весь словарь урока
+        # просто от чтения, при этом _apply_provenance не перезаписывает
+        # непустой провенанс — то же слово, встреченное позже в другом уроке
+        # и взятое в работу, не смогло бы попасть в очередь этого урока.
         stmt = (
             pg_insert(TokenItem)
             .values(
@@ -58,7 +64,6 @@ async def bulk_mark_known(
                         "status": "known",
                         "confidence": None,
                         "added_by": "bulk",
-                        "created_from_lesson_id": lesson.id,
                     }
                     for t in sorted(texts)
                 ]
