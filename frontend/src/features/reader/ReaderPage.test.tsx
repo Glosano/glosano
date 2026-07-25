@@ -507,4 +507,72 @@ describe('ReaderPage', () => {
       search: { lessonId: 'lesson-1' },
     })
   })
+
+  it('persists the page-end ordinal, not the page-start ordinal, for a lesson that fits on one page', async () => {
+    // `content` is 4 words total — a single page (PAGE_SIZE_WORDS is 250), so
+    // fromOrdinal is 0 for the whole lesson. Before this fix the reader
+    // persisted fromOrdinal, so a lesson like this could never show more than
+    // 0% in the library no matter how completely it was read.
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.putPosition).mockResolvedValue(undefined)
+
+    renderPage()
+
+    await screen.findByTestId('page-view-slot')
+
+    // TanStack Query v5 calls mutationFn(variables, context) — a second,
+    // internal context argument is always present, so assert on each call's
+    // first argument rather than the full call signature (see
+    // usePositionSync.test.tsx's callArgs helper for the same pattern).
+    await waitFor(
+      () => {
+        const calls = vi.mocked(readerApi.putPosition).mock.calls.map((call) => call[0])
+        expect(calls).toContainEqual({
+          lesson_id: 'lesson-1',
+          view_mode: 'page',
+          current_segment_id: 'seg-1',
+          current_token_ordinal: 3,
+        })
+      },
+      { timeout: 3000 },
+    )
+  })
+
+  it('sends null instead of a negative ordinal for a page with no word tokens', async () => {
+    const punctuationOnlyContent: LessonContent = {
+      lesson_id: 'lesson-1',
+      language_code: 'en',
+      word_count: 0,
+      paragraphs: [
+        {
+          sentences: [
+            { seg_id: 'seg-punct', index: 0, text: '…', normalized_text: '…', tokens: [{ p: '…' }] },
+          ],
+        },
+      ],
+    }
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(punctuationOnlyContent)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.putPosition).mockResolvedValue(undefined)
+
+    renderPage()
+
+    await screen.findByTestId('page-view-slot')
+
+    await waitFor(
+      () => {
+        const calls = vi.mocked(readerApi.putPosition).mock.calls.map((call) => call[0])
+        expect(calls).toContainEqual({
+          lesson_id: 'lesson-1',
+          view_mode: 'page',
+          current_segment_id: 'seg-punct',
+          current_token_ordinal: null,
+        })
+      },
+      { timeout: 3000 },
+    )
+  })
 })

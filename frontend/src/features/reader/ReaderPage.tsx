@@ -64,8 +64,8 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const toggleSidebar = useReaderStore((s) => s.toggleSidebar)
   const setLastBulkActionId = useReaderStore((s) => s.setLastBulkActionId)
 
-  const bulkKnown = useBulkKnown(lessonId)
-  const undoBulk = useUndoBulk(lessonId)
+  const bulkKnown = useBulkKnown(lessonId, lang)
+  const undoBulk = useUndoBulk(lessonId, lang)
 
   const pages = useMemo(() => (content ? paginate(content.paragraphs) : []), [content])
   const flatSentences = useMemo(
@@ -326,8 +326,16 @@ export function ReaderPage({ lang, lessonId }: Props) {
 
   const positionSegmentId =
     mode === 'page' ? (currentPage?.sentences[0]?.sentence.seg_id ?? null) : (currentSentence?.seg_id ?? null)
-  const positionOrdinal =
-    mode === 'page' ? (currentPage?.fromOrdinal ?? null) : (currentSentence?.tokens.find(isWord)?.i ?? null)
+  // Persist the same ordinal the progress bar itself is computed from
+  // (page-end in page mode, last word of the sentence in sentence mode) —
+  // one notion of "where the user is" in this file, so the library card's
+  // percent matches this page's own bar exactly. A degenerate page with no
+  // word tokens yields toOrdinal -1 (pagination.ts); the wire schema
+  // constrains current_token_ordinal to >= 0, so send null instead of a
+  // negative ordinal rather than let the PUT 422.
+  const positionOrdinal = currentOrdinalForProgress != null && currentOrdinalForProgress >= 0
+    ? currentOrdinalForProgress
+    : null
 
   usePositionSync({
     lessonId,
@@ -335,6 +343,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
     currentSegmentId: positionSegmentId,
     currentOrdinal: positionOrdinal,
     enabled: readyForInteraction,
+    lang,
   })
 
   const swipeHandlers = useSwipe({ onSwipeLeft: handleNext, onSwipeRight: handlePrev })

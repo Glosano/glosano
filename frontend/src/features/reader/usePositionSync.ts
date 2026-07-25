@@ -11,6 +11,7 @@ interface Params {
   currentSegmentId: string | null
   currentOrdinal: number | null
   enabled: boolean
+  lang: string
 }
 
 const DEBOUNCE_MS = 2000
@@ -23,8 +24,9 @@ export function usePositionSync({
   currentSegmentId,
   currentOrdinal,
   enabled,
+  lang,
 }: Params) {
-  const { mutate } = usePutPosition()
+  const { mutate } = usePutPosition(lang)
   const mutateRef = useRef(mutate)
   mutateRef.current = mutate
 

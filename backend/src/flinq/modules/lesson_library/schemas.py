@@ -36,6 +36,10 @@ class LessonSummary(BaseModel):
     visibility: str
     status: str
     created_at: datetime
+    # Считаются на лету в progress.py; у ORM-модели Lesson таких атрибутов нет,
+    # поэтому нужны значения по умолчанию — model_validate(lesson) их не найдёт.
+    read_percent: int = 0
+    new_words_remaining: int = 0
 
 
 class LessonListResponse(BaseModel):
