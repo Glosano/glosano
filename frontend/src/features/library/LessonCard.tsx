@@ -17,14 +17,17 @@ export function LessonCard({ lesson }: Props) {
           {lesson.title}
         </h3>
         <div className="mt-auto space-y-1">
-          <div className="h-1 w-full rounded-full bg-secondary">
+          <div
+            role="progressbar"
+            aria-valuenow={lesson.read_percent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`Прочитано ${lesson.read_percent.toString()}%`}
+            className="h-1 w-full rounded-full bg-secondary"
+          >
             <div
-              role="progressbar"
-              aria-valuenow={lesson.read_percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
               className="h-full rounded-full bg-primary"
-              style={{ width: `${String(lesson.read_percent)}%` }}
+              style={{ width: `${lesson.read_percent.toString()}%` }}
             />
           </div>
           <p className="text-xs text-muted-foreground">

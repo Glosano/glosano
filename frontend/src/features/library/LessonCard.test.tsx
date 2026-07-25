@@ -22,7 +22,12 @@ describe('LessonCard', () => {
     render(<LessonCard lesson={lesson} />)
     const bar = screen.getByRole('progressbar')
     expect(bar).toHaveAttribute('aria-valuenow', '42')
-    expect(bar.style.width).toBe('42%')
+    expect(bar.firstElementChild).toHaveStyle({ width: '42%' })
+  })
+
+  it('gives the progress bar an accessible name carrying the percentage', () => {
+    render(<LessonCard lesson={lesson} />)
+    expect(screen.getByRole('progressbar', { name: 'Прочитано 42%' })).toBeInTheDocument()
   })
 
   it('shows percent read, total words and remaining new words', () => {
@@ -34,13 +39,13 @@ describe('LessonCard', () => {
     render(<LessonCard lesson={{ ...lesson, read_percent: 0, new_words_remaining: 1240 }} />)
     const bar = screen.getByRole('progressbar')
     expect(bar).toHaveAttribute('aria-valuenow', '0')
-    expect(bar.style.width).toBe('0%')
+    expect(bar.firstElementChild).toHaveStyle({ width: '0%' })
     expect(screen.getByText('0% · 1240 слов · 1240 новых')).toBeInTheDocument()
   })
 
   it('renders a finished lesson at a hundred percent', () => {
     render(<LessonCard lesson={{ ...lesson, read_percent: 100, new_words_remaining: 0 }} />)
-    expect(screen.getByRole('progressbar').style.width).toBe('100%')
+    expect(screen.getByRole('progressbar').firstElementChild).toHaveStyle({ width: '100%' })
     expect(screen.getByText('100% · 1240 слов · 0 новых')).toBeInTheDocument()
   })
 })
