@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 
 import { reviewApi } from '@/api/review'
 import type { ReviewSessionResult } from './useReviewSession'
@@ -138,7 +139,7 @@ export function SessionSummary({
 export function SessionStates(
   s: ReviewSessionResult,
   subtitle?: string,
-  opts?: { lessonId?: string; showWriting?: boolean },
+  opts?: { lessonId?: string; showWriting?: boolean; lang?: string },
 ) {
   if (s.status === 'loading') {
     return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
@@ -164,6 +165,26 @@ export function SessionStates(
     )
   }
   if (s.status === 'empty') {
+    if (opts?.lessonId) {
+      return (
+        <SessionShell subtitle={subtitle}>
+          <p className="text-lg font-medium">В этом уроке пока нет слов</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Добавьте слова во время чтения — они появятся здесь.
+          </p>
+          {opts.lang && (
+            <Link
+              to="/learn/$lang/review"
+              params={{ lang: opts.lang }}
+              search={{}}
+              className="mt-3 inline-block underline"
+            >
+              Повторить весь словарь
+            </Link>
+          )}
+        </SessionShell>
+      )
+    }
     return (
       <SessionShell subtitle={subtitle}>
         <p className="text-lg font-medium">Всё повторено</p>

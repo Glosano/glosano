@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,7 +8,12 @@ vi.mock('@/api/review', () => ({
 }))
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
-vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigateMock }))
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigateMock,
+  Link: ({ children, className, to }: { children?: ReactNode; className?: string; to?: string }) => (
+    <a className={className} href={to}>{children}</a>
+  ),
+}))
 
 import type { ReviewMode } from '@/api/review'
 import { reviewApi } from '@/api/review'
@@ -37,6 +43,15 @@ describe('ReviewPage queue states', () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
     renderPage({ mode: 'cards' })
     expect(await screen.findByText('Всё повторено')).toBeTruthy()
+  })
+
+  it('пустая очередь урока предлагает повторить весь словарь', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderPage({ lessonId: 'L1', mode: 'cards' })
+    expect(await screen.findByText('В этом уроке пока нет слов')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /Повторить весь словарь/ })
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/learn/$lang/review')
   })
 
   it('shows limit reached state', async () => {

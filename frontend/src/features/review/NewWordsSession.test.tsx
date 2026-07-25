@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -5,6 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/api/review', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   reviewApi: { counts: vi.fn(), queue: vi.fn(), answer: vi.fn(), exercise: vi.fn(), exerciseFeedback: vi.fn() },
+}))
+
+// SessionStates рендерит <Link> из tanstack router на переходном empty-состоянии
+// сессии (session === null сразу после загрузки очереди), поэтому нужен стаб
+// с router-контекстом даже там, где сам экран это не проверяет.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, className, to }: { children?: ReactNode; className?: string; to?: string }) => (
+    <a className={className} href={to}>{children}</a>
+  ),
 }))
 
 import { reviewApi } from '@/api/review'

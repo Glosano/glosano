@@ -42,7 +42,7 @@ export function NewWordsSession({ lang, lessonId }: { lang: string; lessonId?: s
 
   const subtitle = lessonId ? 'Новые слова · Слова урока' : 'Новые слова'
 
-  const states = SessionStates(s, subtitle, { lessonId })
+  const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
   const item = s.current!
 

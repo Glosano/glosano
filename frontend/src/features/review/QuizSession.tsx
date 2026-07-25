@@ -53,7 +53,7 @@ export function QuizSession({
 
   const subtitle = lessonId ? `${SUBTITLES[kind]} · Слова урока` : SUBTITLES[kind]
 
-  const states = SessionStates(s, subtitle, { lessonId, showWriting: true })
+  const states = SessionStates(s, subtitle, { lessonId, showWriting: true, lang })
   if (states) return states
   const item = s.current!
   const payload = exercise.data?.payload

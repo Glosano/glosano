@@ -53,7 +53,7 @@ function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | und
   }, [current, flipped, grade])
 
   const subtitle = lessonId ? 'Слова урока' : undefined
-  const states = SessionStates(s, subtitle, { lessonId })
+  const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
   if (!current) return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
 
