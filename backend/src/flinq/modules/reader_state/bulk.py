@@ -58,6 +58,7 @@ async def bulk_mark_known(
                         "status": "known",
                         "confidence": None,
                         "added_by": "bulk",
+                        "created_from_lesson_id": lesson.id,
                     }
                     for t in sorted(texts)
                 ]

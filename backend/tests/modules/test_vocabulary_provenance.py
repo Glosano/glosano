@@ -256,3 +256,12 @@ async def test_list_items_filters_added_by():
     async with session_scope() as s:
         _, total = await service.list_items(s, user_id=user_id, language_code="pt", **kw)
     assert total == 2
+
+
+async def test_bulk_known_records_lesson_provenance():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson = await _lesson_with_words(s, user_id, ["cada", "porta"])
+        await bulk.bulk_mark_known(s, user_id=user_id, lesson=lesson, from_ordinal=0, to_ordinal=1)
+        items = (await s.execute(select(TokenItem).where(TokenItem.user_id == user_id))).scalars()
+        assert {i.created_from_lesson_id for i in items} == {lesson.id}
