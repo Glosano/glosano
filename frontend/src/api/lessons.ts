@@ -12,6 +12,8 @@ export interface LessonSummary {
   visibility: LessonVisibility
   status: LessonStatus
   created_at: string
+  read_percent: number
+  new_words_remaining: number
 }
 
 export interface LessonListResponse {
