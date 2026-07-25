@@ -64,6 +64,13 @@ async def progress_for_lessons(
     позицию через GROUP BY, а COUNT(DISTINCT ...) считает ровно то, что
     заявлено. Уроки без word-like токенов в результат не попадают — вызывающий
     подставляет им ZERO_PROGRESS.
+
+    Инвариант, которым эта функция не владеет, но на который полагается:
+    `token_items` соединяется по единому `lang`, а не по `language_code`
+    каждого урока — это безопасно только потому, что вызывающий
+    (`LessonRepo.list_for_user`) уже отфильтровал `lesson_ids` по
+    `Lesson.language_code == lang`. Если это перестанет быть так, счётчик
+    новых слов начнёт смешивать словарь пользователя по разным языкам.
     """
     if not lesson_ids:
         return {}
@@ -76,6 +83,7 @@ async def progress_for_lessons(
             func.max(ReaderPosition.current_token_ordinal),
             func.count(distinct(occ.normalized_text)).filter(
                 TokenItem.id.is_(None),
+                occ.normalized_text != "",
                 occ.ordinal_in_lesson
                 > func.coalesce(ReaderPosition.current_token_ordinal, -1),
             ),

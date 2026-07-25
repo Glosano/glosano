@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import uuid
 from typing import Any
 
@@ -80,13 +79,10 @@ async def test_position_drives_percent_and_shrinks_remaining(
         await _put_position(c, csrf, lesson_id, ordinals[4])
 
         card = await _card(c, lesson_id)
-        # ordinals[4]/ordinals[-1] lands exactly on 62.5%: Python's built-in
-        # round() ties-to-even (-> 62), but read_percent() deliberately rounds
-        # half-up to mirror the reader bar's JS Math.round() (-> 63); see
-        # progress.py's read_percent docstring. Use the same formula here so
-        # this assertion tracks the documented contract, not round()'s parity quirk.
-        expected = math.floor(ordinals[4] / ordinals[-1] * 100 + 0.5)
-        assert card["read_percent"] == expected
+        # 5/8 = 62.5% -> half-up. Hardcoded rather than recomputed via
+        # read_percent()'s own formula, so this pins the documented
+        # half-up-rounding contract independently of the implementation.
+        assert card["read_percent"] == 63
         assert 0 < card["read_percent"] < 100
         assert card["new_words_remaining"] == 3
 
@@ -234,6 +230,23 @@ async def test_all_words_known_leaves_nothing_new(
         card = await _card(c, lesson_id)
         assert card["read_percent"] == 0  # урок не открывали
         assert card["new_words_remaining"] == 0
+
+
+async def test_underscore_separator_is_not_counted_as_a_permanent_new_word(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`is_word_like("___")` is true but `normalize_token("___")` is "" — a bare
+    underscore separator must not inflate new_words_remaining with a word the
+    user can never clear through the WordCard (there is no token to click)."""
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        csrf = await register_and_onboard(c, "progress-underscore@example.com", lang="pt")
+        lesson_id = await seed_ready_lesson(
+            c, csrf, monkeypatch, text="um dois ___ tres quatro. cinco seis sete oito."
+        )
+
+        card = await _card(c, lesson_id)
+        assert card["new_words_remaining"] == 8
 
 
 async def test_progress_is_per_user(monkeypatch: pytest.MonkeyPatch) -> None:

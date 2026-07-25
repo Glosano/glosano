@@ -57,18 +57,20 @@ async def list_lessons(
     progress = await progress_for_lessons(
         session, user_id=user_id, lang=lang, lesson_ids=[item.id for item in items]
     )
-    return LessonListResponse(
-        items=[
+    summaries = []
+    for item in items:
+        item_progress = progress.get(item.id, ZERO_PROGRESS)
+        summaries.append(
             LessonSummary.model_validate(item).model_copy(
                 update={
-                    "read_percent": progress.get(item.id, ZERO_PROGRESS).read_percent,
-                    "new_words_remaining": progress.get(
-                        item.id, ZERO_PROGRESS
-                    ).new_words_remaining,
+                    "read_percent": item_progress.read_percent,
+                    "new_words_remaining": item_progress.new_words_remaining,
                 }
             )
-            for item in items
-        ],
+        )
+
+    return LessonListResponse(
+        items=summaries,
         total=total,
         page=page,
         page_size=page_size,
