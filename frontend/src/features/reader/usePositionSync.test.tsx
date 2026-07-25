@@ -33,10 +33,14 @@ interface HookProps {
 }
 
 function renderPositionSync(initial: HookProps) {
-  return renderHook((props: HookProps) => usePositionSync({ lessonId: 'lesson-1', mode: 'page', enabled: true, ...props }), {
-    initialProps: initial,
-    wrapper,
-  })
+  return renderHook(
+    (props: HookProps) =>
+      usePositionSync({ lessonId: 'lesson-1', mode: 'page', enabled: true, lang: 'en', ...props }),
+    {
+      initialProps: initial,
+      wrapper,
+    },
+  )
 }
 
 describe('usePositionSync', () => {

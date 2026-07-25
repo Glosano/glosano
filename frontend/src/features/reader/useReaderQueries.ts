@@ -30,28 +30,42 @@ export function useTokenStatuses(lessonId: string, enabled: boolean) {
   })
 }
 
-export function usePutPosition() {
+// The library list card (['lessons', lang]) shows a read-percent and a
+// new-words-remaining count derived from exactly the writes below (reader
+// position, bulk-known, undo). Nothing else invalidates that query, and its
+// staleTime is 30s (main.tsx) — without invalidating here, a user who reads
+// for under 30s and bounces back to the library sees stale numbers. This is
+// invalidated from each mutation's own onSuccess (not e.g. on reader unmount)
+// so the refresh is ordered after the write it depends on has landed, rather
+// than racing the debounced position PUT.
+export function usePutPosition(lang: string) {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: readerApi.putPosition,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
+    },
   })
 }
 
-export function useBulkKnown(lessonId: string) {
+export function useBulkKnown(lessonId: string, lang: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: readerApi.bulkKnown,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] })
+      void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
     },
   })
 }
 
-export function useUndoBulk(lessonId: string) {
+export function useUndoBulk(lessonId: string, lang: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: readerApi.undoBulk,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] })
+      void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
     },
   })
 }
