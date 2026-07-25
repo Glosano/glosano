@@ -17,13 +17,12 @@ interface Props {
 }
 
 export function ReviewPage({ lang, lessonId, mode }: Props) {
-  if (lessonId) return <CardsSession lang={lang} lessonId={lessonId} />
-  if (!mode) return <ModeSelect lang={lang} />
-  if (mode === 'cards') return <CardsSession lang={lang} lessonId={undefined} />
-  if (mode === 'new') return <NewWordsSession lang={lang} />
-  if (mode === 'cloze') return <QuizSession lang={lang} kind="cloze" />
-  if (mode === 'reverse') return <QuizSession lang={lang} kind="reverse" />
-  return <TranslationSession lang={lang} />
+  if (!mode) return <ModeSelect lang={lang} lessonId={lessonId} />
+  if (mode === 'cards') return <CardsSession lang={lang} lessonId={lessonId} />
+  if (mode === 'new') return <NewWordsSession lang={lang} lessonId={lessonId} />
+  if (mode === 'cloze') return <QuizSession lang={lang} kind="cloze" lessonId={lessonId} />
+  if (mode === 'reverse') return <QuizSession lang={lang} kind="reverse" lessonId={lessonId} />
+  return <TranslationSession lang={lang} lessonId={lessonId} />
 }
 
 function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | undefined }) {

@@ -6,8 +6,8 @@ import { GradeBar } from './GradeBar'
 import { useReviewSession } from './useReviewSession'
 import { SessionShell, SessionStates } from './sessionUi'
 
-export function NewWordsSession({ lang }: { lang: string }) {
-  const s = useReviewSession(lang, { serverMode: 'new' })
+export function NewWordsSession({ lang, lessonId }: { lang: string; lessonId?: string }) {
+  const s = useReviewSession(lang, { serverMode: 'new', lessonId })
   const [revealed, setRevealed] = useState(false)
 
   const exercise = useQuery({
@@ -40,12 +40,14 @@ export function NewWordsSession({ lang }: { lang: string }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const states = SessionStates(s, 'Новые слова')
+  const subtitle = lessonId ? 'Новые слова · Слова урока' : 'Новые слова'
+
+  const states = SessionStates(s, subtitle)
   if (states) return states
   const item = s.current!
 
   return (
-    <SessionShell subtitle="Новые слова" idx={s.idx} total={s.total}>
+    <SessionShell subtitle={subtitle} idx={s.idx} total={s.total}>
       <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
         <p className="text-center text-2xl font-medium">{item.text}</p>
         {exercise.isPending && (

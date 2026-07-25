@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/review', async (importOriginal) => ({
@@ -15,11 +15,11 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 import { reviewApi } from '@/api/review'
 import { ModeSelect } from './ModeSelect'
 
-function renderModeSelect() {
+function renderModeSelect(lessonId?: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <ModeSelect lang="pt" />
+      <ModeSelect lang="pt" lessonId={lessonId} />
     </QueryClientProvider>,
   )
 }
@@ -48,5 +48,16 @@ describe('ModeSelect', () => {
     const newTile = screen.getByText('Новые слова').closest('button') as HTMLButtonElement
     expect(newTile.disabled).toBe(true)
     expect(screen.getAllByText('AI отключён').length).toBeGreaterThan(0)
+  })
+
+  it('в скоупе урока запрашивает счётчики урока и сохраняет lessonId при переходе', async () => {
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 2, new: 1, practice: 0, ai_enabled: true })
+    renderModeSelect('L1')
+    await waitFor(() => expect(reviewApi.counts).toHaveBeenCalledWith('pt', 'L1'))
+    expect(await screen.findByText('Слова урока')).toBeTruthy()
+    screen.getByText('Карточки').closest('button')!.click()
+    expect(navigateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ search: { mode: 'cards', lessonId: 'L1' } }),
+    )
   })
 })

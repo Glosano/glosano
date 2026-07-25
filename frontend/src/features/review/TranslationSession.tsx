@@ -10,10 +10,10 @@ interface TranslationTaskExercise {
   sentence_translation: string
 }
 
-export function TranslationSession({ lang }: { lang: string }) {
+export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?: string }) {
   const queue = useQuery({
-    queryKey: ['review-queue', lang, 'practice', null],
-    queryFn: () => reviewApi.queue(lang, undefined, 'practice'),
+    queryKey: ['review-queue', lang, 'practice', lessonId ?? null],
+    queryFn: () => reviewApi.queue(lang, lessonId, 'practice'),
     staleTime: Infinity,
     gcTime: 0,
   })

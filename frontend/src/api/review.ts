@@ -79,7 +79,11 @@ export const reviewApi = {
       method: 'POST',
       body: JSON.stringify({ review_item_id: reviewItemId, quality }),
     }),
-  counts: (lang: string) => api<ReviewCounts>(`/api/review/counts?lang=${lang}`),
+  counts: (lang: string, lessonId?: string) => {
+    const q = new URLSearchParams({ lang })
+    if (lessonId) q.set('lesson_id', lessonId)
+    return api<ReviewCounts>(`/api/review/counts?${q.toString()}`)
+  },
   exercise: <P,>(body: {
     kind: 'example' | 'cloze' | 'reverse' | 'translation_task' | 'writing'
     review_item_id?: string

@@ -61,11 +61,11 @@ describe('ReviewPage queue states', () => {
     expect(screen.getByText('1 / 1')).toBeTruthy()
   })
 
-  it('passes lessonId to queue and shows lesson subtitle', async () => {
+  it('с lessonId и mode=cards грузит очередь урока', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
-    renderPage({ lessonId: 'L1' })
+    renderPage({ lessonId: 'L1', mode: 'cards' })
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined))
     expect(await screen.findByText('Слова урока')).toBeTruthy()
-    expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined)
   })
 })
 
@@ -189,6 +189,13 @@ describe('ReviewPage mode select', () => {
     renderPage({})
     expect(await screen.findByText('Карточки')).toBeTruthy()
     expect(screen.getByText('Новые слова')).toBeTruthy()
+    expect(reviewApi.queue).not.toHaveBeenCalled()
+  })
+
+  it('с lessonId без mode показывает выбор режима в скоупе урока', async () => {
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 2, new: 1, practice: 0, ai_enabled: true })
+    renderPage({ lessonId: 'L1' })
+    expect(await screen.findByText('Слова урока')).toBeInTheDocument()
     expect(reviewApi.queue).not.toHaveBeenCalled()
   })
 })

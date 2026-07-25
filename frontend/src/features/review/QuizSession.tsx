@@ -14,8 +14,16 @@ const SUBTITLES: Record<QuizKind, string> = {
   reverse: 'Квиз: перевод',
 }
 
-export function QuizSession({ lang, kind }: { lang: string; kind: QuizKind }) {
-  const s = useReviewSession(lang, { serverMode: 'due' })
+export function QuizSession({
+  lang,
+  kind,
+  lessonId,
+}: {
+  lang: string
+  kind: QuizKind
+  lessonId?: string
+}) {
+  const s = useReviewSession(lang, { serverMode: 'due', lessonId })
   const [picked, setPicked] = useState<number | null>(null)
 
   const exercise = useQuery({
@@ -43,7 +51,9 @@ export function QuizSession({ lang, kind }: { lang: string; kind: QuizKind }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const states = SessionStates(s, SUBTITLES[kind], { showWriting: true })
+  const subtitle = lessonId ? `${SUBTITLES[kind]} · Слова урока` : SUBTITLES[kind]
+
+  const states = SessionStates(s, subtitle, { showWriting: true })
   if (states) return states
   const item = s.current!
   const payload = exercise.data?.payload
@@ -52,7 +62,7 @@ export function QuizSession({ lang, kind }: { lang: string; kind: QuizKind }) {
   const isCorrect = picked !== null && options[picked]?.is_correct
 
   return (
-    <SessionShell subtitle={SUBTITLES[kind]} idx={s.idx} total={s.total}>
+    <SessionShell subtitle={subtitle} idx={s.idx} total={s.total}>
       <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
         {kind === 'reverse' && <p className="text-center text-2xl font-medium">{item.text}</p>}
         {exercise.isPending && (

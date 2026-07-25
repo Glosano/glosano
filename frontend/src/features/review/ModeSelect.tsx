@@ -17,11 +17,11 @@ const MODES: {
   { mode: 'translation', title: 'Практика перевода', hint: 'Переведи предложение, AI проверит', countKey: 'practice', needsAi: true },
 ]
 
-export function ModeSelect({ lang }: { lang: string }) {
+export function ModeSelect({ lang, lessonId }: { lang: string; lessonId?: string }) {
   const navigate = useNavigate()
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ['review-counts', lang],
-    queryFn: () => reviewApi.counts(lang),
+    queryKey: ['review-counts', lang, lessonId ?? null],
+    queryFn: () => reviewApi.counts(lang, lessonId),
   })
 
   if (isPending) return <p className="p-8 text-center">Загрузка…</p>
@@ -37,7 +37,8 @@ export function ModeSelect({ lang }: { lang: string }) {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
-      <h1 className="mb-6 text-center text-xl font-semibold">Повторение</h1>
+      <h1 className={`${lessonId ? 'mb-1' : 'mb-6'} text-center text-xl font-semibold`}>Повторение</h1>
+      {lessonId && <p className="mb-6 text-center text-sm text-muted-foreground">Слова урока</p>}
       <div className="grid gap-3">
         {MODES.map((m) => {
           const aiOff = m.needsAi && !data.ai_enabled
@@ -50,7 +51,7 @@ export function ModeSelect({ lang }: { lang: string }) {
                 void navigate({
                   to: '/learn/$lang/review',
                   params: { lang },
-                  search: { mode: m.mode },
+                  search: { mode: m.mode, ...(lessonId ? { lessonId } : {}) },
                 })
               }
               className="flex items-center justify-between rounded-lg border border-border bg-card p-4 text-left hover:bg-accent disabled:opacity-50"
