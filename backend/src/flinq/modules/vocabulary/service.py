@@ -105,6 +105,7 @@ async def _validate_provenance(
     user_id: uuid.UUID,
     lesson_id: uuid.UUID | None,
     segment_id: uuid.UUID | None,
+    language_code: str,
 ) -> None:
     if lesson_id is None:
         if segment_id is not None:
@@ -113,6 +114,12 @@ async def _validate_provenance(
     lesson = await session.get(Lesson, lesson_id)
     if lesson is None or lesson.owner_user_id != user_id:
         raise LessonNotFound(str(lesson_id))
+    # Провенанс не должен привязывать item к уроку на другом языке: lesson-режим
+    # очереди фильтрует по языку урока, рассинхрон иначе тихо выпал бы из неё.
+    if lesson.language_code != language_code:
+        raise InvalidProvenance(
+            f"lesson language {lesson.language_code!r} != item language {language_code!r}"
+        )
     if segment_id is not None:
         segment = await session.get(LessonSegment, segment_id)
         if segment is None or segment.lesson_id != lesson_id:
@@ -185,7 +192,13 @@ async def create_item(
     segment_id: uuid.UUID | None = None,
 ) -> VocabItem:
     _check_kind(kind)
-    await _validate_provenance(session, user_id=user_id, lesson_id=lesson_id, segment_id=segment_id)
+    await _validate_provenance(
+        session,
+        user_id=user_id,
+        lesson_id=lesson_id,
+        segment_id=segment_id,
+        language_code=language_code,
+    )
     if kind == "phrase":
         normalized = normalize_phrase(text)
         word_count = len(normalized.split(" ")) if normalized else 0
@@ -351,8 +364,16 @@ async def patch_item(
     segment_id: uuid.UUID | None = None,
 ) -> VocabItem:
     _check_kind(kind)
-    await _validate_provenance(session, user_id=user_id, lesson_id=lesson_id, segment_id=segment_id)
+    # Сначала владение item'ом (ItemNotFound -> 404), затем провенанс: язык для
+    # проверки урока берётся из самого item, не из тела запроса.
     item = await _owned_item(session, user_id=user_id, kind=kind, item_id=item_id)
+    await _validate_provenance(
+        session,
+        user_id=user_id,
+        lesson_id=lesson_id,
+        segment_id=segment_id,
+        language_code=item.language_code,
+    )
     item.status = status
     item.confidence = confidence
     _apply_provenance(item, lesson_id=lesson_id, segment_id=segment_id, is_new=False, status=status)

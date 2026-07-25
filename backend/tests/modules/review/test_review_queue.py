@@ -238,6 +238,33 @@ async def test_lesson_queue_excludes_items_without_provenance():
         assert items == []
 
 
+async def test_lesson_queue_excludes_item_with_mismatched_language():
+    """Defense-in-depth: write-путь такое запрещает, но на старых/битых данных
+    очередь урока не должна выдавать item, чей язык отличается от языка урока —
+    даже если провенанс (created_from_lesson_id) на него указывает."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        foreign_lang_item = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="ru",
+            text="cada",
+            status="tracked",
+            confidence=1,
+        )
+        # write-путь (create_item/patch_item) больше не допускает такой провенанс
+        # при рассинхроне языков — выставляем напрямую, как если бы это были
+        # устаревшие/предшествующие фиксу данные.
+        foreign_lang_item.created_from_lesson_id = lesson.id
+        await s.commit()
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
+        )
+        assert items == []
+
+
 async def test_lesson_queue_foreign_lesson_raises():
     async with session_scope() as s:
         user_id = await _make_user(s)

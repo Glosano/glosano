@@ -133,6 +133,48 @@ async def test_create_item_rejects_segment_from_other_lesson():
             )
 
 
+async def test_create_item_rejects_language_mismatch_with_lesson():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson, _ = await _lesson(s, user_id)  # урок на "pt"
+        with pytest.raises(service.InvalidProvenance):
+            await service.create_item(
+                s,
+                user_id=user_id,
+                kind="token",
+                language_code="ru",  # язык записи и язык урока не совпадают
+                text="cada",
+                status="tracked",
+                confidence=1,
+                lesson_id=lesson.id,
+            )
+
+
+async def test_patch_item_rejects_language_mismatch_with_lesson():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        lesson, _ = await _lesson(s, user_id)  # урок на "pt"
+        item = await service.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="ru",
+            text="privet",
+            status="known",
+            confidence=None,
+        )
+        with pytest.raises(service.InvalidProvenance):
+            await service.patch_item(
+                s,
+                user_id=user_id,
+                kind="token",
+                item_id=item.id,
+                status="tracked",
+                confidence=1,
+                lesson_id=lesson.id,  # урок на "pt", item.language_code == "ru"
+            )
+
+
 async def test_create_item_rejects_segment_without_lesson():
     async with session_scope() as s:
         user_id = await _make_user(s)

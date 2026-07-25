@@ -255,6 +255,10 @@ async def get_queue(
                     ReviewItem.is_active.is_(True),
                     model.status == "tracked",
                     model.created_from_lesson_id == lesson_id,
+                    # defense-in-depth: язык записи должен быть равен языку урока
+                    # (инвариант обеспечен на записи в _validate_provenance, но
+                    # старые/битые данные не должны всплывать в очереди урока).
+                    model.language_code == lesson.language_code,
                 )
             )
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
