@@ -20,13 +20,17 @@ import { ApiError } from '@/api/client'
 import { useReaderStore } from './readerStore'
 import { WordCard } from './WordCard'
 
-function renderCard(sentenceText: string | null = null, lessonId: string | null = 'L1') {
+function renderCard(
+  sentenceText: string | null = null,
+  lessonId: string | null = 'L1',
+  segId: string | null = null,
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
       <WordCard
         word={{ kind: 'token', t: 'cada', n: 'cada', i: 0, sentenceText: null }}
-        lang="pt" target="ru" lessonId={lessonId} onClose={() => {}}
+        lang="pt" target="ru" lessonId={lessonId} segId={segId} onClose={() => {}}
         sentenceText={sentenceText}
       />
     </QueryClientProvider>,
@@ -108,7 +112,11 @@ describe('WordCard core', () => {
     const pill = await screen.findByRole('button', { name: 'Уровень 2' })
     fireEvent.click(pill)
     await waitFor(() => {
-      expect(vocabularyApi.patchItem).toHaveBeenCalledWith('token', 'I1', { status: 'tracked', confidence: 2 })
+      // renderCard() по умолчанию открывает карточку с lessonId='L1' и без
+      // segId — провенанс уходит вместе с обновлением статуса (FLQ-21).
+      expect(vocabularyApi.patchItem).toHaveBeenCalledWith('token', 'I1', {
+        status: 'tracked', confidence: 2, lesson_id: 'L1', segment_id: undefined,
+      })
     })
   })
 
@@ -344,6 +352,22 @@ describe('WordCard core', () => {
     )
   })
 
+  it('передаёт lesson_id и segment_id при добавлении слова', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null, status: 'new', confidence: null,
+      translations: { primary: null, all: [] }, note: null, tags: [],
+    })
+    vi.mocked(vocabularyApi.createItem).mockResolvedValue({ item_id: 'I1', status: 'tracked', confidence: 1 })
+
+    renderCard(null, 'L1', 'S1')
+    fireEvent.click(await screen.findByRole('button', { name: 'Уровень 1' }))
+    await waitFor(() => {
+      expect(vocabularyApi.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ lesson_id: 'L1', segment_id: 'S1' }),
+      )
+    })
+  })
+
   it('phrase card: no dictionary lookup, creates item with kind=phrase', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
       item_id: null, status: 'new', confidence: null,
@@ -354,7 +378,7 @@ describe('WordCard core', () => {
     render(
       <WordCard
         word={{ kind: 'phrase', t: 'so far, so good', n: 'so far so good', i: 10, sentenceText: 'So far, so good it is.' }}
-        lang="en" target="ru" lessonId="l1" onClose={() => {}} sentenceText={null}
+        lang="en" target="ru" lessonId="l1" segId="s1" onClose={() => {}} sentenceText={null}
       />,
       { wrapper },
     )
@@ -389,7 +413,7 @@ describe('WordCard core', () => {
         // t (surface) and n (normalized) deliberately differ here to prove
         // the token path keeps using the normalized `n`, unlike phrases.
         word={{ kind: 'token', t: 'Far', n: 'far', i: 1, sentenceText: null }}
-        lang="en" target="ru" lessonId="l1" onClose={() => {}} sentenceText="It is far."
+        lang="en" target="ru" lessonId="l1" segId="s1" onClose={() => {}} sentenceText="It is far."
       />,
       { wrapper },
     )

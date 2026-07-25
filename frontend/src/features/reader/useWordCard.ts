@@ -31,6 +31,7 @@ export function useWordCardMutations(opts: {
   surfaceText: string
   target: string
   lessonId: string | null
+  segId: string | null
 }) {
   const qc = useQueryClient()
   const invalidate = () => {
@@ -50,8 +51,12 @@ export function useWordCardMutations(opts: {
         ? vocabularyApi.createItem({
             kind: opts.kind, language_code: opts.lang, text: opts.surfaceText,
             status: v.status, confidence: v.confidence,
+            lesson_id: opts.lessonId ?? undefined, segment_id: opts.segId ?? undefined,
           })
-        : vocabularyApi.patchItem(opts.kind, v.itemId, { status: v.status, confidence: v.confidence }),
+        : vocabularyApi.patchItem(opts.kind, v.itemId, {
+            status: v.status, confidence: v.confidence,
+            lesson_id: opts.lessonId ?? undefined, segment_id: opts.segId ?? undefined,
+          }),
     onSuccess: invalidate,
   })
 

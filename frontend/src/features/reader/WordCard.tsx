@@ -16,6 +16,7 @@ interface Props {
   lang: string
   target: string
   lessonId: string | null
+  segId: string | null
   onClose: () => void
   /** Явное действие со статусом («добавили в обучение») — ридер по нему
       гасит подсветку выделения, не закрывая карточку. */
@@ -23,7 +24,7 @@ interface Props {
   sentenceText: string | null
 }
 
-export function WordCard({ word, lang, target, lessonId, onClose, onStatusApplied, sentenceText }: Props) {
+export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatusApplied, sentenceText }: Props) {
   const expanded = useReaderStore((s) => s.wordCardExpanded)
   const setExpanded = useReaderStore((s) => s.setWordCardExpanded)
   const kind = word?.kind ?? 'token'
@@ -34,7 +35,9 @@ export function WordCard({ word, lang, target, lessonId, onClose, onStatusApplie
   // normalization IS idempotent, so tokens keep using `word.n`.
   const text = word ? (kind === 'phrase' ? word.t : word.n) : null
   const lookup = useWordLookup(lang, text, target, kind)
-  const m = useWordCardMutations({ kind, lang, text: text ?? '', surfaceText: word?.t ?? '', target, lessonId })
+  const m = useWordCardMutations({
+    kind, lang, text: text ?? '', surfaceText: word?.t ?? '', target, lessonId, segId,
+  })
 
   const data = lookup.data
   const itemId = data?.item_id ?? null

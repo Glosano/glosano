@@ -86,8 +86,16 @@ export const vocabularyApi = {
   createItem: (body: {
     kind: ItemKind; language_code: string; text: string
     status: WriteStatus; confidence: number | null
+    lesson_id?: string; segment_id?: string
   }) => api<ItemState>('/api/vocabulary/items', { method: 'POST', body: JSON.stringify(body) }),
-  patchItem: (kind: ItemKind, id: string, body: { status: WriteStatus; confidence: number | null }) =>
+  patchItem: (
+    kind: ItemKind,
+    id: string,
+    body: {
+      status: WriteStatus; confidence: number | null
+      lesson_id?: string; segment_id?: string
+    },
+  ) =>
     api<ItemState>(`/api/vocabulary/items/${kind}/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   addTranslation: (kind: ItemKind, id: string, body: {
     target_language_code: string; translation_text: string

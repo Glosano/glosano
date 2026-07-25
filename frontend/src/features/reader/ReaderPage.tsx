@@ -183,6 +183,17 @@ export function ReaderPage({ lang, lessonId }: Props) {
     return sentence?.text ?? null
   }, [selectedWord, flatSentences])
 
+  // Предложение, в котором стоит выделенное слово/фраза — его seg_id уходит
+  // в провенанс при добавлении в словарь (FLQ-21). Для фразы `selectedWord.i`
+  // — ординал её первого слова, поиск по ординалу работает и для неё.
+  const selectedSegId = useMemo(() => {
+    if (!selectedWord) return null
+    const sentence = flatSentences.find((s) =>
+      s.tokens.some((tok) => isWord(tok) && tok.i === selectedWord.i),
+    )
+    return sentence?.seg_id ?? null
+  }, [selectedWord, flatSentences])
+
   const handleWordClick = (w: { t: string; n: string; i: number }) => {
     setSelectedWord({ kind: 'token', ...w, sentenceText: null })
     setSelectionRange({ from: w.i, to: w.i })
@@ -497,6 +508,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
         lang={content?.language_code ?? lang}
         target={DEFAULT_TRANSLATION_LANG}
         lessonId={lessonId}
+        segId={selectedSegId}
         onClose={closeCard}
         onStatusApplied={() => setSelectionRange(null)}
         sentenceText={selectedSentenceText}

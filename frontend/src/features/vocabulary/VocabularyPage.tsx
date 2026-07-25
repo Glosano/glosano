@@ -325,6 +325,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           lang={lang}
           target={VOCAB_TARGET}
           lessonId={null}
+          segId={null}
           sentenceText={null}
           onClose={handleCardClose}
         />

@@ -381,6 +381,49 @@ describe('ReaderPage', () => {
     expect(world.className).not.toContain('bg-primary/20')
   })
 
+  it('передаёт lesson_id и segment_id предложения при добавлении фразы', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null, status: 'new', confidence: null,
+      translations: { primary: null, all: [] }, note: null, tags: [],
+    })
+    vi.mocked(vocabularyApi.createItem).mockResolvedValue({
+      item_id: 'ph1', status: 'tracked', confidence: 1,
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+
+    await screen.findByTestId('page-view-slot')
+    const hello = screen.getByRole('button', { name: 'Hello' })
+    const world = screen.getByRole('button', { name: 'world' })
+
+    // Тянем фразу "Hello world" — оба слова принадлежат seg-1.
+    fireEvent(
+      hello,
+      new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+    )
+    fireEvent(
+      world,
+      new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+    )
+    fireEvent(
+      world,
+      new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 0 }),
+    )
+
+    await screen.findByTestId('word-card')
+    fireEvent.click(await screen.findByRole('button', { name: 'Уровень 1' }))
+
+    await waitFor(() => {
+      expect(vocabularyApi.createItem).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'phrase', lesson_id: 'lesson-1', segment_id: 'seg-1' }),
+      )
+    })
+  })
+
   it('clears the selection highlight when a status is applied but keeps the card open', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
     vi.mocked(readerApi.content).mockResolvedValue(content)
