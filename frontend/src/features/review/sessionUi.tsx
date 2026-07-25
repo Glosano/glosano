@@ -132,6 +132,40 @@ export function SessionSummary({
   )
 }
 
+interface LessonEmptyStateProps {
+  lang?: string
+}
+
+/**
+ * Пустой экран в скоупе урока: провенанс (FLQ-21) не бэкфиллится, поэтому на
+ * уроках, прочитанных до релиза, этот экран показывается даже там, где
+ * пользователь добавил десятки слов старым способом — текст не должен
+ * читаться как «в уроке ничего нет», а объяснять, что видно именно здесь.
+ * Используется и в SessionStates (карточки/квизы/новые слова), и в
+ * TranslationSession, у которой свой собственный empty-путь.
+ */
+export function LessonEmptyState({ lang }: LessonEmptyStateProps) {
+  return (
+    <>
+      <p className="text-lg font-medium">В этом уроке пока нет слов</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Здесь появятся слова и фразы, которые вы добавите в этом уроке. Слова, добавленные
+        раньше, доступны в общем повторении.
+      </p>
+      {lang && (
+        <Link
+          to="/learn/$lang/review"
+          params={{ lang }}
+          search={{}}
+          className="mt-3 inline-block underline"
+        >
+          Повторить весь словарь
+        </Link>
+      )}
+    </>
+  )
+}
+
 /**
  * Возвращает JSX для не-active статусов сессии (loading/error/limit/empty/done)
  * или null, если сессия активна (карточка/упражнение должны рендериться вызывающим кодом).
@@ -168,20 +202,7 @@ export function SessionStates(
     if (opts?.lessonId) {
       return (
         <SessionShell subtitle={subtitle}>
-          <p className="text-lg font-medium">В этом уроке пока нет слов</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Добавьте слова во время чтения — они появятся здесь.
-          </p>
-          {opts.lang && (
-            <Link
-              to="/learn/$lang/review"
-              params={{ lang: opts.lang }}
-              search={{}}
-              className="mt-3 inline-block underline"
-            >
-              Повторить весь словарь
-            </Link>
-          )}
+          <LessonEmptyState lang={opts.lang} />
         </SessionShell>
       )
     }

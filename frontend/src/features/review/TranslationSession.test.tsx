@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -5,6 +6,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/api/review', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   reviewApi: { counts: vi.fn(), queue: vi.fn(), answer: vi.fn(), exercise: vi.fn(), exerciseFeedback: vi.fn() },
+}))
+
+// Пустой экран в скоупе урока рендерит <Link> из tanstack router (LessonEmptyState).
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, className, to }: { children?: ReactNode; className?: string; to?: string }) => (
+    <a className={className} href={to}>{children}</a>
+  ),
 }))
 
 import { reviewApi } from '@/api/review'
@@ -60,5 +68,24 @@ describe('TranslationSession', () => {
     renderSession('L1')
     await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice'))
     expect(await screen.findByText(/Слова урока/)).toBeTruthy()
+  })
+
+  it('пустая очередь урока показывает lesson-пустой экран со ссылкой на общий словарь', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderSession('L1')
+    expect(await screen.findByText('В этом уроке пока нет слов')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Нет предложений для практики'),
+    ).not.toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /Повторить весь словарь/ })
+    expect(link).toBeInTheDocument()
+    expect(link).toHaveAttribute('href', '/learn/$lang/review')
+  })
+
+  it('пустая очередь вне скоупа урока показывает старый нейтральный текст', async () => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderSession()
+    expect(await screen.findByText('Нет предложений для практики')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Повторить весь словарь/ })).not.toBeInTheDocument()
   })
 })

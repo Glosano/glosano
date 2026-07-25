@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { reviewApi } from '@/api/review'
-import { SessionShell } from './sessionUi'
+import { LessonEmptyState, SessionShell } from './sessionUi'
 
 const SUBTITLE = 'Практика перевода'
 
@@ -78,6 +78,13 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
     )
   }
   if (total === 0) {
+    if (lessonId) {
+      return (
+        <SessionShell subtitle={subtitle}>
+          <LessonEmptyState lang={lang} />
+        </SessionShell>
+      )
+    }
     return (
       <SessionShell subtitle={subtitle}>
         <p className="text-lg font-medium">Нет предложений для практики</p>
