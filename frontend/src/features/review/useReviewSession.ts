@@ -123,7 +123,12 @@ export function useReviewSession(
   } else if (isError || !data) {
     status = 'error'
   } else if (session === null) {
-    status = data.daily.limit_reached ? 'limit' : 'empty'
+    // Между разрешением запроса (isPending=false) и проходом passive-эффекта,
+    // который сидирует session, есть транзитный рендер: данные уже есть, а
+    // session ещё null. Если очередь непустая, это не 'empty' — просто кадр
+    // до сидирования; статус 'loading' точнее и не должен доезжать до UI как
+    // «нет карточек».
+    status = data.items.length > 0 ? 'loading' : data.daily.limit_reached ? 'limit' : 'empty'
   } else if (current) {
     status = 'active'
   } else {
