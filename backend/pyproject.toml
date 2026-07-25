@@ -101,6 +101,8 @@ ignore = [
 # Cyrillic abbreviations / sample text contain characters ruff flags as
 # confusable with Latin (RUF001); they are intentional and correct.
 "src/flinq/modules/lesson_library/tokenization.py" = ["RUF001"]
+"src/flinq/modules/lesson_library/progress.py" = ["RUF002"]
+"tests/modules/lesson_library/test_progress.py" = ["RUF002"]
 "tests/modules/lesson_library/test_segmenter.py" = ["RUF001"]
 
 [tool.ruff.format]
