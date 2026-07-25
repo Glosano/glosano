@@ -116,7 +116,7 @@ async def create_item(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "lesson not found") from None
     except service.InvalidProvenance:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, "segment does not belong to lesson"
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid lesson/segment provenance"
         ) from None
     return ItemStateResponse(item_id=item.id, status=item.status, confidence=item.confidence)
 
@@ -147,7 +147,7 @@ async def patch_item(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "lesson not found") from None
     except service.InvalidProvenance:
         raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY, "segment does not belong to lesson"
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid lesson/segment provenance"
         ) from None
     return ItemStateResponse(item_id=item.id, status=item.status, confidence=item.confidence)
 

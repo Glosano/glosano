@@ -463,7 +463,8 @@ erDiagram
 - `token_text`;
 - `status` (`tracked`, `known`, `ignored`);
 - `confidence` (`0..5`, nullable если статус не `tracked`);
-- `created_from_occurrence_id` nullable;
+- `created_from_lesson_id` nullable, FK на `lessons`, `ON DELETE SET NULL`;
+- `created_from_segment_id` nullable;
 - `created_at`;
 - `updated_at`.
 
@@ -493,7 +494,8 @@ erDiagram
 - `phrase_text`;
 - `status` (`tracked`, `known`, `ignored`);
 - `confidence` (`0..5`, nullable если статус не `tracked`);
-- `created_from_lesson_id` nullable;
+- `created_from_lesson_id` nullable, FK на `lessons`, `ON DELETE SET NULL`;
+- `created_from_segment_id` nullable;
 - `created_at`;
 - `updated_at`.
 
