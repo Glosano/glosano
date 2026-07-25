@@ -437,25 +437,82 @@ async def test_counts_foreign_lesson_raises():
 
 async def test_counts_and_queue_exclude_lesson_item_with_language_code_mutated_directly():
     """Провенанс на урок сохранён, но язык записи изменён напрямую (в обход
-    write-пути) на язык, отличный от языка урока. Счётчик и очередь должны
-    согласованно игнорировать такой item — иначе число на плитке и размер
-    сессии разойдутся."""
+    write-пути) на язык, отличный от языка урока. Счётчики и все три режима
+    очереди (due/new/practice) должны согласованно игнорировать такой item —
+    иначе число на плитке и размер сессии разойдутся. Записи выставлен
+    confidence=4, чтобы она в принципе попадала бы в practice, не будь
+    исключена по языку."""
     async with session_scope() as s:
         user_id = await _make_user(s)
-        item = await _tracked_token(s, user_id, "cada")
+        item = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="token",
+            language_code="pt",
+            text="cada",
+            status="tracked",
+            confidence=4,
+        )
+        assert isinstance(item, TokenItem)
         lesson = await _lesson_with_occurrence(s, user_id, "cada")
         await _attach(s, item, lesson)
         await _set_due(s, item.id, NOW - timedelta(hours=1))
         item.language_code = "ru"  # имитация битых/устаревших данных
         await s.commit()
+
         counts = await get_counts(
             s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
         )
-        items, _ = await get_queue(
-            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, now=NOW
-        )
         assert counts.due == 0 and counts.new == 0 and counts.practice == 0
-        assert items == []
+
+        for mode in ("due", "new", "practice"):
+            items, _ = await get_queue(
+                s, user_id=user_id, language_code="pt", mode=mode, lesson_id=lesson.id, now=NOW
+            )
+            assert items == [], mode
+
+
+async def test_lesson_new_mode_ignores_daily_limit_but_global_new_mode_respects_it():
+    """FLQ-7: дневной лимит мягкий и ограничивает только главную (due) очередь;
+    mini-review (в т.ч. lesson-скоуп) не блокируется. До этой задачи ветка
+    'lesson_id + mode=new' была недостижима (её перехватывал due-режим), теперь
+    она живая и должна следовать тому же правилу, что due/practice урока."""
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        item = await _tracked_token(s, user_id, "cada")
+        lesson = await _lesson_with_occurrence(s, user_id, "cada")
+        await _attach(s, item, lesson)
+        ri = (
+            (await s.execute(select(ReviewItem).where(ReviewItem.item_id == item.id)))
+            .scalars()
+            .one()
+        )
+        for _ in range(20):  # исчерпать дневной лимит (default daily_goal_reviews = 20)
+            s.add(
+                ReviewEvent(
+                    review_item_id=ri.id,
+                    user_id=user_id,
+                    answer_value="correct",
+                    previous_confidence=1,
+                    new_confidence=2,
+                    previous_due_at=NOW,
+                    new_due_at=NOW,
+                    reviewed_at=NOW,
+                )
+            )
+        await s.commit()
+
+        lesson_items, lesson_daily = await get_queue(
+            s, user_id=user_id, language_code="pt", mode="new", lesson_id=lesson.id, now=NOW
+        )
+        assert [i.text for i in lesson_items] == ["cada"]
+        assert lesson_daily.limit_reached is False
+
+        global_items, global_daily = await get_queue(
+            s, user_id=user_id, language_code="pt", mode="new", now=NOW
+        )
+        assert global_items == []
+        assert global_daily.limit_reached is True
 
 
 async def test_queue_context_sentence_comes_from_segment():

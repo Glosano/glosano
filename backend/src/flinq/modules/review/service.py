@@ -105,6 +105,20 @@ class LessonNotFound(Exception):  # noqa: N818 -- matches vocabulary exception n
     """Lesson does not exist or is not owned by the user."""
 
 
+def _lesson_scope(
+    model: type[TokenItem] | type[PhraseItem], lesson: Lesson
+) -> list[ColumnElement[bool]]:
+    """Единый предикат скоупа урока — используется очередью (все режимы) и
+    счётчиками, чтобы число на плитке и размер сессии совпадали. Дополнительно
+    сверяем язык записи относительно языка урока: defense-in-depth на случай
+    рассинхрона данных (write-путь такое запрещает, но старые/битые записи не
+    должны всплывать)."""
+    return [
+        model.created_from_lesson_id == lesson.id,
+        model.language_code == lesson.language_code,
+    ]
+
+
 @dataclass
 class QueueItem:
     review_item_id: uuid.UUID
@@ -258,14 +272,19 @@ async def get_queue(
                 model.status == "tracked",
             )
         )
-        if lesson_id is not None:
-            stmt = stmt.where(model.created_from_lesson_id == lesson_id)
+        if lesson is not None:
+            stmt = stmt.where(*_lesson_scope(model, lesson))
         return stmt
 
     if mode == "new":
-        if daily.limit_reached:
-            return [], daily
-        fetch = min(NEW_SESSION_LIMIT, max(0, daily.limit - daily.done_today))
+        # мягкий лимит: в скоупе урока mini-review не блокируется дневным
+        # лимитом — так же, как due/practice-режимы урока.
+        if lesson_id is not None:
+            fetch = NEW_SESSION_LIMIT
+        else:
+            if daily.limit_reached:
+                return [], daily
+            fetch = min(NEW_SESSION_LIMIT, max(0, daily.limit - daily.done_today))
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
         for kind, model in VOCAB_MODEL_BY_KIND.items():
             stmt = (
@@ -277,6 +296,8 @@ async def get_queue(
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
         pairs.sort(key=lambda p: p[0].created_at, reverse=True)
         pairs = pairs[:fetch]
+        if lesson_id is not None:
+            daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
         return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
     if mode == "practice":
@@ -307,11 +328,7 @@ async def get_queue(
                     ReviewItem.item_kind == kind,
                     ReviewItem.is_active.is_(True),
                     model.status == "tracked",
-                    model.created_from_lesson_id == lesson_id,
-                    # defense-in-depth: язык записи должен быть равен языку урока
-                    # (инвариант обеспечен на записи в _validate_provenance, но
-                    # старые/битые данные не должны всплывать в очереди урока).
-                    model.language_code == lesson.language_code,
+                    *_lesson_scope(model, lesson),
                 )
             )
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
@@ -454,15 +471,7 @@ async def get_counts(
     ) -> int:
         total = 0
         for kind, model in VOCAB_MODEL_BY_KIND.items():
-            lesson_where: list[ColumnElement[bool]] = []
-            if lesson_id is not None:
-                assert lesson is not None
-                lesson_where = [
-                    model.created_from_lesson_id == lesson_id,
-                    # тот же предикат скоупа, что и очередь урока (defense-in-depth
-                    # по языку) — иначе счётчик и размер сессии разойдутся.
-                    model.language_code == lesson.language_code,
-                ]
+            lesson_where = _lesson_scope(model, lesson) if lesson is not None else []
             stmt = (
                 select(func.count())
                 .select_from(ReviewItem)
