@@ -112,7 +112,7 @@ async def _validate_provenance(
             raise InvalidProvenance("segment_id requires lesson_id")
         return
     lesson = await session.get(Lesson, lesson_id)
-    if lesson is None or lesson.owner_user_id != user_id:
+    if lesson is None or (lesson.visibility != "shared" and lesson.owner_user_id != user_id):
         raise LessonNotFound(str(lesson_id))
     # Провенанс не должен привязывать item к уроку на другом языке: lesson-режим
     # очереди фильтрует по языку урока, рассинхрон иначе тихо выпал бы из неё.

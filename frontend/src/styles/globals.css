@@ -73,20 +73,24 @@
   --z-popover: 100;
   --z-toast: 110;
 
+  /* Reader vocabulary panel (FLQ-24) */
+  --reader-panel-width: 410px;
+  --reader-panel-reserve: calc(var(--reader-panel-width) + 1rem);
+
   /* vocabulary (FLQ-6.2) */
-  --vocab-page-bg: #F5F7FA;
-  --vocab-card-border: #E0E6EB;
-  --vocab-term-fg: #1A2133;
-  --vocab-muted-fg: #6B7585;
-  --vocab-header-fg: #8C96A3;
-  --vocab-translation-fg: #4580F2;
-  --vocab-chip-gram-bg: #EDF0F5;   /* грамм-чипы (задел, в этом инкременте не используются) */
-  --vocab-chip-pos-bg: #F5EDDB;    /* POS-чипы */
-  --vocab-picker-border: #C7CCD4;
-  --vocab-picker-active-bg: #FFDB8C;
+  --vocab-page-bg: #f5f7fa;
+  --vocab-card-border: #e0e6eb;
+  --vocab-term-fg: #1a2133;
+  --vocab-muted-fg: #6b7585;
+  --vocab-header-fg: #8c96a3;
+  --vocab-translation-fg: #4580f2;
+  --vocab-chip-gram-bg: #edf0f5; /* грамм-чипы (задел, в этом инкременте не используются) */
+  --vocab-chip-pos-bg: #f5eddb; /* POS-чипы */
+  --vocab-picker-border: #c7ccd4;
+  --vocab-picker-active-bg: #ffdb8c;
   --vocab-picker-active-fg: #523812;
-  --vocab-known-bg: #45A86B;
-  --vocab-subtabs-track: #E6EBF0;
+  --vocab-known-bg: #45a86b;
+  --vocab-subtabs-track: #e6ebf0;
 }
 
 @theme {

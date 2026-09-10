@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
-import { isWord, type Sentence } from '@/api/reader'
+import { isWord, type LessonVocabularyItem, type Sentence } from '@/api/reader'
 import { cn } from '@/lib/utils'
 
 import { BottomToolbar } from './BottomToolbar'
+import { LessonVocabularyList } from './LessonVocabularyList'
+import { LessonVocabularyPanel } from './LessonVocabularyPanel'
+import { toSelectedVocabularyItem } from './lessonVocabulary'
 import { paginate, pageIndexForOrdinal } from './pagination'
 import { PageView } from './PageView'
 import { buildPhraseIndex, buildSelection, type PhraseMatch } from './phraseMatching'
@@ -56,12 +59,14 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const pageIndex = useReaderStore((s) => s.pageIndex)
   const sentenceFlatIndex = useReaderStore((s) => s.sentenceFlatIndex)
   const sidebarOpen = useReaderStore((s) => s.sidebarOpen)
+  const vocabularyPanelPinned = useReaderStore((s) => s.vocabularyPanelPinned)
   const font = useReaderStore((s) => s.font)
   const lastBulkActionId = useReaderStore((s) => s.lastBulkActionId)
   const setMode = useReaderStore((s) => s.setMode)
   const setPageIndex = useReaderStore((s) => s.setPageIndex)
   const setSentenceFlatIndex = useReaderStore((s) => s.setSentenceFlatIndex)
   const toggleSidebar = useReaderStore((s) => s.toggleSidebar)
+  const setVocabularyPanelPinned = useReaderStore((s) => s.setVocabularyPanelPinned)
   const setLastBulkActionId = useReaderStore((s) => s.setLastBulkActionId)
 
   const bulkKnown = useBulkKnown(lessonId, lang)
@@ -107,14 +112,26 @@ export function ReaderPage({ lang, lessonId }: Props) {
       setPageIndex(pageIndexForOrdinal(pages, readerPosition?.current_token_ordinal ?? null))
     }
     initializedRef.current = lessonId
-  }, [lessonId, content, lessonDetail, pages, flatSentences, setMode, setPageIndex, setSentenceFlatIndex])
+  }, [
+    lessonId,
+    content,
+    lessonDetail,
+    pages,
+    flatSentences,
+    setMode,
+    setPageIndex,
+    setSentenceFlatIndex,
+  ])
 
   const statusMap = statuses ?? {}
   const currentPage = pages[pageIndex] ?? pages[0]
   const canPrev = pageIndex > 0
   const canNext = pageIndex < pages.length - 1
 
-  const clampedSentenceIndex = Math.min(Math.max(sentenceFlatIndex, 0), Math.max(flatSentences.length - 1, 0))
+  const clampedSentenceIndex = Math.min(
+    Math.max(sentenceFlatIndex, 0),
+    Math.max(flatSentences.length - 1, 0),
+  )
   const currentSentence = flatSentences[clampedSentenceIndex]
   const canPrevSentence = clampedSentenceIndex > 0
   const canNextSentence = clampedSentenceIndex < flatSentences.length - 1
@@ -133,10 +150,14 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const progressPercent = useMemo(() => {
     if (currentOrdinalForProgress == null || maxWordOrdinal < 0) return 0
     if (maxWordOrdinal === 0) return 100
-    return Math.min(100, Math.max(0, Math.round((currentOrdinalForProgress / maxWordOrdinal) * 100)))
+    return Math.min(
+      100,
+      Math.max(0, Math.round((currentOrdinalForProgress / maxWordOrdinal) * 100)),
+    )
   }, [currentOrdinalForProgress, maxWordOrdinal])
 
   const readyForInteraction = contentEnabled && !!content
+  const panelVisible = vocabularyPanelPinned || selectedWord !== null
 
   const contentLang = content?.language_code ?? lang
   const phrases = usePhrases(contentLang, readyForInteraction)
@@ -146,8 +167,11 @@ export function ReaderPage({ lang, lessonId }: Props) {
     const sel = buildSelection(sentence, range.from, range.to)
     if (!sel) return
     setSelectedWord({
-      kind: 'phrase', t: sel.displayText, n: sel.text,
-      i: sel.firstOrdinal, sentenceText: sentence.text,
+      kind: 'phrase',
+      t: sel.displayText,
+      n: sel.text,
+      i: sel.firstOrdinal,
+      sentenceText: sentence.text,
     })
     setSelectionRange(range)
   }
@@ -162,8 +186,11 @@ export function ReaderPage({ lang, lessonId }: Props) {
     const first = words[0]
     const last = words[words.length - 1]
     setSelectedWord({
-      kind: 'phrase', t: display, n: match.entry.words.join(' '),
-      i: first?.i ?? 0, sentenceText: sentence.text,
+      kind: 'phrase',
+      t: display,
+      n: match.entry.words.join(' '),
+      i: first?.i ?? null,
+      sentenceText: sentence.text,
     })
     setSelectionRange(first && last ? { from: first.i, to: last.i } : null)
   }
@@ -176,7 +203,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
 
   const selectedSentenceText = useMemo(() => {
     if (!selectedWord) return null
+    if (selectedWord.segmentId !== undefined) return selectedWord.sentenceText
     if (selectedWord.sentenceText) return selectedWord.sentenceText
+    if (selectedWord.i === null) return null
     const sentence = flatSentences.find((s) =>
       s.tokens.some((tok) => isWord(tok) && tok.i === selectedWord.i),
     )
@@ -188,6 +217,8 @@ export function ReaderPage({ lang, lessonId }: Props) {
   // — ординал её первого слова, поиск по ординалу работает и для неё.
   const selectedSegId = useMemo(() => {
     if (!selectedWord) return null
+    if (selectedWord.segmentId !== undefined) return selectedWord.segmentId
+    if (selectedWord.i === null) return null
     const sentence = flatSentences.find((s) =>
       s.tokens.some((tok) => isWord(tok) && tok.i === selectedWord.i),
     )
@@ -199,9 +230,27 @@ export function ReaderPage({ lang, lessonId }: Props) {
     setSelectionRange({ from: w.i, to: w.i })
   }
 
+  function handleVocabularySelect(item: LessonVocabularyItem) {
+    setSelectedWord(toSelectedVocabularyItem(item))
+    setSelectionRange(null)
+  }
+
   function closeCard() {
     setSelectedWord(null)
     setSelectionRange(null)
+  }
+
+  function hideVocabularyPanel() {
+    setVocabularyPanelPinned(false)
+    closeCard()
+  }
+
+  function toggleVocabularyPanel() {
+    if (vocabularyPanelPinned) {
+      hideVocabularyPanel()
+      return
+    }
+    setVocabularyPanelPinned(true)
   }
 
   function handleEscape() {
@@ -211,6 +260,10 @@ export function ReaderPage({ lang, lessonId }: Props) {
     if (dragRange) return
     if (selectedWord) {
       closeCard()
+      return
+    }
+    if (vocabularyPanelPinned) {
+      setVocabularyPanelPinned(false)
       return
     }
     void navigate({ to: '/learn/$lang/library', params: { lang } })
@@ -234,6 +287,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
 
   function handlePrevPage() {
     if (!canPrev) return
+    closeCard()
     setPageIndex(Math.max(0, pageIndex - 1))
   }
 
@@ -243,6 +297,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
     if (currentPage.wordCount === 0) {
       // Empty-page marker from pagination (ordinals are 0/-1) — nothing to
       // mark known, just advance.
+      closeCard()
       setPageIndex(Math.min(pages.length - 1, pageIndex + 1))
       return
     }
@@ -255,6 +310,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       },
       {
         onSuccess: (result) => {
+          closeCard()
           setPageIndex(Math.min(pages.length - 1, pageIndex + 1))
           // Arm undo even when created_count === 0 (e.g. all words already
           // known) — the server-side bulk action still exists, so Ctrl+Z
@@ -273,6 +329,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
 
   function handlePrevSentence() {
     if (!canPrevSentence) return
+    closeCard()
     setSentenceFlatIndex(Math.max(0, clampedSentenceIndex - 1))
   }
 
@@ -284,6 +341,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
     const lastWord = words[words.length - 1]
     if (!firstWord || !lastWord) {
       // Punctuation-only sentence — nothing to mark known, just advance.
+      closeCard()
       setSentenceFlatIndex(Math.min(flatSentences.length - 1, clampedSentenceIndex + 1))
       return
     }
@@ -296,6 +354,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       },
       {
         onSuccess: (result) => {
+          closeCard()
           setSentenceFlatIndex(Math.min(flatSentences.length - 1, clampedSentenceIndex + 1))
           // Arm undo even when created_count === 0 — same reasoning as in
           // handleNextPage: the server-side bulk action still exists.
@@ -325,7 +384,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
   })
 
   const positionSegmentId =
-    mode === 'page' ? (currentPage?.sentences[0]?.sentence.seg_id ?? null) : (currentSentence?.seg_id ?? null)
+    mode === 'page'
+      ? (currentPage?.sentences[0]?.sentence.seg_id ?? null)
+      : (currentSentence?.seg_id ?? null)
   // Persist the same ordinal the progress bar itself is computed from
   // (page-end in page mode, last word of the sentence in sentence mode) —
   // one notion of "where the user is" in this file, so the library card's
@@ -333,9 +394,10 @@ export function ReaderPage({ lang, lessonId }: Props) {
   // word tokens yields toOrdinal -1 (pagination.ts); the wire schema
   // constrains current_token_ordinal to >= 0, so send null instead of a
   // negative ordinal rather than let the PUT 422.
-  const positionOrdinal = currentOrdinalForProgress != null && currentOrdinalForProgress >= 0
-    ? currentOrdinalForProgress
-    : null
+  const positionOrdinal =
+    currentOrdinalForProgress != null && currentOrdinalForProgress >= 0
+      ? currentOrdinalForProgress
+      : null
 
   usePositionSync({
     lessonId,
@@ -347,6 +409,19 @@ export function ReaderPage({ lang, lessonId }: Props) {
   })
 
   const swipeHandlers = useSwipe({ onSwipeLeft: handleNext, onSwipeRight: handlePrev })
+
+  function handleReaderClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!selectedWord) return
+    const target = event.target instanceof Element ? event.target : null
+    if (!target) return
+    if (
+      target.closest(
+        'button, a, input, textarea, select, [role="button"], [contenteditable="true"], [data-reader-panel], [data-reader-panel-popover]',
+      )
+    )
+      return
+    closeCard()
+  }
 
   useEffect(() => {
     if (!bulkErrorVisible) return
@@ -423,13 +498,22 @@ export function ReaderPage({ lang, lessonId }: Props) {
   )
 
   return (
-    <div className={cn('mx-auto max-w-screen-2xl px-6 pb-24', selectedWord && 'md:pr-[344px]')}>
+    <div
+      data-testid="reader-page"
+      onClick={handleReaderClick}
+      className={cn(
+        'mx-auto min-h-[calc(100dvh-4rem)] max-w-screen-2xl px-6 pb-24',
+        panelVisible && 'lg:pr-[var(--reader-panel-reserve)]',
+      )}
+    >
       <ReaderTopBar
         lang={lang}
         progressPercent={progressPercent}
         mode={mode}
         sidebarOpen={sidebarOpen}
         onToggleSidebar={toggleSidebar}
+        vocabularyPanelPinned={vocabularyPanelPinned}
+        onToggleVocabularyPanel={toggleVocabularyPanel}
       />
 
       <div
@@ -491,7 +575,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
             disabled={mode === 'sentence' ? !canNextSentence : !canNext}
             className={cn(
               'fixed right-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30',
-              selectedWord && 'md:right-[336px]',
+              panelVisible && 'lg:right-[var(--reader-panel-reserve)]',
             )}
           >
             ›
@@ -502,7 +586,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       <BottomToolbar
         mode={mode}
         onToggleMode={() => setMode(mode === 'page' ? 'sentence' : 'page')}
-        panelOpen={selectedWord !== null}
+        panelOpen={panelVisible}
         onReview={() =>
           void navigate({
             to: '/learn/$lang/review',
@@ -512,15 +596,36 @@ export function ReaderPage({ lang, lessonId }: Props) {
         }
       />
 
-      <WordCard
-        word={selectedWord}
-        lang={content?.language_code ?? lang}
-        target={DEFAULT_TRANSLATION_LANG}
+      <LessonVocabularyPanel
+        key={lessonId}
         lessonId={lessonId}
-        segId={selectedSegId}
-        onClose={closeCard}
-        onStatusApplied={() => setSelectionRange(null)}
-        sentenceText={selectedSentenceText}
+        pinned={vocabularyPanelPinned}
+        selectedWord={selectedWord}
+        onClearSelection={closeCard}
+        onHide={hideVocabularyPanel}
+        card={
+          <WordCard
+            word={selectedWord}
+            lang={content?.language_code ?? lang}
+            target={DEFAULT_TRANSLATION_LANG}
+            lessonId={lessonId}
+            segId={selectedSegId}
+            onClose={closeCard}
+            onStatusApplied={() => setSelectionRange(null)}
+            sentenceText={selectedSentenceText}
+            embedded
+            closeLabel={vocabularyPanelPinned ? 'К списку' : 'Закрыть карточку'}
+          />
+        }
+        renderList={(listState) => (
+          <LessonVocabularyList
+            lessonId={lessonId}
+            lang={content?.language_code ?? lang}
+            target={DEFAULT_TRANSLATION_LANG}
+            {...listState}
+            onSelect={handleVocabularySelect}
+          />
+        )}
       />
 
       {toastCount != null && (

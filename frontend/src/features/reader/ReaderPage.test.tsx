@@ -15,7 +15,7 @@ import { act, render, screen, waitFor, fireEvent, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LessonDetail } from '@/api/lessons'
-import type { LessonContent } from '@/api/reader'
+import type { LessonContent, StatusMap } from '@/api/reader'
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
 
@@ -41,14 +41,21 @@ vi.mock('@/api/reader', () => ({
     bulkKnown: vi.fn(),
     undoBulk: vi.fn(),
     segmentTranslation: vi.fn(),
+    vocabulary: vi.fn(),
   },
 }))
 
 vi.mock('@/api/vocabulary', () => ({
   vocabularyApi: {
-    lookup: vi.fn(), createItem: vi.fn(), patchItem: vi.fn(),
-    addTranslation: vi.fn(), updateTranslation: vi.fn(), deleteTranslation: vi.fn(),
-    putNote: vi.fn(), addTag: vi.fn(), removeTag: vi.fn(),
+    lookup: vi.fn(),
+    createItem: vi.fn(),
+    patchItem: vi.fn(),
+    addTranslation: vi.fn(),
+    updateTranslation: vi.fn(),
+    deleteTranslation: vi.fn(),
+    putNote: vi.fn(),
+    addTag: vi.fn(),
+    removeTag: vi.fn(),
     phrases: vi.fn(),
   },
 }))
@@ -74,6 +81,8 @@ const baseLesson: LessonDetail = {
   created_at: '2026-01-01T00:00:00Z',
   segment_count: 1,
   reader_position: null,
+  read_percent: 0,
+  new_words_remaining: 4,
 }
 
 const content: LessonContent = {
@@ -112,7 +121,10 @@ const content: LessonContent = {
   ],
 }
 
-function renderPage(lessonId = 'lesson-1', queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
+function renderPage(
+  lessonId = 'lesson-1',
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <ReaderPage lang="en" lessonId={lessonId} />
@@ -124,11 +136,17 @@ describe('ReaderPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(vocabularyApi.phrases).mockResolvedValue([])
+    vi.mocked(readerApi.vocabulary).mockResolvedValue({
+      lesson_id: 'lesson-1',
+      language_code: 'en',
+      items: [],
+    })
     useReaderStore.setState({
       mode: 'page',
       pageIndex: 0,
       sentenceFlatIndex: 0,
       sidebarOpen: false,
+      vocabularyPanelPinned: false,
       lastBulkActionId: null,
       font: { size: 1, lineHeight: 1, serif: false },
       wordCardExpanded: false,
@@ -149,7 +167,9 @@ describe('ReaderPage', () => {
 
     renderPage()
 
-    expect(await screen.findByTestId('reader-failed')).toHaveTextContent('Не удалось обработать урок')
+    expect(await screen.findByTestId('reader-failed')).toHaveTextContent(
+      'Не удалось обработать урок',
+    )
   })
 
   it('shows an unavailable state with a link back to the library for archived lessons', async () => {
@@ -176,13 +196,21 @@ describe('ReaderPage', () => {
   it('restores sentence-mode position to the segment referenced by current_segment_id', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
-      reader_position: { view_mode: 'sentence', current_segment_id: 'seg-2', current_token_ordinal: 2 },
+      reader_position: {
+        view_mode: 'sentence',
+        current_segment_id: 'seg-2',
+        current_token_ordinal: 2,
+      },
     })
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     renderPage()
@@ -195,13 +223,21 @@ describe('ReaderPage', () => {
   it('falls back to the first sentence when current_segment_id is not found', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
-      reader_position: { view_mode: 'sentence', current_segment_id: 'seg-missing', current_token_ordinal: 0 },
+      reader_position: {
+        view_mode: 'sentence',
+        current_segment_id: 'seg-missing',
+        current_token_ordinal: 0,
+      },
     })
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     renderPage()
@@ -213,14 +249,22 @@ describe('ReaderPage', () => {
   it('navigates sentences with the fixed edge arrows in sentence mode', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
-      reader_position: { view_mode: 'sentence', current_segment_id: 'seg-1', current_token_ordinal: 0 },
+      reader_position: {
+        view_mode: 'sentence',
+        current_segment_id: 'seg-1',
+        current_token_ordinal: 0,
+      },
     })
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(readerApi.bulkKnown).mockResolvedValue({ action_id: 'action-1', created_count: 2 })
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     renderPage()
@@ -280,20 +324,369 @@ describe('ReaderPage', () => {
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [], attribution: { source: '', license: '', url: '' }, external_links: [],
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
     renderPage()
 
-    await screen.findByTestId('page-view-slot')
+    const slot = await screen.findByTestId('page-view-slot')
     fireEvent.click(await screen.findByRole('button', { name: 'Hello' }))
     expect(await screen.findByTestId('word-card')).toBeInTheDocument()
     expect(await screen.findByPlaceholderText('Введите новый перевод здесь')).toBeInTheDocument()
+
+    fireEvent.click(slot)
+    expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Словарь урока' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the vocabulary panel open when returning from a pinned card to its list', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    expect(screen.getByRole('complementary', { name: 'Словарь урока' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(readerApi.vocabulary).toHaveBeenCalledWith('lesson-1', 'ru')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hello' }))
+    expect(await screen.findByTestId('word-card')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'К списку' }))
+    expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Словарь урока' })).toBeInTheDocument()
+  })
+
+  it('opens a real vocabulary row in the card without changing reader position', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.vocabulary).mockResolvedValue({
+      lesson_id: 'lesson-1',
+      language_code: 'en',
+      items: [
+        {
+          kind: 'token',
+          item_id: null,
+          text: 'outside',
+          display_text: 'Outside',
+          status: 'new',
+          confidence: null,
+          primary_translation: null,
+          added_here: false,
+          context: {
+            segment_id: 'seg-outside',
+            token_ordinal: 0,
+            sentence_text: 'Outside this page.',
+          },
+        },
+      ],
+    })
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: 'Wiktionary', license: 'CC BY-SA', url: '' },
+      external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+    const page = await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    fireEvent.keyDown(await screen.findByRole('tab', { name: 'Новые' }), { key: 'Enter' })
+    const rowButton = await screen.findByRole('button', { name: 'Открыть карточку Outside' })
+    rowButton.focus()
+    fireEvent.click(rowButton)
+
+    expect(await screen.findByTestId('word-card')).toHaveTextContent('Outside')
+    expect(page).toHaveTextContent('Hello world')
+    expect(useReaderStore.getState().pageIndex).toBe(0)
+    expect(navigateMock).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'К списку' }))
+    expect(rowButton).toHaveFocus()
+  })
+
+  it('moves a new row into Added and updates every reader occurrence after add', async () => {
+    let saved = false
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockImplementation(
+      async (): Promise<StatusMap> => (saved ? { hello: { s: 'tracked', c: 1 } } : {}),
+    )
+    vi.mocked(readerApi.vocabulary).mockImplementation(async () => ({
+      lesson_id: 'lesson-1',
+      language_code: 'en',
+      items: [
+        {
+          kind: 'token',
+          item_id: saved ? 'hello-1' : null,
+          text: 'hello',
+          display_text: 'Hello',
+          status: saved ? 'tracked' : 'new',
+          confidence: saved ? 1 : null,
+          primary_translation: null,
+          added_here: saved,
+          context: { segment_id: 'seg-1', token_ordinal: 0, sentence_text: 'Hello world.' },
+        },
+      ],
+    }))
+    vi.mocked(vocabularyApi.createItem).mockImplementation(async () => {
+      saved = true
+      return { item_id: 'hello-1', status: 'tracked', confidence: 1 }
+    })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    fireEvent.keyDown(await screen.findByRole('tab', { name: 'Новые' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Добавить Hello в изучение' }))
+
+    await screen.findByText('В этом уроке не осталось новых слов')
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Добавленные' }), { key: 'Enter' })
+    expect(
+      await screen.findByRole('button', { name: 'Изменить уровень Hello, текущий 1' }),
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Hello' }).className).toContain(
+        '--reader-tracked-bg',
+      ),
+    )
+    expect(vocabularyApi.createItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'token',
+        text: 'Hello',
+        lesson_id: 'lesson-1',
+        segment_id: 'seg-1',
+        status: 'tracked',
+        confidence: 1,
+      }),
+    )
+  })
+
+  it('pins an open temporary card without clearing its selection', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hello' }))
+    const card = await screen.findByTestId('word-card')
+    expect(screen.getByRole('button', { name: 'Показать словарь урока' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+
+    const pinIconPath = screen
+      .getByRole('button', { name: 'Показать словарь урока' })
+      .querySelector('svg path')
+    expect(pinIconPath).not.toBeNull()
+    fireEvent.click(pinIconPath!)
+
+    expect(useReaderStore.getState().vocabularyPanelPinned).toBe(true)
+    expect(screen.getByTestId('word-card')).toBe(card)
+    expect(screen.getByRole('button', { name: 'К списку' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'К списку' }))
+    expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Словарь урока' })).toBeInTheDocument()
+  })
+
+  it('closes only the temporary card on the first Escape', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Hello' }))
+    await screen.findByTestId('word-card')
+    expect(readerApi.vocabulary).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
+  it('returns a pinned card to the list on a free reader click', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+    const reader = await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hello' }))
+    await screen.findByTestId('word-card')
+
+    fireEvent.click(reader)
+
+    expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Словарь урока' })).toBeInTheDocument()
+  })
+
+  it('keeps the card open when the nested expand icon is clicked', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'hello-1',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Hello' }))
+
+    const expandIcon = (await screen.findByRole('button', { name: 'Развернуть' })).querySelector(
+      'svg',
+    )
+    expect(expandIcon).not.toBeNull()
+    fireEvent.click(expandIcon!)
+
+    expect(screen.getByTestId('word-card')).toBeInTheDocument()
+    expect(screen.getByTestId('word-card-expanded')).toBeInTheDocument()
+  })
+
+  it('returns a pinned card to the list from blank space below the text', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hello' }))
+    await screen.findByTestId('word-card')
+
+    fireEvent.click(screen.getByTestId('reader-page'))
+
+    expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Словарь урока' })).toBeInTheDocument()
+  })
+
+  it('dismisses a pinned list before Escape exits the reader', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('complementary', { name: 'Словарь урока' })).not.toBeInTheDocument()
+    expect(navigateMock).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/learn/$lang/library',
+      params: { lang: 'en' },
+    })
   })
 
   it('renders saved phrase underlay and opens phrase card on click', async () => {
@@ -304,8 +697,12 @@ describe('ReaderPage', () => {
       { item_id: 'ph1', phrase_text: 'hello world', status: 'tracked', confidence: 1 },
     ])
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'ph1', status: 'tracked', confidence: 1,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'ph1',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     renderPage()
@@ -320,11 +717,17 @@ describe('ReaderPage', () => {
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [], attribution: { source: '', license: '', url: '' }, external_links: [],
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -338,7 +741,7 @@ describe('ReaderPage', () => {
     expect(hello.className).toContain('bg-primary/20')
     expect(screen.getByRole('button', { name: 'world' }).className).not.toContain('bg-primary/20')
 
-    fireEvent.click(within(card).getByRole('button', { name: 'Закрыть' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Закрыть карточку' }))
     expect(screen.queryByTestId('word-card')).not.toBeInTheDocument()
     expect(hello.className).not.toContain('bg-primary/20')
   })
@@ -348,8 +751,12 @@ describe('ReaderPage', () => {
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -361,11 +768,21 @@ describe('ReaderPage', () => {
 
     fireEvent(
       hello,
-      new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
     )
     fireEvent(
       world,
-      new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+      new PointerEvent('pointerover', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
     )
     fireEvent(
       world,
@@ -376,7 +793,7 @@ describe('ReaderPage', () => {
     expect(hello.className).toContain('bg-primary/20')
     expect(world.className).toContain('bg-primary/20')
 
-    fireEvent.click(within(card).getByRole('button', { name: 'Закрыть' }))
+    fireEvent.click(within(card).getByRole('button', { name: 'Закрыть карточку' }))
     expect(hello.className).not.toContain('bg-primary/20')
     expect(world.className).not.toContain('bg-primary/20')
   })
@@ -386,11 +803,17 @@ describe('ReaderPage', () => {
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(vocabularyApi.createItem).mockResolvedValue({
-      item_id: 'ph1', status: 'tracked', confidence: 1,
+      item_id: 'ph1',
+      status: 'tracked',
+      confidence: 1,
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -403,11 +826,21 @@ describe('ReaderPage', () => {
     // Тянем фразу "Hello world" — оба слова принадлежат seg-1.
     fireEvent(
       hello,
-      new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
     )
     fireEvent(
       world,
-      new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+      new PointerEvent('pointerover', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
     )
     fireEvent(
       world,
@@ -429,14 +862,22 @@ describe('ReaderPage', () => {
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(vocabularyApi.createItem).mockResolvedValue({
-      item_id: 't1', status: 'tracked', confidence: 1,
+      item_id: 't1',
+      status: 'tracked',
+      confidence: 1,
     })
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [], attribution: { source: '', license: '', url: '' }, external_links: [],
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -448,7 +889,11 @@ describe('ReaderPage', () => {
     await screen.findByTestId('word-card')
     expect(hello.className).toContain('bg-primary/20')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Уровень 1' }))
+    const knownIconPath = (await screen.findByRole('button', { name: 'Изучено' })).querySelector(
+      'svg path',
+    )
+    expect(knownIconPath).not.toBeNull()
+    fireEvent.click(knownIconPath!)
 
     await waitFor(() => expect(hello.className).not.toContain('bg-primary/20'))
     expect(screen.getByTestId('word-card')).toBeInTheDocument()
@@ -468,11 +913,21 @@ describe('ReaderPage', () => {
 
     fireEvent(
       helloWord,
-      new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
     )
     fireEvent(
       worldWord,
-      new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 1 }),
+      new PointerEvent('pointerover', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
     )
 
     fireEvent.keyDown(window, { key: 'Escape' })
@@ -548,7 +1003,13 @@ describe('ReaderPage', () => {
       paragraphs: [
         {
           sentences: [
-            { seg_id: 'seg-punct', index: 0, text: '…', normalized_text: '…', tokens: [{ p: '…' }] },
+            {
+              seg_id: 'seg-punct',
+              index: 0,
+              text: '…',
+              normalized_text: '…',
+              tokens: [{ p: '…' }],
+            },
           ],
         },
       ],

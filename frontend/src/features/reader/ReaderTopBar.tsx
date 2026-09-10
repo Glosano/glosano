@@ -1,4 +1,4 @@
-import { PanelLeft, X } from 'lucide-react'
+import { PanelLeft, PanelRight, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 
 import {
@@ -17,6 +17,8 @@ interface Props {
   mode: ViewMode
   sidebarOpen: boolean
   onToggleSidebar: () => void
+  vocabularyPanelPinned: boolean
+  onToggleVocabularyPanel: () => void
 }
 
 const SIZE_OPTIONS = [
@@ -37,6 +39,8 @@ export function ReaderTopBar({
   mode,
   sidebarOpen,
   onToggleSidebar,
+  vocabularyPanelPinned,
+  onToggleVocabularyPanel,
 }: Props) {
   const navigate = useNavigate()
   const font = useReaderStore((s) => s.font)
@@ -56,10 +60,7 @@ export function ReaderTopBar({
       </button>
 
       <div className="relative mx-auto h-1 w-full max-w-[700px] flex-1 rounded-full bg-muted">
-        <div
-          className="h-1 rounded-full bg-primary"
-          style={{ width: `${progressPercent}%` }}
-        />
+        <div className="h-1 rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
         <div
           className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
           style={{ left: `${progressPercent}%` }}
@@ -127,6 +128,17 @@ export function ReaderTopBar({
           <PanelLeft className="h-5 w-5" />
         </button>
       )}
+
+      <button
+        type="button"
+        aria-label={vocabularyPanelPinned ? 'Скрыть словарь урока' : 'Показать словарь урока'}
+        aria-expanded={vocabularyPanelPinned}
+        aria-controls="lesson-vocabulary-panel"
+        onClick={onToggleVocabularyPanel}
+        className="rounded-md p-2 hover:bg-accent"
+      >
+        <PanelRight className="h-5 w-5" />
+      </button>
     </div>
   )
 }

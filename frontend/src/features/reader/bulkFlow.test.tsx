@@ -28,14 +28,21 @@ vi.mock('@/api/reader', () => ({
     bulkKnown: vi.fn(),
     undoBulk: vi.fn(),
     segmentTranslation: vi.fn(),
+    vocabulary: vi.fn(),
   },
 }))
 
 vi.mock('@/api/vocabulary', () => ({
   vocabularyApi: {
-    lookup: vi.fn(), createItem: vi.fn(), patchItem: vi.fn(),
-    addTranslation: vi.fn(), updateTranslation: vi.fn(), deleteTranslation: vi.fn(),
-    putNote: vi.fn(), addTag: vi.fn(), removeTag: vi.fn(),
+    lookup: vi.fn(),
+    createItem: vi.fn(),
+    patchItem: vi.fn(),
+    addTranslation: vi.fn(),
+    updateTranslation: vi.fn(),
+    deleteTranslation: vi.fn(),
+    putNote: vi.fn(),
+    addTag: vi.fn(),
+    removeTag: vi.fn(),
     phrases: vi.fn(),
   },
 }))
@@ -58,7 +65,12 @@ function makeWordTokens(startOrdinal: number, count: number): Token[] {
   return tokens
 }
 
-function makeSentence(segId: string, index: number, startOrdinal: number, wordCount: number): Sentence {
+function makeSentence(
+  segId: string,
+  index: number,
+  startOrdinal: number,
+  wordCount: number,
+): Sentence {
   const tokens = makeWordTokens(startOrdinal, wordCount)
   return {
     seg_id: segId,
@@ -82,6 +94,8 @@ const baseLesson: LessonDetail = {
   created_at: '2026-01-01T00:00:00Z',
   segment_count: 2,
   reader_position: null,
+  read_percent: 0,
+  new_words_remaining: 260,
 }
 
 // Sentence 1 has exactly 250 words -> flushes as its own page (fromOrdinal 0,
@@ -123,6 +137,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
       pageIndex: 0,
       sentenceFlatIndex: 0,
       sidebarOpen: false,
+      vocabularyPanelPinned: false,
       lastBulkActionId: null,
       font: { size: 1, lineHeight: 1, serif: false },
     })
@@ -131,6 +146,59 @@ describe('bulk-known flow, undo, hotkeys', () => {
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(readerApi.putPosition).mockResolvedValue(undefined)
     vi.mocked(vocabularyApi.phrases).mockResolvedValue([])
+    vi.mocked(readerApi.vocabulary).mockResolvedValue({
+      lesson_id: 'lesson-1',
+      language_code: 'en',
+      items: [],
+    })
+  })
+
+  it('refreshes the real New tab after page bulk-known and undo', async () => {
+    let bulked = false
+    const snapshotItem = (text: string, ordinal: number) => ({
+      kind: 'token' as const,
+      item_id: bulked && text === 'w0' ? 'known-w0' : null,
+      text,
+      display_text: text,
+      status: bulked && text === 'w0' ? ('known' as const) : ('new' as const),
+      confidence: null,
+      primary_translation: null,
+      added_here: false,
+      context: {
+        segment_id: ordinal < 250 ? 'seg-1' : 'seg-2',
+        token_ordinal: ordinal,
+        sentence_text: text,
+      },
+    })
+    vi.mocked(readerApi.vocabulary).mockImplementation(async () => ({
+      lesson_id: 'lesson-1',
+      language_code: 'en',
+      items: [snapshotItem('w0', 0), snapshotItem('w250', 250)],
+    }))
+    vi.mocked(readerApi.bulkKnown).mockImplementation(async () => {
+      bulked = true
+      return { action_id: 'bulk-list', created_count: 1 }
+    })
+    vi.mocked(readerApi.undoBulk).mockImplementation(async () => {
+      bulked = false
+      return { undone_count: 1 }
+    })
+
+    renderPage()
+    await screen.findByTestId('page-view-slot')
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    fireEvent.keyDown(await screen.findByRole('tab', { name: 'Новые' }), { key: 'Enter' })
+    expect(await screen.findByRole('button', { name: 'Открыть карточку w0' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Открыть карточку w250' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Следующая страница' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Открыть карточку w0' })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: 'Открыть карточку w250' })).toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Отменить' }))
+    expect(await screen.findByRole('button', { name: 'Открыть карточку w0' })).toBeInTheDocument()
   })
 
   it('advances the page via bulk-known with the exact ordinal range, then undoes via the toast', async () => {
@@ -207,7 +275,11 @@ describe('bulk-known flow, undo, hotkeys', () => {
   it('advances the sentence via bulk-known with the exact ordinal range, then undoes via the toast', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
-      reader_position: { view_mode: 'sentence', current_segment_id: 'seg-1', current_token_ordinal: 0 },
+      reader_position: {
+        view_mode: 'sentence',
+        current_segment_id: 'seg-1',
+        current_token_ordinal: 0,
+      },
     })
     vi.mocked(readerApi.bulkKnown).mockResolvedValue({ action_id: 'action-s1', created_count: 250 })
     vi.mocked(readerApi.undoBulk).mockResolvedValue({ undone_count: 250 })
@@ -238,7 +310,11 @@ describe('bulk-known flow, undo, hotkeys', () => {
   it('does not advance the sentence and shows an error when bulk-known fails', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
-      reader_position: { view_mode: 'sentence', current_segment_id: 'seg-1', current_token_ordinal: 0 },
+      reader_position: {
+        view_mode: 'sentence',
+        current_segment_id: 'seg-1',
+        current_token_ordinal: 0,
+      },
     })
     vi.mocked(readerApi.bulkKnown).mockRejectedValue(new Error('network error'))
 
@@ -262,7 +338,11 @@ describe('bulk-known flow, undo, hotkeys', () => {
     }
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
-      reader_position: { view_mode: 'sentence', current_segment_id: 'seg-punct', current_token_ordinal: 0 },
+      reader_position: {
+        view_mode: 'sentence',
+        current_segment_id: 'seg-punct',
+        current_token_ordinal: 0,
+      },
     })
     vi.mocked(readerApi.content).mockResolvedValue({
       ...content,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { reviewApi, type ReviewDaily, type ReviewQueueItem } from '@/api/review'
+import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
 
 export interface ReviewSessionResult {
   status: 'loading' | 'error' | 'empty' | 'limit' | 'active' | 'done'
@@ -71,7 +72,7 @@ export function useReviewSession(
 
   const answerMutation = useMutation({
     mutationFn: ({ id, quality }: { id: string; quality: number }) => reviewApi.answer(id, quality),
-    onSuccess: (res, { quality }) => {
+    onSuccess: async (res, { quality }) => {
       setAnswerError(null)
       setGraduated(res.new_status === 'known')
       setSession((s) => {
@@ -84,6 +85,7 @@ export function useReviewSession(
           results: [...s.results, { item: current, quality }],
         }
       })
+      await invalidateVocabularyViews(queryClient)
     },
     onError: () => setAnswerError('Не удалось сохранить ответ'),
   })

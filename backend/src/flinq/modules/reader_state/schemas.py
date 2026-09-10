@@ -11,6 +11,8 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from flinq.modules.vocabulary.schemas import PrimaryTranslationOut
+
 
 class WordToken(BaseModel):
     t: str
@@ -55,6 +57,30 @@ class TokenStatusOut(BaseModel):
 
 class TokenStatusesResponse(BaseModel):
     statuses: dict[str, TokenStatusOut]
+
+
+class LessonVocabularyContext(BaseModel):
+    segment_id: uuid.UUID
+    token_ordinal: int = Field(ge=0)
+    sentence_text: str
+
+
+class LessonVocabularyItem(BaseModel):
+    kind: Literal["token", "phrase"]
+    item_id: uuid.UUID | None
+    text: str
+    display_text: str
+    status: Literal["new", "tracked", "known", "ignored"]
+    confidence: int | None = Field(default=None, ge=0, le=5)
+    primary_translation: PrimaryTranslationOut | None
+    added_here: bool
+    context: LessonVocabularyContext | None
+
+
+class LessonVocabularyResponse(BaseModel):
+    lesson_id: uuid.UUID
+    language_code: str
+    items: list[LessonVocabularyItem]
 
 
 class ReaderPositionPut(BaseModel):

@@ -8,6 +8,7 @@ vi.mock('@/api/reader', () => ({
     putPosition: vi.fn(),
     bulkKnown: vi.fn(),
     undoBulk: vi.fn(),
+    vocabulary: vi.fn(),
   },
 }))
 vi.mock('@/api/lessons', () => ({ lessonsApi: {} }))
@@ -15,7 +16,7 @@ vi.mock('@/api/vocabulary', () => ({ vocabularyApi: {} }))
 
 import { readerApi } from '@/api/reader'
 
-import { useBulkKnown, usePutPosition, useUndoBulk } from './useReaderQueries'
+import { useBulkKnown, useLessonVocabulary, usePutPosition, useUndoBulk } from './useReaderQueries'
 
 /**
  * Nothing else in the app invalidates ['lessons', lang] after a reader write
@@ -99,5 +100,107 @@ describe('useReaderQueries: library list invalidation', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['reader-statuses', 'lesson-1'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['lessons', 'pt'] })
+  })
+})
+
+describe('useLessonVocabulary', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
+
+  function wrapper(queryClient: QueryClient) {
+    return ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    )
+  }
+
+  const newItem = {
+    kind: 'token' as const,
+    item_id: null,
+    text: 'casa',
+    display_text: 'Casa',
+    status: 'new' as const,
+    confidence: null,
+    primary_translation: null,
+    added_here: false,
+    context: null,
+  }
+
+  function snapshot(lessonId: string, items = [newItem]) {
+    return { lesson_id: lessonId, language_code: 'pt', items }
+  }
+
+  it('does not request a vocabulary snapshot when disabled', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { result } = renderHook(() => useLessonVocabulary('lesson-1', 'ru', false), {
+      wrapper: wrapper(queryClient),
+    })
+
+    expect(result.current.fetchStatus).toBe('idle')
+    expect(readerApi.vocabulary).not.toHaveBeenCalled()
+  })
+
+  it('does not display the previous lesson snapshot while the next lesson loads', async () => {
+    let resolveSecond!: (value: ReturnType<typeof snapshot>) => void
+    const secondSnapshot = new Promise<ReturnType<typeof snapshot>>((resolve) => {
+      resolveSecond = resolve
+    })
+    vi.mocked(readerApi.vocabulary).mockImplementation((lessonId) =>
+      lessonId === 'lesson-1' ? Promise.resolve(snapshot('lesson-1')) : secondSnapshot,
+    )
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { result, rerender } = renderHook(
+      ({ lessonId }) => useLessonVocabulary(lessonId, 'ru', true),
+      { initialProps: { lessonId: 'lesson-1' }, wrapper: wrapper(queryClient) },
+    )
+    await waitFor(() => expect(result.current.data?.lesson_id).toBe('lesson-1'))
+
+    rerender({ lessonId: 'lesson-2' })
+    expect(result.current.data).toBeUndefined()
+
+    resolveSecond(snapshot('lesson-2', []))
+    await waitFor(() => expect(result.current.data?.lesson_id).toBe('lesson-2'))
+  })
+
+  it('refreshes active snapshots after bulk-known and undo but preserves them after a failed write', async () => {
+    vi.mocked(readerApi.vocabulary)
+      .mockResolvedValueOnce(snapshot('lesson-1'))
+      .mockResolvedValueOnce(snapshot('lesson-1', []))
+      .mockResolvedValueOnce(snapshot('lesson-1'))
+    vi.mocked(readerApi.bulkKnown).mockResolvedValue({ action_id: 'action-1', created_count: 1 })
+    vi.mocked(readerApi.undoBulk).mockResolvedValue({ undone_count: 1 })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { result } = renderHook(
+      () => ({
+        vocabulary: useLessonVocabulary('lesson-1', 'ru', true),
+        bulkKnown: useBulkKnown('lesson-1', 'pt'),
+        undoBulk: useUndoBulk('lesson-1', 'pt'),
+      }),
+      { wrapper: wrapper(queryClient) },
+    )
+    await waitFor(() => expect(result.current.vocabulary.data?.items).toEqual([newItem]))
+
+    result.current.bulkKnown.mutate({
+      lesson_id: 'lesson-1',
+      from_ordinal: 0,
+      to_ordinal: 9,
+    })
+    await waitFor(() => expect(result.current.vocabulary.data?.items).toEqual([]))
+
+    result.current.undoBulk.mutate('action-1')
+    await waitFor(() => expect(result.current.vocabulary.data?.items).toEqual([newItem]))
+
+    vi.mocked(readerApi.bulkKnown).mockRejectedValueOnce(new Error('network error'))
+    result.current.bulkKnown.mutate({
+      lesson_id: 'lesson-1',
+      from_ordinal: 0,
+      to_ordinal: 9,
+    })
+    await waitFor(() => expect(result.current.bulkKnown.isError).toBe(true))
+    expect(result.current.vocabulary.data?.items).toEqual([newItem])
+    expect(readerApi.vocabulary).toHaveBeenCalledTimes(3)
   })
 })

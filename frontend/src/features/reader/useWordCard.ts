@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { vocabularyApi } from '@/api/vocabulary'
 import type { ItemKind, WriteStatus } from '@/api/vocabulary'
+import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
 
 export function wordLookupKey(kind: ItemKind, lang: string, text: string, target: string) {
   return ['word-card', kind, lang, text, target] as const
@@ -34,28 +35,26 @@ export function useWordCardMutations(opts: {
   segId: string | null
 }) {
   const qc = useQueryClient()
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: wordLookupKey(opts.kind, opts.lang, opts.text, opts.target) })
-    if (opts.kind === 'phrase') {
-      void qc.invalidateQueries({ queryKey: ['phrases', opts.lang] })
-    }
-    if (opts.lessonId !== null) {
-      void qc.invalidateQueries({ queryKey: ['reader-statuses', opts.lessonId] })
-    }
-  }
+  const invalidate = () => invalidateVocabularyViews(qc)
 
   const setStatus = useMutation({
     // For a new item (no id) pass itemId=null → create; else patch.
     mutationFn: (v: { itemId: string | null; status: WriteStatus; confidence: number | null }) =>
       v.itemId === null
         ? vocabularyApi.createItem({
-            kind: opts.kind, language_code: opts.lang, text: opts.surfaceText,
-            status: v.status, confidence: v.confidence,
-            lesson_id: opts.lessonId ?? undefined, segment_id: opts.segId ?? undefined,
+            kind: opts.kind,
+            language_code: opts.lang,
+            text: opts.surfaceText,
+            status: v.status,
+            confidence: v.confidence,
+            lesson_id: opts.lessonId ?? undefined,
+            segment_id: opts.segId ?? undefined,
           })
         : vocabularyApi.patchItem(opts.kind, v.itemId, {
-            status: v.status, confidence: v.confidence,
-            lesson_id: opts.lessonId ?? undefined, segment_id: opts.segId ?? undefined,
+            status: v.status,
+            confidence: v.confidence,
+            lesson_id: opts.lessonId ?? undefined,
+            segment_id: opts.segId ?? undefined,
           }),
     onSuccess: invalidate,
   })
@@ -63,7 +62,8 @@ export function useWordCardMutations(opts: {
   const saveTranslation = useMutation({
     mutationFn: (v: { itemId: string; text: string; source?: 'user' | 'ai' | 'dictionary' }) =>
       vocabularyApi.addTranslation(opts.kind, v.itemId, {
-        target_language_code: opts.target, translation_text: v.text,
+        target_language_code: opts.target,
+        translation_text: v.text,
         source_type: v.source ?? 'user',
       }),
     onSuccess: invalidate,
@@ -88,14 +88,24 @@ export function useWordCardMutations(opts: {
   })
 
   const addTag = useMutation({
-    mutationFn: (v: { itemId: string; tag: string }) => vocabularyApi.addTag(opts.kind, v.itemId, v.tag),
+    mutationFn: (v: { itemId: string; tag: string }) =>
+      vocabularyApi.addTag(opts.kind, v.itemId, v.tag),
     onSuccess: invalidate,
   })
 
   const removeTag = useMutation({
-    mutationFn: (v: { itemId: string; tag: string }) => vocabularyApi.removeTag(opts.kind, v.itemId, v.tag),
+    mutationFn: (v: { itemId: string; tag: string }) =>
+      vocabularyApi.removeTag(opts.kind, v.itemId, v.tag),
     onSuccess: invalidate,
   })
 
-  return { setStatus, saveTranslation, updateTranslation, deleteTranslation, saveNote, addTag, removeTag }
+  return {
+    setStatus,
+    saveTranslation,
+    updateTranslation,
+    deleteTranslation,
+    saveNote,
+    addTag,
+    removeTag,
+  }
 }

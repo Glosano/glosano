@@ -5,9 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/vocabulary', () => ({
   vocabularyApi: {
-    lookup: vi.fn(), createItem: vi.fn(), patchItem: vi.fn(),
-    addTranslation: vi.fn(), updateTranslation: vi.fn(), deleteTranslation: vi.fn(),
-    putNote: vi.fn(), addTag: vi.fn(), removeTag: vi.fn(),
+    lookup: vi.fn(),
+    createItem: vi.fn(),
+    patchItem: vi.fn(),
+    addTranslation: vi.fn(),
+    updateTranslation: vi.fn(),
+    deleteTranslation: vi.fn(),
+    putNote: vi.fn(),
+    addTag: vi.fn(),
+    removeTag: vi.fn(),
   },
 }))
 vi.mock('@/api/dictionary', () => ({ dictionaryApi: { lookup: vi.fn() } }))
@@ -30,7 +36,11 @@ function renderCard(
     <QueryClientProvider client={qc}>
       <WordCard
         word={{ kind: 'token', t: 'cada', n: 'cada', i: 0, sentenceText: null }}
-        lang="pt" target="ru" lessonId={lessonId} segId={segId} onClose={() => {}}
+        lang="pt"
+        target="ru"
+        lessonId={lessonId}
+        segId={segId}
+        onClose={() => {}}
         sentenceText={sentenceText}
       />
     </QueryClientProvider>,
@@ -45,7 +55,11 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('WordCard core', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(dictionaryApi.lookup).mockResolvedValue({ entries: [], attribution: { source: '', license: '', url: '' }, external_links: [] })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
     // wordCardExpanded lives in the module-level reader store now (not local
     // useState), so it leaks across tests in this file unless reset.
@@ -54,11 +68,25 @@ describe('WordCard core', () => {
 
   it('creates a tracked/1 item when a translation is typed on a new word', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
-    vi.mocked(vocabularyApi.createItem).mockResolvedValue({ item_id: 'I1', status: 'tracked', confidence: 1 })
-    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({ id: 'T1', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user' })
+    vi.mocked(vocabularyApi.createItem).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+    })
+    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
+      id: 'T1',
+      text: 'каждый',
+      target_language_code: 'ru',
+      is_primary: true,
+      source_type: 'user',
+    })
 
     renderCard()
     const input = await screen.findByPlaceholderText('Введите новый перевод здесь')
@@ -72,15 +100,21 @@ describe('WordCard core', () => {
     })
     await waitFor(() => {
       expect(vocabularyApi.addTranslation).toHaveBeenCalledWith(
-        'token', 'I1', expect.objectContaining({ translation_text: 'каждый' }),
+        'token',
+        'I1',
+        expect.objectContaining({ translation_text: 'каждый' }),
       )
     })
   })
 
   it('does not fire status hotkeys while typing in the translation input', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     renderCard()
@@ -103,10 +137,18 @@ describe('WordCard core', () => {
 
   it('sets confidence via the footer pill on an existing tracked item', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'tracked', confidence: 0,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 0,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
-    vi.mocked(vocabularyApi.patchItem).mockResolvedValue({ item_id: 'I1', status: 'tracked', confidence: 2 })
+    vi.mocked(vocabularyApi.patchItem).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 2,
+    })
 
     renderCard()
     const pill = await screen.findByRole('button', { name: 'Уровень 2' })
@@ -115,48 +157,154 @@ describe('WordCard core', () => {
       // renderCard() по умолчанию открывает карточку с lessonId='L1' и без
       // segId — провенанс уходит вместе с обновлением статуса (FLQ-21).
       expect(vocabularyApi.patchItem).toHaveBeenCalledWith('token', 'I1', {
-        status: 'tracked', confidence: 2, lesson_id: 'L1', segment_id: undefined,
+        status: 'tracked',
+        confidence: 2,
+        lesson_id: 'L1',
+        segment_id: undefined,
       })
     })
   })
 
   it('shows a Wiktionary suggestion and saves it as primary on +', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'tracked', confidence: 1,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [{ headword: 'cada', part_of_speech: 'det', senses: [
-        { sense_index: 0, translation: 'каждый', usage_note: null, examples: [] },
-      ] }],
-      attribution: { source: 'Wiktionary', license: 'CC BY-SA', url: '' },
+      entries: [
+        {
+          headword: 'cada',
+          part_of_speech: 'det',
+          senses: [{ sense_index: 0, translation: 'каждый', usage_note: null, examples: [] }],
+        },
+      ],
+      attribution: {
+        source: 'Wiktionary',
+        license: 'CC BY-SA 4.0',
+        url: 'https://kaikki.org/',
+      },
       external_links: [],
     })
-    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({ id: 'T1', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'dictionary' })
+    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
+      id: 'T1',
+      text: 'каждый',
+      target_language_code: 'ru',
+      is_primary: true,
+      source_type: 'dictionary',
+    })
 
     renderCard()
-    const add = await screen.findByRole('button', { name: 'Добавить перевод (📘): каждый' })
+    const attribution = await screen.findByRole('link', { name: 'Wiktionary' })
+    expect(attribution).toHaveAttribute('href', 'https://kaikki.org/')
+    expect(screen.getByText('CC BY-SA 4.0')).toBeInTheDocument()
+    const add = await screen.findByRole('button', {
+      name: 'Добавить перевод из Wiktionary: каждый',
+    })
     fireEvent.click(add)
     await waitFor(() => {
       expect(vocabularyApi.addTranslation).toHaveBeenCalledWith(
-        'token', 'I1', expect.objectContaining({ translation_text: 'каждый', source_type: 'dictionary' }),
+        'token',
+        'I1',
+        expect.objectContaining({ translation_text: 'каждый', source_type: 'dictionary' }),
       )
     })
   })
 
+  it('labels a successful AI suggestion visibly and accessibly', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({
+      hints: [{ text: 'каждый' }],
+      model: 'test-model',
+      latency_ms: 1,
+    })
+
+    renderCard()
+
+    expect(await screen.findByText('AI')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Добавить AI перевод: каждый' })).toBeInTheDocument()
+  })
+
+  it('shows dictionary attribution only when an expanded dictionary suggestion is visible', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({
+      hints: [{ text: 'любой' }, { text: 'каждая' }],
+      model: 'test-model',
+      latency_ms: 1,
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [
+        {
+          headword: 'cada',
+          part_of_speech: 'det',
+          senses: [{ sense_index: 0, translation: 'каждый', usage_note: null, examples: [] }],
+        },
+      ],
+      attribution: {
+        source: 'Wiktionary',
+        license: 'CC BY-SA 4.0',
+        url: 'https://kaikki.org/',
+      },
+      external_links: [],
+    })
+
+    renderCard()
+
+    await screen.findByText('любой')
+    expect(screen.queryByText('каждый')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Wiktionary' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Развернуть' }))
+
+    expect(await screen.findByText('каждый')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Wiktionary' })).toHaveAttribute(
+      'href',
+      'https://kaikki.org/',
+    )
+  })
+
   it('requests AI for known words but not for tracked ones', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'known', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'I1',
+      status: 'known',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     renderCard()
     await waitFor(() => expect(aiApi.translate).toHaveBeenCalled())
 
     vi.clearAllMocks()
-    vi.mocked(dictionaryApi.lookup).mockResolvedValue({ entries: [], attribution: { source: '', license: '', url: '' }, external_links: [] })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [],
+      attribution: { source: '', license: '', url: '' },
+      external_links: [],
+    })
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I2', status: 'tracked', confidence: 1,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'I2',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     renderCard()
     await screen.findAllByText('cada')
@@ -166,8 +314,12 @@ describe('WordCard core', () => {
 
   it('passes the sentence as AI context when provided', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     renderCard('Cada casa tem uma porta.')
     await waitFor(() => {
@@ -177,22 +329,52 @@ describe('WordCard core', () => {
     })
   })
 
-  it('shows an info note without retry when AI is disabled (503)', async () => {
+  it('hides the AI section but keeps dictionary attribution when AI is disabled', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(aiApi.translate).mockRejectedValue(new ApiError(503, 'disabled'))
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [
+        {
+          headword: 'cada',
+          part_of_speech: 'det',
+          senses: [{ sense_index: 0, translation: 'каждый', usage_note: null, examples: [] }],
+        },
+      ],
+      attribution: {
+        source: 'Wiktionary',
+        license: 'CC BY-SA 4.0',
+        url: 'https://kaikki.org/',
+      },
+      external_links: [],
+    })
     renderCard()
-    await screen.findByText('AI-переводы отключены')
+
+    expect(await screen.findByRole('link', { name: 'Wiktionary' })).toHaveAttribute(
+      'href',
+      'https://kaikki.org/',
+    )
+    expect(screen.getByText('CC BY-SA 4.0')).toBeInTheDocument()
+    expect(screen.queryByText('AI')).not.toBeInTheDocument()
+    expect(screen.queryByText('AI-переводы отключены')).not.toBeInTheDocument()
     expect(screen.queryByText('Не удалось получить AI-перевод')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Повторить' })).not.toBeInTheDocument()
   })
 
   it('shows an inline error with retry on a real AI failure', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(aiApi.translate)
       .mockRejectedValueOnce(new ApiError(500, 'boom'))
@@ -205,13 +387,23 @@ describe('WordCard core', () => {
 
   it('surfaces an inline error and retries on the next blur after a failed save', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     vi.mocked(vocabularyApi.createItem)
       .mockRejectedValueOnce(new Error('network down'))
       .mockResolvedValueOnce({ item_id: 'I1', status: 'tracked', confidence: 1 })
-    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({ id: 'T1', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user' })
+    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
+      id: 'T1',
+      text: 'каждый',
+      target_language_code: 'ru',
+      is_primary: true,
+      source_type: 'user',
+    })
 
     renderCard()
     const input = await screen.findByPlaceholderText('Введите новый перевод здесь')
@@ -232,7 +424,9 @@ describe('WordCard core', () => {
     })
     await waitFor(() => {
       expect(vocabularyApi.addTranslation).toHaveBeenCalledWith(
-        'token', 'I1', expect.objectContaining({ translation_text: 'каждый' }),
+        'token',
+        'I1',
+        expect.objectContaining({ translation_text: 'каждый' }),
       )
     })
     await waitFor(() => {
@@ -242,10 +436,18 @@ describe('WordCard core', () => {
 
   it('creates a tracked/1 item when a note is typed on a new word', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
-    vi.mocked(vocabularyApi.createItem).mockResolvedValue({ item_id: 'I1', status: 'tracked', confidence: 1 })
+    vi.mocked(vocabularyApi.createItem).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+    })
     vi.mocked(vocabularyApi.putNote).mockResolvedValue({ note: 'моя заметка' })
 
     renderCard()
@@ -269,31 +471,71 @@ describe('WordCard core', () => {
 
   it('renders saved variants as fields and keeps them out of suggestions', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'tracked', confidence: 1,
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
       translations: {
-        primary: { id: 'T1', text: 'первый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
+        primary: {
+          id: 'T1',
+          text: 'первый',
+          target_language_code: 'ru',
+          is_primary: true,
+          source_type: 'user',
+        },
         all: [
-          { id: 'T1', text: 'первый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
-          { id: 'T2', text: 'второй', target_language_code: 'ru', is_primary: false, source_type: 'user' },
+          {
+            id: 'T1',
+            text: 'первый',
+            target_language_code: 'ru',
+            is_primary: true,
+            source_type: 'user',
+          },
+          {
+            id: 'T2',
+            text: 'второй',
+            target_language_code: 'ru',
+            is_primary: false,
+            source_type: 'user',
+          },
         ],
       },
-      note: null, tags: [],
+      note: null,
+      tags: [],
     })
     renderCard()
     expect(await screen.findByDisplayValue('первый')).toBeInTheDocument()
     expect(await screen.findByDisplayValue('второй')).toBeInTheDocument()
     expect(screen.queryByText('Подсказки')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Добавить перевод .*: первый/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Добавить перевод .*: первый/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('deletes a variant via its ✕ button', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'tracked', confidence: 1,
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
       translations: {
-        primary: { id: 'T1', text: 'первый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
-        all: [{ id: 'T1', text: 'первый', target_language_code: 'ru', is_primary: true, source_type: 'user' }],
+        primary: {
+          id: 'T1',
+          text: 'первый',
+          target_language_code: 'ru',
+          is_primary: true,
+          source_type: 'user',
+        },
+        all: [
+          {
+            id: 'T1',
+            text: 'первый',
+            target_language_code: 'ru',
+            is_primary: true,
+            source_type: 'user',
+          },
+        ],
       },
-      note: null, tags: [],
+      note: null,
+      tags: [],
     })
     vi.mocked(vocabularyApi.deleteTranslation).mockResolvedValue({ translations: [] })
     renderCard()
@@ -306,12 +548,18 @@ describe('WordCard core', () => {
 
   it('shows the ignored layout with a reactivation hint and no editing blocks', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'ignored', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'I1',
+      status: 'ignored',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     renderCard()
     await screen.findByText('Игнорируется')
-    expect(screen.getByText('Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение')).toBeInTheDocument()
+    expect(
+      screen.getByText('Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение'),
+    ).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('Введите новый перевод здесь')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Развернуть' })).not.toBeInTheDocument()
     // footer stays for reactivation
@@ -320,8 +568,12 @@ describe('WordCard core', () => {
 
   it('persists the expanded state across card reopen via the reader store', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'I1', status: 'tracked', confidence: 1,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
     const { unmount } = renderCard()
     fireEvent.click(await screen.findByRole('button', { name: 'Развернуть' }))
@@ -335,8 +587,12 @@ describe('WordCard core', () => {
 
   it('renders and omits lesson_id from the AI request when lessonId is null (vocabulary page reuse)', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     renderCard(null, null)
@@ -354,10 +610,18 @@ describe('WordCard core', () => {
 
   it('передаёт lesson_id и segment_id при добавлении слова', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
-    vi.mocked(vocabularyApi.createItem).mockResolvedValue({ item_id: 'I1', status: 'tracked', confidence: 1 })
+    vi.mocked(vocabularyApi.createItem).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+    })
 
     renderCard(null, 'L1', 'S1')
     fireEvent.click(await screen.findByRole('button', { name: 'Уровень 1' }))
@@ -370,15 +634,34 @@ describe('WordCard core', () => {
 
   it('phrase card: no dictionary lookup, creates item with kind=phrase', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
-    vi.mocked(vocabularyApi.createItem).mockResolvedValue({ item_id: 'I1', status: 'tracked', confidence: 1 })
+    vi.mocked(vocabularyApi.createItem).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+    })
 
     render(
       <WordCard
-        word={{ kind: 'phrase', t: 'so far, so good', n: 'so far so good', i: 10, sentenceText: 'So far, so good it is.' }}
-        lang="en" target="ru" lessonId="l1" segId="s1" onClose={() => {}} sentenceText={null}
+        word={{
+          kind: 'phrase',
+          t: 'so far, so good',
+          n: 'so far so good',
+          i: 10,
+          sentenceText: 'So far, so good it is.',
+        }}
+        lang="en"
+        target="ru"
+        lessonId="l1"
+        segId="s1"
+        onClose={() => {}}
+        sentenceText={null}
       />,
       { wrapper },
     )
@@ -404,8 +687,12 @@ describe('WordCard core', () => {
 
   it('token card still queries the dictionary', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: null, status: 'new', confidence: null,
-      translations: { primary: null, all: [] }, note: null, tags: [],
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
     })
 
     render(
@@ -413,7 +700,12 @@ describe('WordCard core', () => {
         // t (surface) and n (normalized) deliberately differ here to prove
         // the token path keeps using the normalized `n`, unlike phrases.
         word={{ kind: 'token', t: 'Far', n: 'far', i: 1, sentenceText: null }}
-        lang="en" target="ru" lessonId="l1" segId="s1" onClose={() => {}} sentenceText="It is far."
+        lang="en"
+        target="ru"
+        lessonId="l1"
+        segId="s1"
+        onClose={() => {}}
+        sentenceText="It is far."
       />,
       { wrapper },
     )
@@ -423,5 +715,74 @@ describe('WordCard core', () => {
     await waitFor(() => {
       expect(vocabularyApi.lookup).toHaveBeenCalledWith('en', 'far', 'ru', 'token')
     })
+  })
+
+  it('renders inside a panel without its standalone shell or Escape handler', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    const onClose = vi.fn()
+
+    render(
+      <WordCard
+        word={{ kind: 'token', t: 'Cada', n: 'cada', i: 0, sentenceText: null }}
+        lang="pt"
+        target="ru"
+        lessonId="L1"
+        segId="S1"
+        onClose={onClose}
+        sentenceText="Cada casa tem uma porta."
+        embedded
+        closeLabel="К списку"
+      />,
+      { wrapper },
+    )
+
+    expect(await screen.findByText('Cada')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('Введите новый перевод здесь')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Уровень 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'К списку' })).toBeInTheDocument()
+    expect(screen.queryByTestId('word-card-backdrop')).not.toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does not apply status hotkeys while a panel popover is active', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'I1',
+      status: 'tracked',
+      confidence: 1,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    const { container } = render(
+      <>
+        <WordCard
+          word={{ kind: 'token', t: 'Cada', n: 'cada', i: 0, sentenceText: null }}
+          lang="pt"
+          target="ru"
+          lessonId="L1"
+          segId="S1"
+          onClose={() => {}}
+          sentenceText="Cada casa tem uma porta."
+          embedded
+        />
+        <div data-reader-panel-popover>Открытый picker</div>
+      </>,
+      { wrapper },
+    )
+    await screen.findByRole('button', { name: 'Уровень 1' })
+
+    fireEvent.keyDown(container, { key: '2' })
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(vocabularyApi.patchItem).not.toHaveBeenCalled()
   })
 })

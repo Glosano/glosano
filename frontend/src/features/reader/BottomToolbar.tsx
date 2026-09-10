@@ -42,7 +42,7 @@ export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview }: Props
       <div
         className={cn(
           'mx-auto grid max-w-screen-2xl grid-cols-3 px-6 py-3',
-          panelOpen && 'md:pr-[344px]',
+          panelOpen && 'lg:pr-[var(--reader-panel-reserve)]',
         )}
       >
         <Action icon="♪" label="Сгенерировать аудио" disabled title="Скоро" />

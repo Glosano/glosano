@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lessonsApi } from '@/api/lessons'
 import { readerApi } from '@/api/reader'
 import { vocabularyApi } from '@/api/vocabulary'
+import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
 
 export function useLessonDetail(lessonId: string) {
   return useQuery({
@@ -30,6 +31,14 @@ export function useTokenStatuses(lessonId: string, enabled: boolean) {
   })
 }
 
+export function useLessonVocabulary(lessonId: string, target: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['reader-vocabulary', lessonId, target],
+    queryFn: () => readerApi.vocabulary(lessonId, target),
+    enabled,
+  })
+}
+
 // The library list card (['lessons', lang]) shows a read-percent and a
 // new-words-remaining count derived from exactly the writes below (reader
 // position, bulk-known, undo). Nothing else invalidates that query, and its
@@ -52,10 +61,12 @@ export function useBulkKnown(lessonId: string, lang: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: readerApi.bulkKnown,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] })
-      void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
-    },
+    onSuccess: () =>
+      Promise.all([
+        invalidateVocabularyViews(queryClient),
+        queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] }),
+        queryClient.invalidateQueries({ queryKey: ['lessons', lang] }),
+      ]).then(() => undefined),
   })
 }
 
@@ -63,10 +74,12 @@ export function useUndoBulk(lessonId: string, lang: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: readerApi.undoBulk,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] })
-      void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
-    },
+    onSuccess: () =>
+      Promise.all([
+        invalidateVocabularyViews(queryClient),
+        queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] }),
+        queryClient.invalidateQueries({ queryKey: ['lessons', lang] }),
+      ]).then(() => undefined),
   })
 }
 

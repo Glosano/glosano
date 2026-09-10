@@ -1,4 +1,5 @@
 import { api } from './client'
+import type { CardStatus, ItemKind } from './vocabulary'
 
 export interface WordToken {
   t: string
@@ -54,10 +55,36 @@ export interface SegmentTranslation {
   stored: boolean
 }
 
+export interface LessonVocabularyItem {
+  kind: ItemKind
+  item_id: string | null
+  text: string
+  display_text: string
+  status: CardStatus
+  confidence: number | null
+  primary_translation: { text: string; target_language_code: string } | null
+  added_here: boolean
+  context: {
+    segment_id: string
+    token_ordinal: number
+    sentence_text: string
+  } | null
+}
+
+export interface LessonVocabularyResponse {
+  lesson_id: string
+  language_code: string
+  items: LessonVocabularyItem[]
+}
+
 export const readerApi = {
   content: (lessonId: string) => api<LessonContent>(`/api/lessons/${lessonId}/content`),
   statuses: (lessonId: string) =>
     api<{ statuses: StatusMap }>(`/api/lessons/${lessonId}/token-statuses`).then((r) => r.statuses),
+  vocabulary: (lessonId: string, target: string) => {
+    const params = new URLSearchParams({ target })
+    return api<LessonVocabularyResponse>(`/api/lessons/${lessonId}/vocabulary?${params}`)
+  },
   putPosition: (body: { lesson_id: string } & ReaderPosition) =>
     api<void>('/api/reader/positions', { method: 'PUT', body: JSON.stringify(body) }),
   bulkKnown: (body: { lesson_id: string; from_ordinal: number; to_ordinal: number }) =>

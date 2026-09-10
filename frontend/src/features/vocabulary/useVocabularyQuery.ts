@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { vocabularyApi } from '@/api/vocabulary'
 import type { ItemKind, VocabListParams } from '@/api/vocabulary'
+import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
 
 export const VOCAB_TARGET = 'ru'
 
@@ -25,23 +26,14 @@ export function useVocabInvalidate() {
 
 export function useBulkAction() {
   const qc = useQueryClient()
-  const invalidate = useVocabInvalidate()
   return useMutation({
     mutationFn: vocabularyApi.bulk,
-    onSuccess: () => {
-      invalidate()
-      // Bulk actions (set_known/set_ignored/delete) can change or remove
-      // phrases; an open reader keeps highlighting stale phrase state until
-      // staleTime unless we invalidate its cache too. Prefix-invalidate
-      // across all languages — cheap and correct.
-      void qc.invalidateQueries({ queryKey: ['phrases'] })
-    },
+    onSuccess: () => invalidateVocabularyViews(qc),
   })
 }
 
 export function usePatchItem() {
   const qc = useQueryClient()
-  const invalidate = useVocabInvalidate()
   return useMutation({
     mutationFn: (v: {
       itemId: string
@@ -49,11 +41,6 @@ export function usePatchItem() {
       status: 'tracked' | 'known' | 'ignored'
       confidence: number | null
     }) => vocabularyApi.patchItem(v.kind, v.itemId, { status: v.status, confidence: v.confidence }),
-    onSuccess: () => {
-      invalidate()
-      // Same rationale as useBulkAction: a patch can change a phrase's
-      // status, and an open reader must not keep highlighting stale state.
-      void qc.invalidateQueries({ queryKey: ['phrases'] })
-    },
+    onSuccess: () => invalidateVocabularyViews(qc),
   })
 }

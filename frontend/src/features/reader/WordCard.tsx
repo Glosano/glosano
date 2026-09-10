@@ -22,9 +22,22 @@ interface Props {
       гасит подсветку выделения, не закрывая карточку. */
   onStatusApplied?: () => void
   sentenceText: string | null
+  embedded?: boolean
+  closeLabel?: string
 }
 
-export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatusApplied, sentenceText }: Props) {
+export function WordCard({
+  word,
+  lang,
+  target,
+  lessonId,
+  segId,
+  onClose,
+  onStatusApplied,
+  sentenceText,
+  embedded = false,
+  closeLabel = 'Закрыть',
+}: Props) {
   const expanded = useReaderStore((s) => s.wordCardExpanded)
   const setExpanded = useReaderStore((s) => s.setWordCardExpanded)
   const kind = word?.kind ?? 'token'
@@ -36,7 +49,13 @@ export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatu
   const text = word ? (kind === 'phrase' ? word.t : word.n) : null
   const lookup = useWordLookup(lang, text, target, kind)
   const m = useWordCardMutations({
-    kind, lang, text: text ?? '', surfaceText: word?.t ?? '', target, lessonId, segId,
+    kind,
+    lang,
+    text: text ?? '',
+    surfaceText: word?.t ?? '',
+    target,
+    lessonId,
+    segId,
   })
 
   const data = lookup.data
@@ -66,10 +85,13 @@ export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatu
   })
   const ai = useQuery({
     queryKey: ['ai-hint', lang, target, text ?? '', aiContext],
-    queryFn: () => aiApi.translate({
-      surface_text: word!.t, context_text: aiContext,
-      target_language_code: target, lesson_id: lessonId ?? undefined,
-    }),
+    queryFn: () =>
+      aiApi.translate({
+        surface_text: word!.t,
+        context_text: aiContext,
+        target_language_code: target,
+        lesson_id: lessonId ?? undefined,
+      }),
     enabled: text !== null && wantAi,
     retry: false,
   })
@@ -103,13 +125,14 @@ export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatu
   useEffect(() => {
     if (!word) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      const target = e.target as HTMLElement | null
+      if (document.querySelector('[data-reader-panel-popover]')) return
+      if (!embedded && e.key === 'Escape') onClose()
+      const target = e.target instanceof HTMLElement ? e.target : null
       const isEditableTarget =
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target?.isContentEditable
-      if (isEditableTarget) return
+      if (isEditableTarget || target?.closest('[data-reader-panel-popover]')) return
       if (data && /^[1-4]$/.test(e.key)) applyStatus('tracked', Number(e.key))
       if (data && e.key === 'k') applyStatus('known', null)
       if (data && e.key === 'i') applyStatus('ignored', null)
@@ -117,7 +140,7 @@ export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatu
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word, data])
+  }, [word, data, embedded])
 
   if (!word) return null
 
@@ -138,15 +161,230 @@ export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatu
     await fn(id)
   }
 
-  type Suggestion = { text: string; badge: '✦' | '📘'; source: 'ai' | 'dictionary' }
+  const dictionarySource = dict.data?.attribution.source || 'Wiktionary'
+  type Suggestion = {
+    text: string
+    badge: '✦' | '📘'
+    source: 'ai' | 'dictionary'
+    sourceLabel: string
+  }
   const suggestions: Suggestion[] = [
-    ...(ai.data?.hints ?? []).map((h) => ({ text: h.text, badge: '✦' as const, source: 'ai' as const })),
+    ...(ai.data?.hints ?? []).map((h) => ({
+      text: h.text,
+      badge: '✦' as const,
+      source: 'ai' as const,
+      sourceLabel: 'AI',
+    })),
     ...(dict.data?.entries ?? []).flatMap((e) =>
-      e.senses.map((s) => ({ text: s.translation, badge: '📘' as const, source: 'dictionary' as const })),
+      e.senses.map((s) => ({
+        text: s.translation,
+        badge: '📘' as const,
+        source: 'dictionary' as const,
+        sourceLabel: dictionarySource,
+      })),
     ),
   ]
   const visibleSuggestions = expanded ? suggestions : suggestions.slice(0, 2)
+  const showDictionaryAttribution = visibleSuggestions.some(
+    (suggestion) => suggestion.source === 'dictionary',
+  )
   const isIgnored = data?.status === 'ignored'
+
+  const content = (
+    <div
+      data-testid="word-card"
+      className={
+        embedded
+          ? 'relative min-h-0 p-4'
+          : 'fixed inset-x-0 bottom-0 z-[var(--z-modal)] rounded-t-xl border border-border bg-card p-4 shadow-lg md:inset-x-auto md:right-0 md:top-16 md:h-[calc(100vh-4rem)] md:w-80 md:overflow-y-auto md:rounded-none md:border-y-0 md:border-r-0 md:border-l md:shadow-none'
+      }
+    >
+      <button
+        type="button"
+        aria-label={closeLabel}
+        onClick={onClose}
+        className="absolute right-3 top-3 rounded-md p-1 hover:bg-accent"
+      >
+        <X className="h-4 w-4" />
+      </button>
+
+      <p className="text-2xl font-semibold">{word.t}</p>
+
+      {!isIgnored && (
+        <>
+          {/* Saved translation */}
+          <label className="mt-4 block text-sm font-medium">Перевод</label>
+          <TranslationFields
+            translations={variants}
+            onCreate={(value) =>
+              withItem((id) =>
+                m.saveTranslation.mutateAsync({ itemId: id, text: value, source: 'user' }),
+              )
+            }
+            onUpdate={(translationId, value) =>
+              withItem((id) =>
+                m.updateTranslation.mutateAsync({ itemId: id, translationId, text: value }),
+              )
+            }
+            onDelete={(translationId) =>
+              withItem((id) => m.deleteTranslation.mutateAsync({ itemId: id, translationId }))
+            }
+          />
+
+          <div data-testid="word-card-suggestions" className="mt-4">
+            {visibleSuggestions.length > 0 && <p className="text-sm font-medium">Подсказки</p>}
+            <ul className="mt-1 space-y-1">
+              {visibleSuggestions.map((sug, idx) => (
+                <li
+                  key={`${sug.source}-${idx}`}
+                  className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
+                >
+                  <span className="text-primary">
+                    {sug.text}
+                    <span aria-hidden="true" className="ml-2 text-muted-foreground">
+                      {sug.badge}
+                    </span>
+                    <span className="ml-2 text-xs text-muted-foreground">{sug.sourceLabel}</span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={
+                      sug.source === 'ai'
+                        ? `Добавить AI перевод: ${sug.text}`
+                        : `Добавить перевод из ${sug.sourceLabel}: ${sug.text}`
+                    }
+                    onClick={() =>
+                      void withItem((id) =>
+                        m.saveTranslation.mutateAsync({
+                          itemId: id,
+                          text: sug.text,
+                          source: sug.source,
+                        }),
+                      )
+                    }
+                    className="rounded p-1 hover:bg-accent"
+                  >
+                    +
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {showDictionaryAttribution && dict.data?.attribution && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Источник:{' '}
+                {dict.data.attribution.url ? (
+                  <a
+                    href={dict.data.attribution.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline"
+                  >
+                    {dict.data.attribution.source}
+                  </a>
+                ) : (
+                  <span>{dict.data.attribution.source}</span>
+                )}
+                {dict.data.attribution.license && (
+                  <>
+                    {' · '}
+                    <span>{dict.data.attribution.license}</span>
+                  </>
+                )}
+              </p>
+            )}
+            {ai.isError && !aiDisabled && (
+              <p className="mt-1 text-sm text-destructive">
+                Не удалось получить AI-перевод{' '}
+                <button type="button" onClick={() => void ai.refetch()} className="underline">
+                  Повторить
+                </button>
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {isIgnored && (
+        <div data-testid="word-card-ignored" className="mt-4">
+          <p className="text-sm font-medium">Игнорируется</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение
+          </p>
+        </div>
+      )}
+
+      {expanded && !isIgnored && (
+        <div data-testid="word-card-expanded" className="mt-4 space-y-4">
+          <div>
+            <p className="text-sm font-medium">Теги</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {(data?.tags ?? []).map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => itemId && m.removeTag.mutate({ itemId, tag })}
+                  className="rounded-full border border-border px-2 py-0.5 text-xs hover:bg-accent"
+                >
+                  {tag} ✕
+                </button>
+              ))}
+              <input
+                className="min-w-24 flex-1 rounded-md border border-border px-2 py-0.5 text-xs"
+                placeholder="Тег+"
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && tagDraft.trim()) {
+                    await withItem((id) =>
+                      m.addTag.mutateAsync({ itemId: id, tag: tagDraft.trim() }),
+                    )
+                    setTagDraft('')
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium">Заметки</p>
+            <textarea
+              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+              rows={3}
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onBlur={() => void saveNote()}
+            />
+            {saveError && <p className="mt-1 text-sm text-destructive">Не удалось сохранить</p>}
+          </div>
+        </div>
+      )}
+
+      {/* Footer: 🗑 [1][2][3][4] ✓ — gated on the lookup having loaded, so a
+          click always sees the real item id/status (never a stale "new word"
+          default while the lookup is still in flight). */}
+      {data && (
+        <div className="mt-4 border-t border-border pt-3">
+          <ConfidencePicker
+            status={status}
+            confidence={confidence}
+            onSelect={(s, c) => applyStatus(s, c)}
+          />
+        </div>
+      )}
+
+      {!isIgnored && (
+        <button
+          type="button"
+          aria-label={expanded ? 'Свернуть' : 'Развернуть'}
+          onClick={() => setExpanded(!expanded)}
+          className="mx-auto mt-2 flex rounded-md p-1 text-muted-foreground hover:bg-accent"
+        >
+          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+      )}
+    </div>
+  )
+
+  if (embedded) return content
 
   return (
     <>
@@ -155,143 +393,7 @@ export function WordCard({ word, lang, target, lessonId, segId, onClose, onStatu
         className="fixed inset-0 z-[var(--z-modal-backdrop)] bg-black/10 md:hidden"
         onClick={onClose}
       />
-      <div
-        data-testid="word-card"
-        className="fixed inset-x-0 bottom-0 z-[var(--z-modal)] rounded-t-xl border border-border bg-card p-4 shadow-lg md:inset-x-auto md:right-0 md:top-16 md:h-[calc(100vh-4rem)] md:w-80 md:overflow-y-auto md:rounded-none md:border-y-0 md:border-r-0 md:border-l md:shadow-none"
-      >
-        <button
-          type="button" aria-label="Закрыть" onClick={onClose}
-          className="absolute right-3 top-3 rounded-md p-1 hover:bg-accent"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <p className="text-2xl font-semibold">{word.t}</p>
-
-        {!isIgnored && (
-          <>
-            {/* Saved translation */}
-            <label className="mt-4 block text-sm font-medium">Перевод</label>
-            <TranslationFields
-              translations={variants}
-              onCreate={(value) => withItem((id) =>
-                m.saveTranslation.mutateAsync({ itemId: id, text: value, source: 'user' }))}
-              onUpdate={(translationId, value) => withItem((id) =>
-                m.updateTranslation.mutateAsync({ itemId: id, translationId, text: value }))}
-              onDelete={(translationId) => withItem((id) =>
-                m.deleteTranslation.mutateAsync({ itemId: id, translationId }))}
-            />
-
-            <div data-testid="word-card-suggestions" className="mt-4">
-              {visibleSuggestions.length > 0 && <p className="text-sm font-medium">Подсказки</p>}
-              <ul className="mt-1 space-y-1">
-                {visibleSuggestions.map((sug, idx) => (
-                  <li key={`${sug.source}-${idx}`}
-                      className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
-                    <span className="text-primary">
-                      {sug.text}<span className="ml-2 text-muted-foreground">{sug.badge}</span>
-                    </span>
-                    <button
-                      type="button" aria-label={`Добавить перевод (${sug.badge}): ${sug.text}`}
-                      onClick={() => void withItem((id) =>
-                        m.saveTranslation.mutateAsync({ itemId: id, text: sug.text, source: sug.source }))}
-                      className="rounded p-1 hover:bg-accent"
-                    >+</button>
-                  </li>
-                ))}
-              </ul>
-              {aiDisabled && (
-                <p className="mt-1 text-sm text-muted-foreground">AI-переводы отключены</p>
-              )}
-              {ai.isError && !aiDisabled && (
-                <p className="mt-1 text-sm text-destructive">
-                  Не удалось получить AI-перевод{' '}
-                  <button
-                    type="button"
-                    onClick={() => void ai.refetch()}
-                    className="underline"
-                  >
-                    Повторить
-                  </button>
-                </p>
-              )}
-            </div>
-          </>
-        )}
-
-        {isIgnored && (
-          <div data-testid="word-card-ignored" className="mt-4">
-            <p className="text-sm font-medium">Игнорируется</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение
-            </p>
-          </div>
-        )}
-
-        {expanded && !isIgnored && (
-          <div data-testid="word-card-expanded" className="mt-4 space-y-4">
-            <div>
-              <p className="text-sm font-medium">Теги</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {(data?.tags ?? []).map((tag) => (
-                  <button key={tag} type="button"
-                    onClick={() => itemId && m.removeTag.mutate({ itemId, tag })}
-                    className="rounded-full border border-border px-2 py-0.5 text-xs hover:bg-accent">
-                    {tag} ✕
-                  </button>
-                ))}
-                <input
-                  className="min-w-24 flex-1 rounded-md border border-border px-2 py-0.5 text-xs"
-                  placeholder="Тег+"
-                  value={tagDraft}
-                  onChange={(e) => setTagDraft(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === 'Enter' && tagDraft.trim()) {
-                      await withItem((id) => m.addTag.mutateAsync({ itemId: id, tag: tagDraft.trim() }))
-                      setTagDraft('')
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium">Заметки</p>
-              <textarea
-                className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
-                rows={3}
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                onBlur={() => void saveNote()}
-              />
-              {saveError && <p className="mt-1 text-sm text-destructive">Не удалось сохранить</p>}
-            </div>
-          </div>
-        )}
-
-        {/* Footer: 🗑 [1][2][3][4] ✓ — gated on the lookup having loaded, so a
-            click always sees the real item id/status (never a stale "new word"
-            default while the lookup is still in flight). */}
-        {data && (
-          <div className="mt-4 border-t border-border pt-3">
-            <ConfidencePicker
-              status={status}
-              confidence={confidence}
-              onSelect={(s, c) => applyStatus(s, c)}
-            />
-          </div>
-        )}
-
-        {!isIgnored && (
-          <button
-            type="button"
-            aria-label={expanded ? 'Свернуть' : 'Развернуть'}
-            onClick={() => setExpanded(!expanded)}
-            className="mx-auto mt-2 flex rounded-md p-1 text-muted-foreground hover:bg-accent"
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        )}
-      </div>
+      {content}
     </>
   )
 }

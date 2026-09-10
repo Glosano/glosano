@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,7 @@ from flinq.modules.reader_state.schemas import (
     BulkKnownResponse,
     BulkUndoResponse,
     LessonContentResponse,
+    LessonVocabularyResponse,
     ReaderPositionPut,
     SegmentTranslationRequest,
     SegmentTranslationResponse,
@@ -37,6 +39,7 @@ from flinq.modules.reader_state.schemas import (
 )
 from flinq.modules.reader_state.statuses import lesson_token_statuses
 from flinq.modules.reader_state.translations import SegmentNotFound, get_or_translate_segment
+from flinq.modules.reader_state.vocabulary import build_lesson_vocabulary
 
 router = APIRouter(prefix="/api", tags=["reader"])
 
@@ -82,6 +85,23 @@ async def lesson_token_statuses_route(
     lesson = await _load_lesson(session, lesson_id, user_id)
     statuses = await lesson_token_statuses(session, lesson=lesson, user_id=user_id)
     return TokenStatusesResponse(statuses=statuses)
+
+
+@router.get("/lessons/{lesson_id}/vocabulary", response_model=LessonVocabularyResponse)
+async def lesson_vocabulary(
+    lesson_id: uuid.UUID,
+    target: Literal["en", "ru", "pt"],
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> LessonVocabularyResponse:
+    user_id = _require_user(request)
+    lesson = await _load_lesson(session, lesson_id, user_id)
+    return await build_lesson_vocabulary(
+        session,
+        lesson=lesson,
+        user_id=user_id,
+        target=target,
+    )
 
 
 @router.put("/reader/positions", status_code=status.HTTP_204_NO_CONTENT)

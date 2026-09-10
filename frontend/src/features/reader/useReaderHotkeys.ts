@@ -31,7 +31,16 @@ export function useReaderHotkeys({
     if (!enabled) return
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return
       if (isEditableTarget(event.target)) return
+      const target = event.target instanceof HTMLElement ? event.target : null
+      const insideReaderPanel = !!target?.closest(
+        '[data-reader-panel], [data-reader-panel-popover]',
+      )
+
+      // Escape still dismisses the current reader layer on desktop. Other
+      // reader shortcuts belong to the reading canvas, not panel controls.
+      if (insideReaderPanel && event.key !== 'Escape') return
 
       if (event.key === 'ArrowLeft') {
         event.preventDefault()
