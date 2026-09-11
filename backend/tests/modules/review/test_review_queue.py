@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from flinq.core.config import get_settings
 from flinq.core.db import session_scope
 from flinq.core.security import hash_password
+from flinq.modules.identity.models import UserSettings
 from flinq.modules.identity.repo import UserRepo
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.review.models import ReviewEvent, ReviewItem
@@ -66,6 +67,33 @@ async def _tracked_token(s: AsyncSession, user_id: uuid.UUID, text: str) -> Toke
     return item
 
 
+async def _set_daily_limit(s: AsyncSession, user_id: uuid.UUID, limit: int) -> None:
+    """Задать личный дневной лимит: тесты не должны зависеть от дефолта."""
+    settings = await s.get(UserSettings, user_id)
+    assert settings is not None
+    settings.daily_goal_reviews = limit
+    await s.commit()
+
+
+async def _exhaust_daily_limit(
+    s: AsyncSession, user_id: uuid.UUID, review_item_id: uuid.UUID, times: int
+) -> None:
+    for _ in range(times):
+        s.add(
+            ReviewEvent(
+                review_item_id=review_item_id,
+                user_id=user_id,
+                answer_value="correct",
+                previous_confidence=1,
+                new_confidence=2,
+                previous_due_at=NOW,
+                new_due_at=NOW,
+                reviewed_at=NOW,
+            )
+        )
+    await s.commit()
+
+
 async def _set_due(s: AsyncSession, item_id: uuid.UUID, due: datetime) -> None:
     ri = (await s.execute(select(ReviewItem).where(ReviewItem.item_id == item_id))).scalars().one()
     ri.due_at = due
@@ -83,7 +111,7 @@ async def test_main_queue_returns_due_sorted_and_skips_not_due():
         await _set_due(s, c.id, NOW + timedelta(days=1))  # не due
         items, daily = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
         assert [i.text for i in items] == ["dois", "um"]  # старейший due первым
-        assert daily.limit == 20 and daily.done_today == 0 and not daily.limit_reached
+        assert daily.limit == 500 and daily.done_today == 0 and not daily.limit_reached
 
 
 async def test_queue_includes_translation_and_confidence():
@@ -113,22 +141,10 @@ async def test_limit_reached_empties_main_queue():
             .scalars()
             .one()
         )
-        for _ in range(20):  # daily_goal_reviews default = 20
-            s.add(
-                ReviewEvent(
-                    review_item_id=ri.id,
-                    user_id=user_id,
-                    answer_value="correct",
-                    previous_confidence=1,
-                    new_confidence=2,
-                    previous_due_at=NOW,
-                    new_due_at=NOW,
-                    reviewed_at=NOW,
-                )
-            )
-        await s.commit()
+        await _set_daily_limit(s, user_id, 2)
+        await _exhaust_daily_limit(s, user_id, ri.id, 2)
         items, daily = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
-        assert items == [] and daily.limit_reached and daily.done_today == 20
+        assert items == [] and daily.limit_reached and daily.done_today == 2
 
 
 async def _lesson_with_occurrence(s: AsyncSession, user_id: uuid.UUID, token_text: str) -> Lesson:
@@ -567,20 +583,8 @@ async def test_lesson_new_mode_ignores_daily_limit_but_global_new_mode_respects_
             .scalars()
             .one()
         )
-        for _ in range(20):  # исчерпать дневной лимит (default daily_goal_reviews = 20)
-            s.add(
-                ReviewEvent(
-                    review_item_id=ri.id,
-                    user_id=user_id,
-                    answer_value="correct",
-                    previous_confidence=1,
-                    new_confidence=2,
-                    previous_due_at=NOW,
-                    new_due_at=NOW,
-                    reviewed_at=NOW,
-                )
-            )
-        await s.commit()
+        await _set_daily_limit(s, user_id, 2)  # исчерпать дневной лимит
+        await _exhaust_daily_limit(s, user_id, ri.id, 2)
 
         lesson_items, lesson_daily = await get_queue(
             s, user_id=user_id, language_code="pt", mode="new", lesson_id=lesson.id, now=NOW

@@ -1,5 +1,7 @@
 import { Link, useParams } from '@tanstack/react-router'
 
+import { StatisticsDropdown } from '@/features/statistics/StatisticsDropdown'
+
 import { LanguagePicker } from './LanguagePicker'
 import { AvatarMenu } from './AvatarMenu'
 
@@ -8,21 +10,21 @@ export function AppTopBar() {
   const lang = params.lang ?? 'en'
 
   return (
-    <header className="h-16 border-b border-border bg-background">
-      <div className="mx-auto flex h-full max-w-screen-2xl items-center gap-6 px-6">
+    <header className="border-b border-border bg-background">
+      <div className="mx-auto flex min-h-16 max-w-screen-2xl flex-wrap items-center gap-2 px-3 py-2 md:h-16 md:flex-nowrap md:gap-6 md:px-6 md:py-0">
         <Link
           to="/learn/$lang/library"
           params={{ lang }}
-          className="text-2xl font-bold tracking-tight"
+          className="text-xl font-bold md:text-2xl tracking-tight"
         >
           Flinq
         </Link>
         <LanguagePicker />
-        <nav className="ml-4 flex items-center gap-1">
+        <nav className="order-last flex w-full items-center gap-0 md:order-none md:ml-4 md:w-auto md:gap-1">
           <Link
             to="/learn/$lang/library"
             params={{ lang }}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
+            className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
             Библиотека
@@ -32,13 +34,14 @@ export function AppTopBar() {
             params={{ lang }}
             search={{ tab: 'all' }}
             activeOptions={{ includeSearch: false }}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
+            className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
             Словарь
           </Link>
         </nav>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1 md:gap-3">
+          <StatisticsDropdown lang={lang} />
           <AvatarMenu />
         </div>
       </div>

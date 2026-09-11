@@ -9,6 +9,7 @@ export async function invalidateVocabularyViews(qc: QueryClient): Promise<void> 
     'vocab-list',
     'lessons',
     'review-counts',
+    'stats',
   ]
 
   await Promise.all(prefixes.map((prefix) => qc.invalidateQueries({ queryKey: [prefix] })))

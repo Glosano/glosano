@@ -86,7 +86,7 @@ class UserSettings(Base):
     reader_view_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="page")
     audio_speed: Mapped[float] = mapped_column(nullable=False, default=1.0)
     daily_goal_minutes: Mapped[int] = mapped_column(nullable=False, default=15)
-    daily_goal_reviews: Mapped[int] = mapped_column(nullable=False, default=20)
+    daily_goal_reviews: Mapped[int] = mapped_column(nullable=False, default=500)
 
     user: Mapped[User] = relationship(back_populates="settings")
 

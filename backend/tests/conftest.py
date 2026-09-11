@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator, Iterator
 import pytest
 import redis.asyncio as aioredis
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import insert
 from sqlalchemy.exc import PendingRollbackError
 from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.postgres import PostgresContainer
@@ -78,6 +79,7 @@ async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fix
     from flinq.modules.review import (
         models as _review_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
+    from flinq.modules.statistics.models import StatisticsTracking
     from flinq.modules.vocabulary import (
         models as _vocabulary_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
@@ -86,6 +88,7 @@ async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fix
     engine = init_engine(settings)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(insert(StatisticsTracking).values(id=1))
     yield
     await dispose_engine()
     from flinq.core.redis import dispose_redis

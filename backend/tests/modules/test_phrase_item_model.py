@@ -48,7 +48,9 @@ async def test_roundtrip():
         user_id = await _make_user(s)
         s.add(_phrase(user_id))
         await s.flush()
-        row = (await s.execute(select(PhraseItem))).scalar_one()
+        row = (
+            await s.execute(select(PhraseItem).where(PhraseItem.user_id == user_id))
+        ).scalar_one()
         assert row.phrase_text == "so far so good"
         assert row.added_by == "user"
 

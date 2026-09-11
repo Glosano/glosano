@@ -22,6 +22,7 @@ from flinq.api.lessons import router as lessons_router
 from flinq.api.me import router as me_router
 from flinq.api.reader import router as reader_router
 from flinq.api.review import router as review_router
+from flinq.api.stats import router as stats_router
 from flinq.api.vocabulary import router as vocabulary_router
 from flinq.core.config import get_settings
 from flinq.core.db import dispose_engine, init_engine
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(lessons_router)
     app.include_router(reader_router)
     app.include_router(review_router)
+    app.include_router(stats_router)
     app.include_router(dictionary_router)
     app.include_router(vocabulary_router)
     app.include_router(ai_router)

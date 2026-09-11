@@ -69,7 +69,7 @@ async def test_queue_returns_due_item_and_daily():
         r = await c.get("/api/review/queue", params={"lang": "pt"})
         assert r.status_code == 200
         body = r.json()
-        assert body["daily"] == {"limit": 20, "done_today": 0, "limit_reached": False}
+        assert body["daily"] == {"limit": 500, "done_today": 0, "limit_reached": False}
         assert len(body["items"]) == 1
         item = body["items"][0]
         assert item["text"] == "cada" and item["confidence"] == 1

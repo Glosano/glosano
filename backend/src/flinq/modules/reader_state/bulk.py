@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.modules.lesson_library.models import Lesson, LessonTokenOccurrence
 from flinq.modules.reader_state.models import BulkAction
+from flinq.modules.statistics.service import record_reading
 from flinq.modules.vocabulary.models import TokenItem
 
 
@@ -34,6 +35,9 @@ async def bulk_mark_known(
     from_ordinal: int,
     to_ordinal: int,
 ) -> tuple[uuid.UUID, int]:
+    await record_reading(
+        session, user_id=user_id, lesson=lesson, from_ordinal=from_ordinal, to_ordinal=to_ordinal
+    )
     texts = set(
         await session.scalars(
             select(LessonTokenOccurrence.normalized_text)

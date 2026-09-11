@@ -28,6 +28,8 @@ it('invalidates every vocabulary consumer while preserving unrelated reader cach
     ['vocab-list', { lang: 'pt' }],
     ['lessons', 'pt'],
     ['review-counts', 'pt', null],
+    ['stats', 'pt', '2026-09-10'],
+    ['stats', 'ru', '2026-09-10'],
   ]
   const preservedKeys = [
     ['reader-content', 'lesson-1'],

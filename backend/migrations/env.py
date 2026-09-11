@@ -24,6 +24,8 @@ from flinq.modules.dictionary import models as _dictionary_models  # noqa: F401
 from flinq.modules.identity import models as _identity_models  # noqa: F401
 from flinq.modules.lesson_library import models as _lesson_library_models  # noqa: F401
 from flinq.modules.reader_state import models as _reader_state_models  # noqa: F401
+from flinq.modules.review import models as _review_models  # noqa: F401
+from flinq.modules.statistics import models as _statistics_models  # noqa: F401
 from flinq.modules.vocabulary import models as _vocabulary_models  # noqa: F401
 
 config = context.config
