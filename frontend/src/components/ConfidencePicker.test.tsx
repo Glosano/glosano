@@ -1,9 +1,23 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { setUiLanguage } from '@/lib/i18n'
 
 import { ConfidencePicker } from './ConfidencePicker'
 
 describe('ConfidencePicker', () => {
+  afterEach(() => { act(() => setUiLanguage('ru')) })
+  it('switches accessible status labels and confidence hints live', () => {
+    setUiLanguage('en')
+    render(<ConfidencePicker status="tracked" confidence={2} onSelect={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Level 2' })).toHaveAttribute('title', 'Confidence 2/4')
+    expect(screen.getByRole('button', { name: 'Ignore' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Known' })).toBeInTheDocument()
+    act(() => setUiLanguage('ru'))
+    expect(screen.getByRole('button', { name: 'Уровень 2' })).toHaveAttribute('title', 'Уверенность 2/4')
+    expect(screen.getByRole('button', { name: 'Изучено' })).toBeInTheDocument()
+  })
+
   it('fires tracked/N, known and ignored selections', () => {
     const onSelect = vi.fn()
     render(<ConfidencePicker status="tracked" confidence={2} onSelect={onSelect} />)
@@ -32,8 +46,6 @@ describe('ConfidencePicker', () => {
 
   it('highlights the known button with the vocab-known token when active', () => {
     render(<ConfidencePicker status="known" confidence={null} onSelect={() => {}} />)
-    expect(screen.getByRole('button', { name: 'Изучено' }).className).toContain(
-      '--vocab-known-bg',
-    )
+    expect(screen.getByRole('button', { name: 'Изучено' }).className).toContain('--vocab-known-bg')
   })
 })

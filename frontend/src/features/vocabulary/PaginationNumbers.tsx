@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import type { JSX } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -34,6 +35,7 @@ function windowedPages(page: number, totalPages: number): (number | 'ellipsis')[
 
 /** Numbered pagination control: ‹ 1 … p-1 p p+1 … N › (spec §3.1). */
 export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Element {
+  const tr = useTranslation()
   const pages = windowedPages(page, totalPages)
 
   return (
@@ -42,7 +44,7 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
         type="button"
         variant="outline"
         size="icon"
-        aria-label="Предыдущая страница"
+        aria-label={tr('Предыдущая страница')}
         disabled={page <= 1}
         onClick={() => onPage(page - 1)}
       >
@@ -59,7 +61,7 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
             <button
               key={p}
               type="button"
-              aria-label={`Страница ${p}`}
+              aria-label={tr('Страница {{value0}}', { value0: p })}
               onClick={() => onPage(p)}
               className={
                 p === page
@@ -75,7 +77,7 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
         type="button"
         variant="outline"
         size="icon"
-        aria-label="Следующая страница"
+        aria-label={tr('Следующая страница')}
         disabled={page >= totalPages}
         onClick={() => onPage(page + 1)}
       >

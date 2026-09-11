@@ -1,3 +1,4 @@
+import { useTranslation, useI18n, translate } from '@/lib/i18n'
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
@@ -14,9 +15,10 @@ interface SessionShellProps {
 }
 
 export function SessionShell({ subtitle, idx, total, children }: SessionShellProps) {
+  const t = useTranslation()
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center px-4 text-center">
-      <h1 className="mb-1 text-xl font-semibold">Повторение</h1>
+      <h1 className="mb-1 text-xl font-semibold">{t('Повторение')}</h1>
       {subtitle && <p className="mb-4 text-sm text-muted-foreground">{subtitle}</p>}
       {idx !== undefined && total !== undefined && (
         <p className="mb-4 text-sm text-muted-foreground">
@@ -31,6 +33,7 @@ export function SessionShell({ subtitle, idx, total, children }: SessionShellPro
 const GRADUATION_TOAST_MS = 3000
 
 export function GraduationToast({ onDismiss }: { onDismiss: () => void }) {
+  const t = useTranslation()
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
 
@@ -46,7 +49,7 @@ export function GraduationToast({ onDismiss }: { onDismiss: () => void }) {
       className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
     >
       <div className="rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
-        Слово выучено ✓
+        {t('Слово выучено ✓')}
       </div>
     </div>
   )
@@ -61,7 +64,12 @@ interface SessionSummaryProps {
   showWriting?: boolean
 }
 
-export function SessionSummary({
+export function SessionSummary(props: SessionSummaryProps) {
+  const { language } = useI18n()
+  return <SessionSummaryContent key={language} {...props} />
+}
+
+function SessionSummaryContent({
   results,
   restart,
   graduated,
@@ -69,7 +77,9 @@ export function SessionSummary({
   lessonId,
   showWriting,
 }: SessionSummaryProps) {
-  const avg = results.length > 0 ? results.reduce((sum, r) => sum + r.quality, 0) / results.length : 0
+  const { language, t } = useI18n()
+  const avg =
+    results.length > 0 ? results.reduce((sum, r) => sum + r.quality, 0) / results.length : 0
   const toRepeat = results.filter((r) => r.quality < 4)
 
   const writing = useMutation({
@@ -83,19 +93,26 @@ export function SessionSummary({
 
   return (
     <>
-      <p className="text-lg font-medium">Сессия завершена</p>
-      <p className="mt-1 text-sm text-muted-foreground">Средняя оценка: {avg.toFixed(1)}</p>
+      <p className="text-lg font-medium">{t('Сессия завершена')}</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {t('Средняя оценка: {{score}}', {
+          score: new Intl.NumberFormat(language, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          }).format(avg),
+        })}
+      </p>
       {toRepeat.length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
           {toRepeat.map((r) => (
             <li key={r.item.review_item_id}>
-              Повторите ещё раз: {r.item.text} — {r.item.translation ?? '—'}
+              {t('Повторите ещё раз:')} {r.item.text} — {r.item.translation ?? '—'}
             </li>
           ))}
         </ul>
       )}
       <button type="button" className="mt-3 underline" onClick={restart}>
-        {lessonId ? 'Пройти ещё раз' : 'Повторить ошибки'}
+        {lessonId ? t('Пройти ещё раз') : t('Повторить ошибки')}
       </button>
       {showWriting && toRepeat.length > 0 && (
         <div className="mt-4">
@@ -106,17 +123,17 @@ export function SessionSummary({
               disabled={writing.isPending}
               onClick={() => writing.mutate()}
             >
-              Письменное упражнение по ошибкам
+              {t('Письменное упражнение по ошибкам')}
             </button>
           )}
           {writing.isPending && (
-            <p className="mt-2 text-sm text-muted-foreground">Готовим упражнение…</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('Готовим упражнение…')}</p>
           )}
           {writing.isError && (
             <div className="mt-2">
-              <p className="text-sm text-destructive">Не удалось сгенерировать упражнение</p>
+              <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
               <button type="button" className="underline" onClick={() => writing.mutate()}>
-                Повторить
+                {t('Повторить')}
               </button>
             </div>
           )}
@@ -145,12 +162,14 @@ interface LessonEmptyStateProps {
  * TranslationSession, у которой свой собственный empty-путь.
  */
 export function LessonEmptyState({ lang }: LessonEmptyStateProps) {
+  const t = useTranslation()
   return (
     <>
-      <p className="text-lg font-medium">В этом уроке пока нет слов</p>
+      <p className="text-lg font-medium">{t('В этом уроке пока нет слов')}</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Здесь появятся слова и фразы, которые вы добавите в этом уроке. Слова, добавленные
-        раньше, доступны в общем повторении.
+        {t(
+          'Здесь появятся слова и фразы, которые вы добавите в этом уроке. Слова, добавленные раньше, доступны в общем повторении.',
+        )}
       </p>
       {lang && (
         <Link
@@ -159,7 +178,7 @@ export function LessonEmptyState({ lang }: LessonEmptyStateProps) {
           search={{}}
           className="mt-3 inline-block underline"
         >
-          Повторить весь словарь
+          {t('Повторить весь словарь')}
         </Link>
       )}
     </>
@@ -175,15 +194,16 @@ export function SessionStates(
   subtitle?: string,
   opts?: { lessonId?: string; showWriting?: boolean; lang?: string },
 ) {
+  const t = translate
   if (s.status === 'loading') {
-    return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
+    return <SessionShell subtitle={subtitle}>{t('Загрузка…')}</SessionShell>
   }
   if (s.status === 'error') {
     return (
       <SessionShell subtitle={subtitle}>
-        <p className="text-destructive">Не удалось загрузить очередь</p>
+        <p className="text-destructive">{t('Не удалось загрузить очередь')}</p>
         <button type="button" className="mt-2 underline" onClick={() => void s.retryQueue()}>
-          Повторить
+          {t('Повторить')}
         </button>
       </SessionShell>
     )
@@ -191,9 +211,12 @@ export function SessionStates(
   if (s.status === 'limit') {
     return (
       <SessionShell subtitle={subtitle}>
-        <p className="text-lg font-medium">Дневной лимит достигнут</p>
+        <p className="text-lg font-medium">{t('Дневной лимит достигнут')}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Сегодня: {s.daily?.done_today} / {s.daily?.limit}. Возвращайтесь завтра!
+          {t('Сегодня: {{done}} / {{limit}}. Возвращайтесь завтра!', {
+            done: s.daily?.done_today ?? 0,
+            limit: s.daily?.limit ?? 0,
+          })}
         </p>
       </SessionShell>
     )
@@ -208,8 +231,8 @@ export function SessionStates(
     }
     return (
       <SessionShell subtitle={subtitle}>
-        <p className="text-lg font-medium">Всё повторено</p>
-        <p className="mt-1 text-sm text-muted-foreground">Нет карточек к повторению.</p>
+        <p className="text-lg font-medium">{t('Всё повторено')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('Нет карточек к повторению.')}</p>
       </SessionShell>
     )
   }

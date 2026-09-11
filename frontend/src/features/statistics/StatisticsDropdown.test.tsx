@@ -10,6 +10,8 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
+import { setUiLanguage } from '@/lib/i18n'
+
 import { StatisticsDropdown } from './StatisticsDropdown'
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -50,11 +52,28 @@ beforeEach(() => {
   )
 })
 afterEach(() => {
+  act(() => setUiLanguage('ru'))
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
 describe('StatisticsDropdown', () => {
+  it('switches the open panel, accessible labels and number/date formatting live', async () => {
+    setUiLanguage('en')
+    setup()
+    fireEvent.click(screen.getByRole('button', { name: 'Open statistics' }))
+    const panel = await screen.findByRole('dialog', { name: 'Statistics' })
+    expect(await within(panel).findByText('1,430')).toBeInTheDocument()
+    expect(within(panel).getByText('Today · Portuguese')).toBeInTheDocument()
+    expect(within(panel).getByText(/September 10/)).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'Start reviewing' })).toHaveAttribute('href', '/learn/pt/review')
+    act(() => setUiLanguage('ru'))
+    expect(screen.getByRole('dialog', { name: 'Статистика' })).toBeInTheDocument()
+    expect(within(panel).getByText(/1\s430/)).toBeInTheDocument()
+    expect(within(panel).getByText('Сегодня · Португальский')).toBeInTheDocument()
+    expect(within(panel).getByText(/10 сентября/)).toBeInTheDocument()
+  })
+
   it('opens real today counts and the current-language review link without excluded UI', async () => {
     setup()
     const trigger = screen.getByRole('button', { name: 'Открыть статистику' })

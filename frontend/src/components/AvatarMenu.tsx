@@ -10,8 +10,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useUserStore } from '@/stores/userStore'
+import { useTranslation } from '@/lib/i18n'
 
 export function AvatarMenu() {
+  const t = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const user = useUserStore((s) => s.user)
@@ -38,7 +40,10 @@ export function AvatarMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold">
+      <DropdownMenuTrigger
+        aria-label={t('Меню аккаунта')}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold"
+      >
         {initials}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -47,7 +52,20 @@ export function AvatarMenu() {
           {user.email}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { void logout() }}>Выйти</DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            void navigate({ to: '/settings/profile' })
+          }}
+        >
+          {t('Настройки')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            void logout()
+          }}
+        >
+          {t('Выйти')}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

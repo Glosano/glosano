@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
@@ -10,11 +11,22 @@ interface TranslationTaskExercise {
   sentence_translation: string
 }
 
-export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?: string }) {
-  const subtitle = lessonId ? `${SUBTITLE} · Слова урока` : SUBTITLE
+export function TranslationSession(props: { lang: string; lessonId?: string }) {
+  const { language } = useI18n()
+  return (
+    <TranslationSessionContent
+      key={`${language}:${props.lang}:${props.lessonId ?? ''}`}
+      {...props}
+    />
+  )
+}
+
+function TranslationSessionContent({ lang, lessonId }: { lang: string; lessonId?: string }) {
+  const { language, t } = useI18n()
+  const subtitle = lessonId ? t('{{value0}} · Слова урока', { value0: t(SUBTITLE) }) : t(SUBTITLE)
 
   const queue = useQuery({
-    queryKey: ['review-queue', lang, 'practice', lessonId ?? null],
+    queryKey: ['review-queue', lang, 'practice', lessonId ?? null, language],
     queryFn: () => reviewApi.queue(lang, lessonId, 'practice'),
     staleTime: Infinity,
     gcTime: 0,
@@ -29,7 +41,7 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
   const current = items[idx]
 
   const exercise = useQuery({
-    queryKey: ['exercise', 'translation_task', current?.review_item_id ?? null],
+    queryKey: ['exercise', language, 'translation_task', current?.review_item_id ?? null],
     queryFn: () =>
       reviewApi.exercise<TranslationTaskExercise>({
         kind: 'translation_task',
@@ -65,14 +77,14 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
   }
 
   if (queue.isPending) {
-    return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
+    return <SessionShell subtitle={subtitle}>{t('Загрузка…')}</SessionShell>
   }
   if (queue.isError) {
     return (
       <SessionShell subtitle={subtitle}>
-        <p className="text-destructive">Не удалось загрузить очередь</p>
+        <p className="text-destructive">{t('Не удалось загрузить очередь')}</p>
         <button type="button" className="mt-2 underline" onClick={() => void queue.refetch()}>
-          Повторить
+          {t('Повторить')}
         </button>
       </SessionShell>
     )
@@ -87,16 +99,16 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
     }
     return (
       <SessionShell subtitle={subtitle}>
-        <p className="text-lg font-medium">Нет предложений для практики</p>
+        <p className="text-lg font-medium">{t('Нет предложений для практики')}</p>
       </SessionShell>
     )
   }
   if (!current) {
     return (
       <SessionShell subtitle={subtitle}>
-        <p className="text-lg font-medium">Практика завершена</p>
+        <p className="text-lg font-medium">{t('Практика завершена')}</p>
         <button type="button" className="mt-3 underline" onClick={restart}>
-          Ещё раз
+          {t('Ещё раз')}
         </button>
       </SessionShell>
     )
@@ -106,17 +118,17 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
     <SessionShell subtitle={subtitle} idx={idx} total={total}>
       <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
         {exercise.isPending && (
-          <p className="text-center text-sm text-muted-foreground">Готовим предложение…</p>
+          <p className="text-center text-sm text-muted-foreground">{t('Готовим предложение…')}</p>
         )}
         {exercise.isError && (
           <div className="text-center">
-            <p className="text-sm text-destructive">Не удалось сгенерировать упражнение</p>
+            <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
-                Повторить
+                {t('Повторить')}
               </button>
               <button type="button" className="underline" onClick={next}>
-                Пропустить
+                {t('Пропустить')}
               </button>
             </div>
           </div>
@@ -126,7 +138,20 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
             <p className="text-center text-lg">{exercise.data.payload.sentence_translation}</p>
             {feedback === null ? (
               <>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {t('Переведите предложение на {{language}}.', {
+                    language: t(
+                      (
+                        { en: 'английский', ru: 'русский', pt: 'португальский' } as Record<
+                          string,
+                          string
+                        >
+                      )[lang] ?? lang,
+                    ),
+                  })}
+                </p>
                 <textarea
+                  aria-label={t('Ваш перевод')}
                   className="mt-4 w-full rounded-md border border-border p-2 text-sm"
                   value={userText}
                   onChange={(e) => setUserText(e.target.value)}
@@ -134,7 +159,7 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
                 />
                 {feedbackMutation.isError && (
                   <p className="mt-2 text-center text-sm text-destructive">
-                    Не удалось получить обратную связь
+                    {t('Не удалось получить обратную связь')}
                   </p>
                 )}
                 <button
@@ -143,14 +168,14 @@ export function TranslationSession({ lang, lessonId }: { lang: string; lessonId?
                   disabled={feedbackMutation.isPending || userText.trim().length === 0}
                   onClick={() => feedbackMutation.mutate()}
                 >
-                  Проверить
+                  {t('Проверить')}
                 </button>
               </>
             ) : (
               <>
                 <p className="mt-4 text-center text-sm">{feedback}</p>
                 <button type="button" className="mt-3 underline" onClick={next}>
-                  Дальше
+                  {t('Дальше')}
                 </button>
               </>
             )}

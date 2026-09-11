@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
 from flinq.modules.identity import service
+from flinq.modules.identity.export import export_user_data
 from flinq.modules.identity.middleware import CSRF_COOKIE, SESSION_COOKIE
 from flinq.modules.identity.repo import UserRepo
 from flinq.modules.identity.schemas import (
+    ChangePasswordRequest,
     DeleteMeRequest,
     MeResponse,
     OnboardingRequest,
     SetLastLanguageRequest,
+    UpdatePreferencesRequest,
+    UpdateProfileRequest,
 )
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -36,6 +41,9 @@ async def get_me(
         role=user.role,
         display_name=user.profile.display_name,
         ui_language_code=user.profile.ui_language_code,
+        preferred_translation_language_code=user.profile.ui_language_code,
+        daily_goal_minutes=user.settings.daily_goal_minutes,
+        daily_goal_reviews=user.settings.daily_goal_reviews,
         learning_languages=[ll.language_code for ll in user.learning_languages],
         last_learning_language_code=user.settings.last_learning_language_code,
         needs_onboarding=user.onboarded_at is None,
@@ -92,3 +100,66 @@ async def patch_last_language(
         user_id, language_code=body.language_code, user_repo=UserRepo(session)
     )
     return {"ok": True}
+
+
+@router.patch("/profile", response_model=MeResponse)
+async def patch_profile(
+    body: UpdateProfileRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> MeResponse:
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    await service.update_profile(
+        user_id, display_name=body.display_name, user_repo=UserRepo(session)
+    )
+    return await get_me(request, session)
+
+
+@router.patch("/preferences", response_model=MeResponse)
+async def patch_preferences(
+    body: UpdatePreferencesRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> MeResponse:
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    await service.update_preferences(user_id, **body.model_dump(), user_repo=UserRepo(session))
+    return await get_me(request, session)
+
+
+@router.post("/password")
+async def post_password(
+    body: ChangePasswordRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, bool]:
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    await service.change_password(
+        user_id,
+        **body.model_dump(),
+        current_session_token=request.state.session_token,
+        user_repo=UserRepo(session),
+    )
+    return {"ok": True}
+
+
+@router.get("/export")
+async def get_export(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> JSONResponse:
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None or await UserRepo(session).get_by_id(user_id) is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    return JSONResponse(
+        await export_user_data(session, user_id),
+        headers={
+            "Content-Disposition": 'attachment; filename="flinq-data.json"',
+            "Cache-Control": "no-store",
+        },
+    )

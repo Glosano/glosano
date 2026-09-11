@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { X, ChevronDown, ChevronUp } from 'lucide-react'
@@ -36,8 +37,9 @@ export function WordCard({
   onStatusApplied,
   sentenceText,
   embedded = false,
-  closeLabel = 'Закрыть',
+  closeLabel,
 }: Props) {
+  const tr = useTranslation()
   const expanded = useReaderStore((s) => s.wordCardExpanded)
   const setExpanded = useReaderStore((s) => s.setWordCardExpanded)
   const kind = word?.kind ?? 'token'
@@ -201,7 +203,7 @@ export function WordCard({
     >
       <button
         type="button"
-        aria-label={closeLabel}
+        aria-label={closeLabel ?? tr('Закрыть')}
         onClick={onClose}
         className="absolute right-3 top-3 rounded-md p-1 hover:bg-accent"
       >
@@ -213,12 +215,13 @@ export function WordCard({
       {!isIgnored && (
         <>
           {/* Saved translation */}
-          <label className="mt-4 block text-sm font-medium">Перевод</label>
+          <label className="mt-4 block text-sm font-medium">{tr('Перевод')}</label>
           <TranslationFields
+            key={`${kind}:${text}:${target}`}
             translations={variants}
             onCreate={(value) =>
               withItem((id) =>
-                m.saveTranslation.mutateAsync({ itemId: id, text: value, source: 'user' }),
+                m.saveTranslation.mutateAsync({ itemId: id, text: value, source: 'user', target }),
               )
             }
             onUpdate={(translationId, value) =>
@@ -232,7 +235,7 @@ export function WordCard({
           />
 
           <div data-testid="word-card-suggestions" className="mt-4">
-            {visibleSuggestions.length > 0 && <p className="text-sm font-medium">Подсказки</p>}
+            {visibleSuggestions.length > 0 && <p className="text-sm font-medium">{tr('Подсказки')}</p>}
             <ul className="mt-1 space-y-1">
               {visibleSuggestions.map((sug, idx) => (
                 <li
@@ -250,8 +253,8 @@ export function WordCard({
                     type="button"
                     aria-label={
                       sug.source === 'ai'
-                        ? `Добавить AI перевод: ${sug.text}`
-                        : `Добавить перевод из ${sug.sourceLabel}: ${sug.text}`
+                        ? tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
+                        : tr('Добавить перевод из {{value0}}: {{value1}}', { value0: sug.sourceLabel, value1: sug.text })
                     }
                     onClick={() =>
                       void withItem((id) =>
@@ -259,6 +262,7 @@ export function WordCard({
                           itemId: id,
                           text: sug.text,
                           source: sug.source,
+                          target,
                         }),
                       )
                     }
@@ -271,7 +275,7 @@ export function WordCard({
             </ul>
             {showDictionaryAttribution && dict.data?.attribution && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Источник:{' '}
+                {tr('Источник:')}{' '}
                 {dict.data.attribution.url ? (
                   <a
                     href={dict.data.attribution.url}
@@ -294,9 +298,9 @@ export function WordCard({
             )}
             {ai.isError && !aiDisabled && (
               <p className="mt-1 text-sm text-destructive">
-                Не удалось получить AI-перевод{' '}
+                {tr('Не удалось получить AI-перевод')}{' '}
                 <button type="button" onClick={() => void ai.refetch()} className="underline">
-                  Повторить
+                  {tr('Повторить')}
                 </button>
               </p>
             )}
@@ -306,9 +310,9 @@ export function WordCard({
 
       {isIgnored && (
         <div data-testid="word-card-ignored" className="mt-4">
-          <p className="text-sm font-medium">Игнорируется</p>
+          <p className="text-sm font-medium">{tr('Игнорируется')}</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение
+            {tr('Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение')}
           </p>
         </div>
       )}
@@ -316,7 +320,7 @@ export function WordCard({
       {expanded && !isIgnored && (
         <div data-testid="word-card-expanded" className="mt-4 space-y-4">
           <div>
-            <p className="text-sm font-medium">Теги</p>
+            <p className="text-sm font-medium">{tr('Теги')}</p>
             <div className="mt-1 flex flex-wrap gap-2">
               {(data?.tags ?? []).map((tag) => (
                 <button
@@ -330,7 +334,7 @@ export function WordCard({
               ))}
               <input
                 className="min-w-24 flex-1 rounded-md border border-border px-2 py-0.5 text-xs"
-                placeholder="Тег+"
+                placeholder={tr('Тег+')}
                 value={tagDraft}
                 onChange={(e) => setTagDraft(e.target.value)}
                 onKeyDown={async (e) => {
@@ -345,7 +349,7 @@ export function WordCard({
             </div>
           </div>
           <div>
-            <p className="text-sm font-medium">Заметки</p>
+            <p className="text-sm font-medium">{tr('Заметки')}</p>
             <textarea
               className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
               rows={3}
@@ -353,7 +357,7 @@ export function WordCard({
               onChange={(e) => setNoteDraft(e.target.value)}
               onBlur={() => void saveNote()}
             />
-            {saveError && <p className="mt-1 text-sm text-destructive">Не удалось сохранить</p>}
+            {saveError && <p className="mt-1 text-sm text-destructive">{tr('Не удалось сохранить')}</p>}
           </div>
         </div>
       )}
@@ -374,7 +378,7 @@ export function WordCard({
       {!isIgnored && (
         <button
           type="button"
-          aria-label={expanded ? 'Свернуть' : 'Развернуть'}
+          aria-label={expanded ? tr('Свернуть') : tr('Развернуть')}
           onClick={() => setExpanded(!expanded)}
           className="mx-auto mt-2 flex rounded-md p-1 text-muted-foreground hover:bg-accent"
         >

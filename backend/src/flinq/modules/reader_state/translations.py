@@ -18,10 +18,11 @@ class SegmentNotFound(Exception):  # noqa: N818 -- matches sibling exception nam
 
 
 async def _select_stored(
-    session: AsyncSession, *, segment_id: uuid.UUID, target_language_code: str
+    session: AsyncSession, *, user_id: uuid.UUID, segment_id: uuid.UUID, target_language_code: str
 ) -> LessonSegmentTranslation | None:
     return await session.scalar(
         select(LessonSegmentTranslation).where(
+            LessonSegmentTranslation.user_id == user_id,
             LessonSegmentTranslation.segment_id == segment_id,
             LessonSegmentTranslation.target_language_code == target_language_code,
         )
@@ -42,7 +43,7 @@ async def get_or_translate_segment(
         raise SegmentNotFound
 
     stored = await _select_stored(
-        session, segment_id=segment_id, target_language_code=target_language_code
+        session, user_id=user_id, segment_id=segment_id, target_language_code=target_language_code
     )
     if stored is not None:
         return stored, True
@@ -56,6 +57,7 @@ async def get_or_translate_segment(
     )
 
     row = LessonSegmentTranslation(
+        user_id=user_id,
         segment_id=segment_id,
         target_language_code=target_language_code,
         translation_text=result.text,
@@ -68,7 +70,10 @@ async def get_or_translate_segment(
     except IntegrityError:
         await session.rollback()
         existing = await _select_stored(
-            session, segment_id=segment_id, target_language_code=target_language_code
+            session,
+            user_id=user_id,
+            segment_id=segment_id,
+            target_language_code=target_language_code,
         )
         assert existing is not None  # the conflicting concurrent writer committed it
         return existing, True

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function LessonCarousel({ items }: Props) {
+  const t = useTranslation()
   const scrollerRef = useRef<HTMLDivElement>(null)
 
   function scroll(dir: 'left' | 'right') {
@@ -27,8 +29,10 @@ export function LessonCarousel({ items }: Props) {
         variant="outline"
         size="icon"
         className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full"
-        onClick={() => { scroll('left') }}
-        aria-label="Previous"
+        onClick={() => {
+          scroll('left')
+        }}
+        aria-label={t('Предыдущий')}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -45,8 +49,10 @@ export function LessonCarousel({ items }: Props) {
         variant="outline"
         size="icon"
         className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full"
-        onClick={() => { scroll('right') }}
-        aria-label="Next"
+        onClick={() => {
+          scroll('right')
+        }}
+        aria-label={t('Следующий')}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

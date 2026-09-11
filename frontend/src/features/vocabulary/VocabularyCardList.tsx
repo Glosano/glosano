@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import type { VocabListItem } from '@/api/vocabulary'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
 
@@ -25,6 +26,7 @@ export function VocabularyCardList({
   onPick,
   onOpenTerm,
 }: Props) {
+  const tr = useTranslation()
   return (
     <div data-testid="vocab-card-list" className="space-y-3 md:hidden">
       {items.map((item) => (
@@ -35,7 +37,7 @@ export function VocabularyCardList({
         >
           <input
             type="checkbox"
-            aria-label={`Выбрать ${item.text}`}
+            aria-label={tr('Выбрать {{value0}}', { value0: item.text })}
             checked={selection.includes(item.item_id)}
             onChange={() => onToggleSelected(item.item_id)}
             className="absolute right-3 top-3"

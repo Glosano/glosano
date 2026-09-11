@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -15,7 +16,7 @@ import { BulkActionsMenu, type BulkAction } from './BulkActionsMenu'
 import { FilterPopover } from './FilterPopover'
 import { PaginationNumbers } from './PaginationNumbers'
 import { SearchInput } from './SearchInput'
-import { useBulkAction, usePatchItem, useVocabInvalidate, useVocabList, VOCAB_TARGET } from './useVocabularyQuery'
+import { useBulkAction, usePatchItem, useVocabInvalidate, useVocabList } from './useVocabularyQuery'
 import { useVocabularyStore } from './vocabularyStore'
 import { VocabularyCardList } from './VocabularyCardList'
 import { VocabularyTable } from './VocabularyTable'
@@ -59,6 +60,7 @@ export function addedAfterFromPreset(preset: 'all' | '7d' | '30d'): string | und
 }
 
 export function VocabularyPage({ lang, tab }: Props) {
+  const { language: targetLanguage, t: tr } = useI18n()
   const navigate = useNavigate()
   const q = useVocabularyStore((s) => s.q)
   const statuses = useVocabularyStore((s) => s.statuses)
@@ -84,7 +86,7 @@ export function VocabularyPage({ lang, tab }: Props) {
 
   const { data, isLoading, isError, refetch } = useVocabList({
     lang,
-    target: VOCAB_TARGET,
+    target: targetLanguage,
     status: statuses,
     confidence_min: confidence?.[0],
     confidence_max: confidence?.[1],
@@ -144,7 +146,7 @@ export function VocabularyPage({ lang, tab }: Props) {
   return (
     <div className="bg-[var(--vocab-page-bg)] [font-family:'Inter',system-ui,sans-serif]">
       <div className="mx-auto max-w-screen-2xl px-6">
-      <h1 className="py-6 text-2xl font-bold tracking-tight">Словарь</h1>
+      <h1 className="py-6 text-2xl font-bold tracking-tight">{tr('Словарь')}</h1>
       <div className="flex flex-wrap items-center gap-3 pb-5">
         <div className="inline-flex rounded-lg bg-[var(--vocab-subtabs-track)] p-0.5">
           {LINK_TABS.map((t) => {
@@ -162,25 +164,25 @@ export function VocabularyPage({ lang, tab }: Props) {
                     : 'text-[var(--vocab-muted-fg)]',
                 ].join(' ')}
               >
-                {t.label}
+                {tr(t.label)}
               </Link>
             )
           })}
           <button
             type="button"
             disabled
-            title="Появится позже"
+            title={tr('Появится позже')}
             className="flex h-8 items-center rounded-md px-6 text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
           >
-            Фразы
+            {tr('Фразы')}
           </button>
           <button
             type="button"
             disabled
-            title="Появится позже"
+            title={tr('Появится позже')}
             className="flex h-8 items-center rounded-md px-6 text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
           >
-            К повторению
+            {tr('К повторению')}
           </button>
         </div>
         <div className="ml-auto flex items-center gap-3">
@@ -193,13 +195,13 @@ export function VocabularyPage({ lang, tab }: Props) {
               setSort(nextSort, nextSortDir)
             }}
           >
-            <SelectTrigger size="sm" aria-label="Сортировка">
+            <SelectTrigger size="sm" aria-label={tr('Сортировка')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {SORT_OPTIONS.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
-                  {option.label}
+                  {tr(option.label)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -211,7 +213,7 @@ export function VocabularyPage({ lang, tab }: Props) {
             className="bg-[#45B082] text-[13px] font-medium text-white hover:bg-[#3da075]"
             onClick={() => { navigate({ to: '/learn/$lang/review', params: { lang } }) }}
           >
-            ⟳ Повтор лексики
+            {tr('⟳ Повтор лексики')}
           </Button>
         </div>
       </div>
@@ -229,30 +231,30 @@ export function VocabularyPage({ lang, tab }: Props) {
             role="alert"
             className="mb-4 flex items-center justify-between rounded-md border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            <span>Не удалось загрузить словарь</span>
+            <span>{tr('Не удалось загрузить словарь')}</span>
             <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
-              Повторить
+              {tr('Повторить')}
             </Button>
           </div>
         )}
         {!showSkeleton && !isError && total === 0 && filtersAreDefault && (
           <div data-testid="vocab-empty-default" className="flex flex-col items-center justify-center py-20 text-center">
-            <h2 className="text-xl font-semibold">В словаре пока пусто</h2>
+            <h2 className="text-xl font-semibold">{tr('В словаре пока пусто')}</h2>
             <p className="mt-2 text-muted-foreground">
-              Начните с импорта урока — нажимайте на слова в reader, и они появятся здесь
+              {tr('Начните с импорта урока — нажимайте на слова в reader, и они появятся здесь')}
             </p>
             <Button asChild className="mt-6">
               <Link to="/learn/$lang/library" params={{ lang }}>
-                Перейти в библиотеку
+                {tr('Перейти в библиотеку')}
               </Link>
             </Button>
           </div>
         )}
         {!showSkeleton && !isError && total === 0 && !filtersAreDefault && (
           <div data-testid="vocab-empty-filtered" className="flex flex-col items-center justify-center py-20 text-center">
-            <h2 className="text-xl font-semibold">Ничего не найдено по текущим фильтрам</h2>
+            <h2 className="text-xl font-semibold">{tr('Ничего не найдено по текущим фильтрам')}</h2>
             <Button type="button" variant="outline" className="mt-6" onClick={resetFilters}>
-              Сбросить фильтры
+              {tr('Сбросить фильтры')}
             </Button>
           </div>
         )}
@@ -260,12 +262,12 @@ export function VocabularyPage({ lang, tab }: Props) {
           <>
             <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Показать:</span>
+                <span className="text-sm text-muted-foreground">{tr('Показать:')}</span>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(v) => { setPageSize(Number(v) as 25 | 50 | 100) }}
                 >
-                  <SelectTrigger size="sm" aria-label="Размер страницы">
+                  <SelectTrigger size="sm" aria-label={tr('Размер страницы')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -277,7 +279,7 @@ export function VocabularyPage({ lang, tab }: Props) {
                   </SelectContent>
                 </Select>
               </div>
-              <span className="text-sm text-muted-foreground">Всего: {total}</span>
+              <span className="text-sm text-muted-foreground">{tr('Всего:')} {total.toLocaleString(targetLanguage)}</span>
               <PaginationNumbers page={page} totalPages={totalPages} onPage={setPage} />
             </div>
             <VocabularyTable
@@ -323,7 +325,7 @@ export function VocabularyPage({ lang, tab }: Props) {
             sentenceText: selectedItem.context,
           }}
           lang={lang}
-          target={VOCAB_TARGET}
+          target={targetLanguage}
           lessonId={null}
           segId={null}
           sentenceText={null}
@@ -337,7 +339,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
-            {`Удалено ${deletedToast}`}
+            {tr('Удалено {{value0}}', { value0: deletedToast.toLocaleString(targetLanguage) })}
           </div>
         </div>
       )}
@@ -348,7 +350,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-destructive bg-card px-4 py-2 text-sm text-destructive shadow-lg">
-            Не удалось выполнить действие
+            {tr('Не удалось выполнить действие')}
           </div>
         </div>
       )}

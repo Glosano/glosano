@@ -1,13 +1,18 @@
 import { Link, useParams } from '@tanstack/react-router'
 
 import { StatisticsDropdown } from '@/features/statistics/StatisticsDropdown'
+import { useTranslation } from '@/lib/i18n'
+import { useUserStore } from '@/stores/userStore'
 
 import { LanguagePicker } from './LanguagePicker'
 import { AvatarMenu } from './AvatarMenu'
 
 export function AppTopBar() {
+  const t = useTranslation()
+  const user = useUserStore((s) => s.user)
   const params = useParams({ strict: false }) as { lang?: string }
-  const lang = params.lang ?? 'en'
+  const lang =
+    params.lang ?? user?.last_learning_language_code ?? user?.learning_languages[0] ?? 'en'
 
   return (
     <header className="border-b border-border bg-background">
@@ -27,7 +32,7 @@ export function AppTopBar() {
             className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
-            Библиотека
+            {t('Библиотека')}
           </Link>
           <Link
             to="/learn/$lang/vocabulary"
@@ -37,7 +42,7 @@ export function AppTopBar() {
             className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
-            Словарь
+            {t('Словарь')}
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-1 md:gap-3">

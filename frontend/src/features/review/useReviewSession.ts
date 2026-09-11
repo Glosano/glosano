@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -31,10 +32,11 @@ export function useReviewSession(
   lang: string,
   opts: { serverMode: 'due' | 'new' | 'practice'; lessonId?: string },
 ): ReviewSessionResult {
+  const { language, t } = useI18n()
   const { serverMode, lessonId } = opts
   const queryClient = useQueryClient()
   const { data, isPending, isError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ['review-queue', lang, serverMode, lessonId ?? null],
+    queryKey: ['review-queue', lang, serverMode, lessonId ?? null, language],
     queryFn: () => reviewApi.queue(lang, lessonId, serverMode === 'due' ? undefined : serverMode),
     staleTime: Infinity,
     gcTime: 0,
@@ -148,7 +150,7 @@ export function useReviewSession(
     total: session?.items.length ?? 0,
     results: session?.results ?? [],
     answering: answerMutation.isPending,
-    answerError,
+    answerError: answerError ? t(answerError) : null,
     graduated,
     dismissGraduation,
     grade,

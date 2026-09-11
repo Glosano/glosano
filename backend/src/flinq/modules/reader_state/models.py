@@ -47,6 +47,10 @@ class BulkAction(Base):
 class LessonSegmentTranslation(Base):
     __tablename__ = "lesson_segment_translations"
 
+    # NULL denotes a legacy unowned cache entry; never serve it to a user.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     segment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("lesson_segments.id", ondelete="CASCADE")
@@ -58,5 +62,7 @@ class LessonSegmentTranslation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
-        UniqueConstraint("segment_id", "target_language_code", name="uq_segment_translation_lang"),
+        UniqueConstraint(
+            "user_id", "segment_id", "target_language_code", name="uq_segment_translation_user_lang"
+        ),
     )

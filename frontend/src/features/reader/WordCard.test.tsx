@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/vocabulary', () => ({
   vocabularyApi: {
@@ -25,6 +25,9 @@ import { aiApi } from '@/api/ai'
 import { ApiError } from '@/api/client'
 import { useReaderStore } from './readerStore'
 import { WordCard } from './WordCard'
+import { setUiLanguage, useI18n } from '@/lib/i18n'
+
+afterEach(() => { setUiLanguage('ru') })
 
 function renderCard(
   sentenceText: string | null = null,
@@ -64,6 +67,35 @@ describe('WordCard core', () => {
     // wordCardExpanded lives in the module-level reader store now (not local
     // useState), so it leaks across tests in this file unless reset.
     useReaderStore.setState({ wordCardExpanded: false })
+  })
+
+  it('keeps an in-progress translation save in its original language when locale changes during item creation', async () => {
+    setUiLanguage('ru')
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null, status: 'new', confidence: null,
+      translations: { primary: null, all: [] }, note: null, tags: [],
+    })
+    let finishCreation!: (value: Awaited<ReturnType<typeof vocabularyApi.createItem>>) => void
+    vi.mocked(vocabularyApi.createItem).mockReturnValue(new Promise((resolve) => { finishCreation = resolve }))
+    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
+      id: 't1', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user',
+    })
+    function LocalizedCard() {
+      const { language } = useI18n()
+      return <WordCard word={{ kind: 'token', t: 'cada', n: 'cada', i: 0, sentenceText: null }}
+        lang="pt" target={language} lessonId="L1" segId={null} onClose={vi.fn()} sentenceText={null} />
+    }
+    render(<LocalizedCard />, { wrapper })
+    const input = await screen.findByPlaceholderText('Введите новый перевод здесь')
+    fireEvent.change(input, { target: { value: 'каждый' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(vocabularyApi.createItem).toHaveBeenCalled())
+    act(() => { setUiLanguage('en') })
+    await screen.findByPlaceholderText('Enter a new translation here')
+    await act(async () => { finishCreation({ item_id: 'I1', status: 'tracked', confidence: 1 }) })
+    await waitFor(() => expect(vocabularyApi.addTranslation).toHaveBeenCalledWith('token', 'I1', {
+      target_language_code: 'ru', translation_text: 'каждый', source_type: 'user',
+    }))
   })
 
   it('creates a tracked/1 item when a translation is typed on a new word', async () => {

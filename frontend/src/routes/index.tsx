@@ -3,10 +3,12 @@ import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
 import { ApiError } from '@/api/client'
+import { useTranslation } from '@/lib/i18n'
 import { meApi } from '@/api/me'
 import { useUserStore } from '@/stores/userStore'
 
 export function IndexRoute() {
+  const t = useTranslation()
   const navigate = useNavigate()
   const setUser = useUserStore((s) => s.setUser)
   const { data, isError, error } = useQuery({
@@ -46,7 +48,7 @@ export function IndexRoute() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <p className="text-muted-foreground">Loading…</p>
+      <p className="text-muted-foreground">{t('Загрузка…')}</p>
     </div>
   )
 }

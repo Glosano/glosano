@@ -27,7 +27,7 @@ class LoginRequest(BaseModel):
 class OnboardingRequest(BaseModel):
     ui_language: str
     learning_languages: list[str] = Field(min_length=1)
-    translation_language: str
+    translation_language: str | None = None
 
     @field_validator("ui_language")
     @classmethod
@@ -42,12 +42,12 @@ class OnboardingRequest(BaseModel):
         for code in v:
             if code not in SUPPORTED_LEARNING_LANGUAGES:
                 raise ValueError(f"unsupported learning language: {code}")
-        return v
+        return list(dict.fromkeys(v))
 
     @field_validator("translation_language")
     @classmethod
-    def _translation_language_supported(cls, v: str) -> str:
-        if v not in SUPPORTED_LEARNING_LANGUAGES:
+    def _translation_language_supported(cls, v: str | None) -> str | None:
+        if v is not None and v not in SUPPORTED_LEARNING_LANGUAGES:
             raise ValueError(f"unsupported translation language: {v}")
         return v
 
@@ -73,7 +73,36 @@ class MeResponse(BaseModel):
     role: Literal["learner", "admin"]
     display_name: str
     ui_language_code: str
+    preferred_translation_language_code: str
+    daily_goal_minutes: int
+    daily_goal_reviews: int
     learning_languages: list[str]
     last_learning_language_code: str | None
     needs_onboarding: bool
     onboarded_at: datetime | None
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def _trim_name(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class UpdatePreferencesRequest(BaseModel):
+    ui_language: Literal["en", "ru"]
+    learning_languages: list[Literal["en", "ru", "pt"]] = Field(min_length=1)
+    daily_goal_minutes: int = Field(ge=1, le=1440, strict=True)
+    daily_goal_reviews: int = Field(ge=1, le=10000, strict=True)
+
+    @field_validator("learning_languages")
+    @classmethod
+    def _deduplicate(cls, value: list[str]) -> list[str]:
+        return list(dict.fromkeys(value))
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=10, max_length=128)

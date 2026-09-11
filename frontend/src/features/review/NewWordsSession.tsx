@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -6,12 +7,20 @@ import { GradeBar } from './GradeBar'
 import { useReviewSession } from './useReviewSession'
 import { SessionShell, SessionStates } from './sessionUi'
 
-export function NewWordsSession({ lang, lessonId }: { lang: string; lessonId?: string }) {
+export function NewWordsSession(props: { lang: string; lessonId?: string }) {
+  const { language } = useI18n()
+  return (
+    <NewWordsSessionContent key={`${language}:${props.lang}:${props.lessonId ?? ''}`} {...props} />
+  )
+}
+
+function NewWordsSessionContent({ lang, lessonId }: { lang: string; lessonId?: string }) {
+  const { language, t } = useI18n()
   const s = useReviewSession(lang, { serverMode: 'new', lessonId })
   const [revealed, setRevealed] = useState(false)
 
   const exercise = useQuery({
-    queryKey: ['exercise', 'example', s.current?.review_item_id ?? null],
+    queryKey: ['exercise', language, 'example', s.current?.review_item_id ?? null],
     queryFn: () =>
       reviewApi.exercise<ExampleExercise>({
         kind: 'example',
@@ -40,7 +49,7 @@ export function NewWordsSession({ lang, lessonId }: { lang: string; lessonId?: s
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const subtitle = lessonId ? 'Новые слова · Слова урока' : 'Новые слова'
+  const subtitle = lessonId ? t('Новые слова · Слова урока') : t('Новые слова')
 
   const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
@@ -51,17 +60,17 @@ export function NewWordsSession({ lang, lessonId }: { lang: string; lessonId?: s
       <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
         <p className="text-center text-2xl font-medium">{item.text}</p>
         {exercise.isPending && (
-          <p className="mt-4 text-center text-sm text-muted-foreground">Готовим пример…</p>
+          <p className="mt-4 text-center text-sm text-muted-foreground">{t('Готовим пример…')}</p>
         )}
         {exercise.isError && (
           <div className="mt-4 text-center">
-            <p className="text-sm text-destructive">Не удалось сгенерировать упражнение</p>
+            <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
-                Повторить
+                {t('Повторить')}
               </button>
               <button type="button" className="underline" onClick={s.skip}>
-                Пропустить
+                {t('Пропустить')}
               </button>
             </div>
           </div>
@@ -75,7 +84,7 @@ export function NewWordsSession({ lang, lessonId }: { lang: string; lessonId?: s
                 onClick={() => setRevealed(true)}
                 className="mt-6 w-full rounded-md border border-border py-3 text-sm hover:bg-accent"
               >
-                Показать перевод
+                {t('Показать перевод')}
               </button>
             ) : (
               <>

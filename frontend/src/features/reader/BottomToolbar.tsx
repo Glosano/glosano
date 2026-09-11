@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 import type { ViewMode } from './readerStore'
@@ -37,6 +38,7 @@ function Action({ icon, label, onClick, disabled, title }: ActionProps) {
 }
 
 export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview }: Props) {
+  const tr = useTranslation()
   return (
     <div className="fixed inset-x-0 bottom-0 z-[var(--z-fixed)] border-t border-border bg-background">
       <div
@@ -45,18 +47,18 @@ export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview }: Props
           panelOpen && 'lg:pr-[var(--reader-panel-reserve)]',
         )}
       >
-        <Action icon="♪" label="Сгенерировать аудио" disabled title="Скоро" />
+        <Action icon="♪" label={tr('Сгенерировать аудио')} disabled title={tr('Скоро')} />
         <Action
           icon="📖"
-          label={mode === 'sentence' ? 'Показать всю страницу' : 'По предложениям'}
+          label={mode === 'sentence' ? tr('Показать всю страницу') : tr('По предложениям')}
           onClick={onToggleMode}
         />
         <Action
           icon="✓"
-          label="Повторить лексику"
+          label={tr('Повторить лексику')}
           onClick={onReview}
           disabled={!onReview}
-          title={onReview ? undefined : 'Скоро (FLQ-7)'}
+          title={onReview ? undefined : tr('Скоро (FLQ-7)')}
         />
       </div>
     </div>

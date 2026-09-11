@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import type { LessonSummary } from '@/api/lessons'
+
+import { setUiLanguage } from '@/lib/i18n'
 
 import { LessonCard } from './LessonCard'
 
@@ -18,6 +20,36 @@ const lesson: LessonSummary = {
 }
 
 describe('LessonCard', () => {
+  it('uses localized word count forms for one, two and five words', () => {
+    setUiLanguage('en')
+    const { rerender } = render(
+      <LessonCard lesson={{ ...lesson, word_count: 1, new_words_remaining: 1 }} />,
+    )
+    expect(screen.getByText('42% · 1 word · 1 new')).toBeInTheDocument()
+    rerender(<LessonCard lesson={{ ...lesson, word_count: 2, new_words_remaining: 2 }} />)
+    expect(screen.getByText('42% · 2 words · 2 new')).toBeInTheDocument()
+    act(() => setUiLanguage('ru'))
+    expect(screen.getByText('42% · 2 слова · 2 новых')).toBeInTheDocument()
+    rerender(<LessonCard lesson={{ ...lesson, word_count: 1, new_words_remaining: 1 }} />)
+    expect(screen.getByText('42% · 1 слово · 1 новое')).toBeInTheDocument()
+    rerender(<LessonCard lesson={{ ...lesson, word_count: 5, new_words_remaining: 5 }} />)
+    expect(screen.getByText('42% · 5 слов · 5 новых')).toBeInTheDocument()
+  })
+
+  afterEach(() => {
+    act(() => setUiLanguage('ru'))
+  })
+  it('renders English progress while preserving lesson content', () => {
+    setUiLanguage('en')
+    render(<LessonCard lesson={lesson} />)
+    expect(screen.getByRole('progressbar', { name: 'Read 42%' })).toBeInTheDocument()
+    expect(screen.getByText(lesson.title)).toBeInTheDocument()
+    expect(screen.getByText('42% · 1240 words · 87 new')).toBeInTheDocument()
+    act(() => setUiLanguage('ru'))
+    expect(screen.getByRole('progressbar', { name: 'Прочитано 42%' })).toBeInTheDocument()
+    expect(screen.getByText(lesson.title)).toBeInTheDocument()
+  })
+
   it('fills the progress bar to the read percentage', () => {
     render(<LessonCard lesson={lesson} />)
     const bar = screen.getByRole('progressbar')

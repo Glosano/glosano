@@ -21,22 +21,22 @@ describe('BulkActionsMenu', () => {
     expect(screen.getByRole('button', { name: 'Ещё действия (3)' })).not.toBeDisabled()
   })
 
-  it('«Отметить known» fires onAction("set_known")', async () => {
+  it('«Отметить как известные» fires onAction("set_known")', async () => {
     const onAction = vi.fn()
     render(<BulkActionsMenu count={2} onAction={onAction} />)
     const user = await openMenu()
 
-    await user.click(screen.getByText('Отметить known'))
+    await user.click(screen.getByText('Отметить как известные'))
 
     expect(onAction).toHaveBeenCalledWith('set_known')
   })
 
-  it('«Отметить ignored» fires onAction("set_ignored")', async () => {
+  it('«Отметить как игнорируемые» fires onAction("set_ignored")', async () => {
     const onAction = vi.fn()
     render(<BulkActionsMenu count={2} onAction={onAction} />)
     const user = await openMenu()
 
-    await user.click(screen.getByText('Отметить ignored'))
+    await user.click(screen.getByText('Отметить как игнорируемые'))
 
     expect(onAction).toHaveBeenCalledWith('set_ignored')
   })

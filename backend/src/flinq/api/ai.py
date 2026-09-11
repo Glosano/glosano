@@ -12,6 +12,7 @@ from flinq.core.db import get_session
 from flinq.modules.ai_translation import service
 from flinq.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
 from flinq.modules.ai_translation.schemas import HintOut, TranslateRequest, TranslateResponse
+from flinq.modules.identity.service import translation_target
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -36,7 +37,7 @@ async def translate(
             user_id=user_id,
             surface_text=body.surface_text,
             context_text=body.context_text,
-            target_language_code=body.target_language_code,
+            target_language_code=await translation_target(session, user_id),
             lesson_id=body.lesson_id,
         )
     except service.AIDisabled:

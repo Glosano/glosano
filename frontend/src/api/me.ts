@@ -12,6 +12,16 @@ export interface MeResponse {
   last_learning_language_code: string | null
   needs_onboarding: boolean
   onboarded_at: string | null
+  preferred_translation_language_code?: string
+  daily_goal_minutes?: number
+  daily_goal_reviews?: number
+}
+
+export interface PreferencesPayload {
+  ui_language: 'en' | 'ru'
+  learning_languages: string[]
+  daily_goal_minutes: number
+  daily_goal_reviews: number
 }
 
 export interface OnboardingPayload {
@@ -22,6 +32,19 @@ export interface OnboardingPayload {
 
 export const meApi = {
   get: () => api<MeResponse>('/me'),
+  updateProfile: (payload: { display_name: string }) =>
+    api<MeResponse>('/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  updatePreferences: (payload: PreferencesPayload) =>
+    api<MeResponse>('/me/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  changePassword: (payload: { current_password: string; new_password: string }) =>
+    api<{ ok: boolean }>('/me/password', { method: 'POST', body: JSON.stringify(payload) }),
+  export: () => api<Record<string, unknown>>('/me/export'),
   onboarding: (payload: OnboardingPayload) =>
     api<{ ok: boolean; redirect: string }>('/me/onboarding', {
       method: 'POST',

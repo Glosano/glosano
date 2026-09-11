@@ -1,3 +1,4 @@
+import { useI18n, setUiLanguage, type UiLanguage } from '@/lib/i18n'
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 
@@ -14,29 +15,25 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface Lang { code: string; name: string }
+interface Lang {
+  code: string
+  name: string
+}
 const UI_LANGS: Lang[] = [
   { code: 'en', name: 'English' },
   { code: 'ru', name: 'Русский' },
 ]
 const LEARN_LANGS: Lang[] = [
-  { code: 'en', name: 'English' },
+  { code: 'en', name: 'Английский' },
   { code: 'ru', name: 'Русский' },
-  { code: 'pt', name: 'Português' },
+  { code: 'pt', name: 'Португальский' },
 ]
 
-function detectUiLang(): string {
-  if (typeof navigator === 'undefined') return 'en'
-  const lang = navigator.language.slice(0, 2)
-  return UI_LANGS.some((l) => l.code === lang) ? lang : 'en'
-}
-
 export function OnboardingForm() {
+  const { language: uiLang, t } = useI18n()
   const navigate = useNavigate()
   const setUser = useUserStore((s) => s.setUser)
-  const [uiLang, setUiLang] = useState<string>(detectUiLang())
   const [learning, setLearning] = useState<Set<string>>(new Set())
-  const [translation, setTranslation] = useState<string>(detectUiLang())
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -62,7 +59,7 @@ export function OnboardingForm() {
       const result = await meApi.onboarding({
         ui_language: uiLang,
         learning_languages: langs,
-        translation_language: translation,
+        translation_language: uiLang,
       })
       const me = await meApi.get()
       setUser(me)
@@ -79,53 +76,51 @@ export function OnboardingForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-md space-y-6">
-      <h1 className="text-2xl font-semibold text-center">Добро пожаловать в Flinq</h1>
+    <form noValidate onSubmit={onSubmit} className="w-full max-w-md space-y-6">
+      <h1 className="text-2xl font-semibold text-center">{t('Добро пожаловать в Flinq')}</h1>
 
       <div className="space-y-2">
-        <Label>Язык интерфейса</Label>
-        <Select value={uiLang} onValueChange={setUiLang}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+        <Label htmlFor="onboarding-ui-language">{t('Язык интерфейса')}</Label>
+        <Select value={uiLang} onValueChange={(value) => setUiLanguage(value as UiLanguage)}>
+          <SelectTrigger id="onboarding-ui-language">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             {UI_LANGS.map((l) => (
-              <SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>
+              <SelectItem key={l.code} value={l.code}>
+                {l.name}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
-        <Label>Я хочу изучать</Label>
+        <Label>{t('Я хочу изучать')}</Label>
         <div className="space-y-2 rounded-md border p-3">
           {LEARN_LANGS.map((l) => (
             <label key={l.code} className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={learning.has(l.code)}
-                onCheckedChange={() => { toggleLearning(l.code) }}
+                onCheckedChange={() => {
+                  toggleLearning(l.code)
+                }}
               />
-              {l.name}
+              {t(l.name)}
             </label>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">Можно выбрать несколько</p>
+        <p className="text-xs text-muted-foreground">{t('Можно выбрать несколько')}</p>
       </div>
 
-      <div className="space-y-2">
-        <Label>Перевод на</Label>
-        <Select value={translation} onValueChange={setTranslation}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {LEARN_LANGS.map((l) => (
-              <SelectItem key={l.code} value={l.code}>{l.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {t(error)}
+        </p>
+      )}
 
       <Button type="submit" className="w-full" disabled={submitting}>
-        Готово
+        {t('Готово')}
       </Button>
     </form>
   )

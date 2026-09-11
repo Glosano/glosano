@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import type { ReviewQueueItem } from '@/api/review'
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function ReviewCard({ item, flipped, error, onFlip }: Props) {
+  const t = useTranslation()
   return (
     <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
       <p className="text-center text-2xl font-medium">{item.text}</p>
@@ -20,7 +22,7 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
           onClick={onFlip}
           className="mt-6 w-full rounded-md border border-border py-3 text-sm hover:bg-accent"
         >
-          Показать перевод
+          {t('Показать перевод')}
         </button>
       ) : (
         <>
@@ -29,7 +31,7 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
           {item.notes && (
             <p className="mt-2 text-center text-sm text-muted-foreground">{item.notes}</p>
           )}
-          {error && <p className="mt-3 text-center text-sm text-destructive">{error}</p>}
+          {error && <p className="mt-3 text-center text-sm text-destructive">{t(error)}</p>}
         </>
       )}
     </div>

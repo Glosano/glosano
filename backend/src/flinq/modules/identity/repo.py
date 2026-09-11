@@ -34,13 +34,15 @@ class UserRepo:
             role=role,
         )
         user.profile = UserProfile(display_name=display_name)
-        user.settings = UserSettings()
+        user.settings = UserSettings(preferred_translation_language_code="en")
         self.session.add(user)
         await self.session.flush()
         return user
 
-    async def get_by_email(self, email: str) -> User | None:
+    async def get_by_email(self, email: str, *, for_update: bool = False) -> User | None:
         stmt = select(User).where(func.lower(User.email) == email.lower().strip())
+        if for_update:
+            stmt = stmt.with_for_update()
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
@@ -63,9 +65,8 @@ class UserRepo:
         await self.session.execute(update(User).where(User.id == user_id).values(onboarded_at=when))
 
     async def hard_delete(self, user_id: uuid.UUID) -> None:
-        user = await self.session.get(User, user_id)
-        if user is not None:
-            await self.session.delete(user)
+        # Let PostgreSQL apply every ON DELETE rule even when ORM relations are loaded.
+        await self.session.execute(delete(User).where(User.id == user_id))
 
 
 class SessionRepo:

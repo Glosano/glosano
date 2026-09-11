@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -10,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function RegisterForm() {
+  const t = useTranslation()
   const navigate = useNavigate()
   const setUser = useUserStore((s) => s.setUser)
   const [displayName, setDisplayName] = useState('')
@@ -20,6 +22,19 @@ export function RegisterForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    if (!displayName.trim() || [...displayName.trim()].length > 80) {
+      setError('Введите имя от 1 до 80 символов.')
+      return
+    }
+    const emailInput = e.currentTarget.querySelector<HTMLInputElement>('[type="email"]')
+    if (!email.trim() || emailInput?.validity.typeMismatch) {
+      setError('Введите корректный адрес электронной почты.')
+      return
+    }
+    if ([...password].length < 10 || [...password].length > 128) {
+      setError('Пароль должен содержать от 10 до 128 символов.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -43,32 +58,36 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-      <h1 className="text-3xl font-semibold text-center">Регистрация</h1>
+    <form noValidate onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
+      <h1 className="text-3xl font-semibold text-center">{t('Регистрация')}</h1>
       <div className="space-y-2">
-        <Label htmlFor="name">Имя</Label>
+        <Label htmlFor="name">{t('Имя')}</Label>
         <Input
           id="name"
           autoComplete="name"
           required
           maxLength={80}
           value={displayName}
-          onChange={(e) => { setDisplayName(e.target.value) }}
+          onChange={(e) => {
+            setDisplayName(e.target.value)
+          }}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Электронная почта</Label>
+        <Label htmlFor="email">{t('Электронная почта')}</Label>
         <Input
           id="email"
           type="email"
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => { setEmail(e.target.value) }}
+          onChange={(e) => {
+            setEmail(e.target.value)
+          }}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Пароль</Label>
+        <Label htmlFor="password">{t('Пароль')}</Label>
         <Input
           id="password"
           type="password"
@@ -76,18 +95,24 @@ export function RegisterForm() {
           required
           minLength={10}
           value={password}
-          onChange={(e) => { setPassword(e.target.value) }}
+          onChange={(e) => {
+            setPassword(e.target.value)
+          }}
         />
-        <p className="text-xs text-muted-foreground">мин 10 символов</p>
+        <p className="text-xs text-muted-foreground">{t('мин 10 символов')}</p>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {t(error)}
+        </p>
+      )}
       <Button type="submit" className="w-full" disabled={submitting}>
-        Создать аккаунт
+        {t('Создать аккаунт')}
       </Button>
       <p className="text-sm text-center text-muted-foreground">
-        Уже есть аккаунт?{' '}
+        {t('Уже есть аккаунт?')}{' '}
         <Link to="/login" className="text-primary hover:underline">
-          Войти
+          {t('Войти')}
         </Link>
       </p>
     </form>

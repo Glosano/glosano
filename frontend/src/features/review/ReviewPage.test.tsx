@@ -126,7 +126,7 @@ describe('ReviewPage session flow (cards mode)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^2/ }))
     await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R2', 2))
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
-    expect(screen.getByText('Средняя оценка: 3.5')).toBeTruthy()
+    expect(screen.getByText('Средняя оценка: 3,5')).toBeTruthy()
     expect(screen.getByText(/Повторите ещё раз: mundo — мир/)).toBeTruthy()
     expect(screen.queryByText(/Повторите ещё раз: cada/)).toBeNull()
   })

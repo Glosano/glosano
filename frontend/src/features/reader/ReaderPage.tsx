@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -13,7 +14,7 @@ import { PageView } from './PageView'
 import { buildPhraseIndex, buildSelection, type PhraseMatch } from './phraseMatching'
 import { useReaderStore } from './readerStore'
 import { ReaderTopBar } from './ReaderTopBar'
-import { DEFAULT_TRANSLATION_LANG, SentenceView } from './SentenceView'
+import { SentenceView } from './SentenceView'
 import { UndoToast } from './UndoToast'
 import { usePhraseSelection, type DragRange } from './usePhraseSelection'
 import { usePositionSync } from './usePositionSync'
@@ -39,6 +40,7 @@ const FONT_SIZE_CLASS = ['text-base', 'text-lg', 'text-xl'] as const
 const LINE_HEIGHT_CLASS = ['leading-normal', 'leading-relaxed', 'leading-loose'] as const
 
 export function ReaderPage({ lang, lessonId }: Props) {
+  const { language: targetLanguage, t: tr } = useI18n()
   const navigate = useNavigate()
   const { data: lessonDetail, isError: lessonDetailError } = useLessonDetail(lessonId)
   const status = lessonDetail?.status
@@ -435,9 +437,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
         data-testid="reader-error"
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
-        <p className="text-destructive">Не удалось загрузить урок</p>
+        <p className="text-destructive">{tr('Не удалось загрузить урок')}</p>
         <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-          В библиотеку
+          {tr('В библиотеку')}
         </Link>
       </div>
     )
@@ -446,7 +448,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
   if (!lessonDetail) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">Загрузка…</p>
+        <p className="text-muted-foreground">{tr('Загрузка…')}</p>
       </div>
     )
   }
@@ -458,7 +460,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-muted-foreground">Урок готовится…</p>
+        <p className="text-muted-foreground">{tr('Урок готовится…')}</p>
       </div>
     )
   }
@@ -469,9 +471,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
         data-testid="reader-failed"
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
-        <p className="text-destructive">Не удалось обработать урок</p>
+        <p className="text-destructive">{tr('Не удалось обработать урок')}</p>
         <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-          В библиотеку
+          {tr('В библиотеку')}
         </Link>
       </div>
     )
@@ -483,9 +485,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
         data-testid="reader-unavailable"
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
-        <p className="text-muted-foreground">Урок недоступен</p>
+        <p className="text-muted-foreground">{tr('Урок недоступен')}</p>
         <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-          В библиотеку
+          {tr('В библиотеку')}
         </Link>
       </div>
     )
@@ -549,7 +551,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
               phraseIndex={phraseIndex}
               dragRange={dragRange ?? selectionRange}
               lang={content.language_code}
-              targetLang={DEFAULT_TRANSLATION_LANG}
+              targetLang={targetLanguage}
               onWordClick={handleWordClick}
               onPhraseClick={handlePhraseClick}
             />
@@ -561,7 +563,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
         <>
           <button
             type="button"
-            aria-label={mode === 'sentence' ? 'Предыдущее предложение' : 'Предыдущая страница'}
+            aria-label={mode === 'sentence' ? tr('Предыдущее предложение') : tr('Предыдущая страница')}
             onClick={handlePrev}
             disabled={mode === 'sentence' ? !canPrevSentence : !canPrev}
             className="fixed left-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
@@ -570,7 +572,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
           </button>
           <button
             type="button"
-            aria-label={mode === 'sentence' ? 'Следующее предложение' : 'Следующая страница'}
+            aria-label={mode === 'sentence' ? tr('Следующее предложение') : tr('Следующая страница')}
             onClick={handleNext}
             disabled={mode === 'sentence' ? !canNextSentence : !canNext}
             className={cn(
@@ -607,21 +609,21 @@ export function ReaderPage({ lang, lessonId }: Props) {
           <WordCard
             word={selectedWord}
             lang={content?.language_code ?? lang}
-            target={DEFAULT_TRANSLATION_LANG}
+            target={targetLanguage}
             lessonId={lessonId}
             segId={selectedSegId}
             onClose={closeCard}
             onStatusApplied={() => setSelectionRange(null)}
             sentenceText={selectedSentenceText}
             embedded
-            closeLabel={vocabularyPanelPinned ? 'К списку' : 'Закрыть карточку'}
+            closeLabel={vocabularyPanelPinned ? tr('К списку') : tr('Закрыть карточку')}
           />
         }
         renderList={(listState) => (
           <LessonVocabularyList
             lessonId={lessonId}
             lang={content?.language_code ?? lang}
-            target={DEFAULT_TRANSLATION_LANG}
+            target={targetLanguage}
             {...listState}
             onSelect={handleVocabularySelect}
           />
@@ -638,7 +640,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-destructive bg-card px-4 py-2 text-sm text-destructive shadow-lg">
-            Не удалось сохранить
+            {tr('Не удалось сохранить')}
           </div>
         </div>
       )}

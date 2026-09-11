@@ -25,7 +25,7 @@ from flinq.modules.ai_translation.provider import (
     OpenAICompatibleProvider,
 )
 from flinq.modules.ai_translation.service import AIDisabled, write_audit
-from flinq.modules.identity.models import UserSettings
+from flinq.modules.identity.models import UserProfile
 from flinq.modules.review import exercise_prompts as ep
 from flinq.modules.review.models import ReviewItem
 from flinq.modules.review.service import VOCAB_MODEL_BY_KIND, ReviewItemNotFound
@@ -61,10 +61,8 @@ async def _load_context(
     item = await session.get(VOCAB_MODEL_BY_KIND[ri.item_kind], ri.item_id)
     if item is None or item.user_id != user_id:
         raise ReviewItemNotFound(str(review_item_id))
-    settings_row = await session.get(UserSettings, user_id)
-    target = (
-        settings_row.preferred_translation_language_code if settings_row is not None else None
-    ) or "en"
+    profile = await session.get(UserProfile, user_id)
+    target = profile.ui_language_code if profile is not None else "en"
     key = (ri.item_kind, ri.item_id)
     translation_row = (
         (
@@ -72,6 +70,7 @@ async def _load_context(
                 select(PersonalTranslation).where(
                     PersonalTranslation.owner_user_id == user_id,
                     PersonalTranslation.is_primary.is_(True),
+                    PersonalTranslation.target_language_code == target,
                     tuple_(PersonalTranslation.item_kind, PersonalTranslation.item_id).in_([key]),
                 )
             )

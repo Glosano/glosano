@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Tabs as TabsPrimitive } from 'radix-ui'
 
@@ -46,6 +47,7 @@ export function LessonVocabularyList({
   onScrollTopChange,
   onSelect,
 }: Props) {
+  const tr = useTranslation()
   const query = useLessonVocabulary(lessonId, target, true)
   const rows = useMemo(
     () => selectVocabularyItems(query.data?.items ?? [], tab, lang),
@@ -115,12 +117,12 @@ export function LessonVocabularyList({
         data-testid="lesson-vocabulary-scroll"
         id="lesson-vocabulary-tabpanel"
         role="tabpanel"
-        aria-label={`${LABELS[tab]} слова`}
+        aria-label={tr('{{value0}} слова', { value0: tr(LABELS[tab]) })}
         onScroll={(event) => onScrollTopChange(event.currentTarget.scrollTop)}
         className="min-h-0 flex-1 overflow-y-auto"
       >
         {query.isPending && (
-          <div aria-label="Загрузка слов" className="space-y-2 px-4 py-3">
+          <div aria-label={tr('Загрузка слов')} className="space-y-2 px-4 py-3">
             {[0, 1, 2, 3].map((index) => (
               <div key={index} className="h-14 animate-pulse rounded-md bg-muted" />
             ))}
@@ -131,9 +133,9 @@ export function LessonVocabularyList({
             role="alert"
             className="flex min-h-40 flex-col items-center justify-center gap-3 px-6 text-center"
           >
-            <p>Не удалось загрузить слова</p>
+            <p>{tr('Не удалось загрузить слова')}</p>
             <button type="button" onClick={() => void query.refetch()} className="underline">
-              Повторить
+              {tr('Повторить')}
             </button>
           </div>
         )}
@@ -144,18 +146,18 @@ export function LessonVocabularyList({
                 role="alert"
                 className="mx-4 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
               >
-                Не удалось обновить список.{' '}
+                {tr('Не удалось обновить список.')}{' '}
                 <button type="button" onClick={() => void query.refetch()} className="underline">
-                  Повторить
+                  {tr('Повторить')}
                 </button>
               </div>
             )}
             {rows.length === 0 ? (
               <p className="flex min-h-40 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                {EMPTY[tab]}
+                {tr(EMPTY[tab])}
               </p>
             ) : (
-              <ul aria-label={`${LABELS[tab]} слова`}>
+              <ul aria-label={tr('{{value0}} слова', { value0: tr(LABELS[tab]) })}>
                 {rows.map((item) => (
                   <LessonVocabularyRow
                     key={vocabularyRowKey(item)}
@@ -175,7 +177,7 @@ export function LessonVocabularyList({
       </div>
 
       <TabsPrimitive.List
-        aria-label="Разделы словаря урока"
+        aria-label={tr('Разделы словаря урока')}
         className="grid shrink-0 grid-cols-3 border-t border-border bg-card"
       >
         {(Object.keys(LABELS) as VocabularyTab[]).map((value) => (
@@ -185,7 +187,7 @@ export function LessonVocabularyList({
             aria-controls="lesson-vocabulary-tabpanel"
             className="min-h-14 border-t-2 border-transparent px-2 text-sm text-muted-foreground data-[state=active]:border-primary data-[state=active]:font-medium data-[state=active]:text-foreground"
           >
-            {LABELS[value]}
+            {tr(LABELS[value])}
           </TabsPrimitive.Trigger>
         ))}
       </TabsPrimitive.List>

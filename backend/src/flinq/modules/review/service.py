@@ -17,7 +17,7 @@ from sqlalchemy import ColumnElement, func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.config import get_settings
-from flinq.modules.identity.models import UserSettings
+from flinq.modules.identity.models import UserProfile, UserSettings
 from flinq.modules.lesson_library.models import Lesson, LessonSegment
 from flinq.modules.review.models import ReviewEvent, ReviewItem
 from flinq.modules.review.sm2 import INITIAL_STATE, apply_answer, state_from_json, state_to_json
@@ -170,8 +170,8 @@ async def _build_queue_items(
     rows: list[tuple[ReviewItem, TokenItem | PhraseItem]],
 ) -> list[QueueItem]:
     """Обогатить пары (review_item, vocab_item) переводом/заметкой/контекстом."""
-    settings = await session.get(UserSettings, user_id)
-    preferred_target = settings.preferred_translation_language_code if settings else None
+    profile = await session.get(UserProfile, user_id)
+    preferred_target = profile.ui_language_code if profile else "en"
 
     refs = [(ri.item_kind, ri.item_id) for ri, _ in rows]
     ref_set = set(refs)
@@ -183,6 +183,7 @@ async def _build_queue_items(
                 select(PersonalTranslation).where(
                     PersonalTranslation.owner_user_id == user_id,
                     PersonalTranslation.is_primary.is_(True),
+                    PersonalTranslation.target_language_code == preferred_target,
                     tuple_(PersonalTranslation.item_kind, PersonalTranslation.item_id).in_(refs),
                 )
             )
@@ -191,9 +192,7 @@ async def _build_queue_items(
             key = (t.item_kind, t.item_id)
             if key not in ref_set:
                 continue
-            # предпочесть перевод на preferred_translation_language_code
-            if key not in translations or t.target_language_code == preferred_target:
-                translations[key] = t.translation_text
+            translations[key] = t.translation_text
         n_rows = (
             await session.execute(
                 select(PersonalNote).where(

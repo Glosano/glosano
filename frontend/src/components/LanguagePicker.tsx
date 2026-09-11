@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useUserStore } from '@/stores/userStore'
+import { useTranslation } from '@/lib/i18n'
 
 const LANG_NAMES: Record<string, string> = {
   en: 'English',
@@ -22,6 +23,7 @@ const LANG_FLAGS: Record<string, string> = {
 }
 
 export function LanguagePicker() {
+  const t = useTranslation()
   const navigate = useNavigate()
   const params = useParams({ strict: false }) as { lang?: string }
   const user = useUserStore((s) => s.user)
@@ -44,7 +46,10 @@ export function LanguagePicker() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-accent">
+      <DropdownMenuTrigger
+        aria-label={t('Язык материала')}
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-accent"
+      >
         <span>{LANG_FLAGS[currentLang]}</span>
         <span className="font-medium">{LANG_NAMES[currentLang] ?? currentLang}</span>
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -53,7 +58,9 @@ export function LanguagePicker() {
         {user.learning_languages.map((code) => (
           <DropdownMenuItem
             key={code}
-            onClick={() => { void pick(code) }}
+            onClick={() => {
+              void pick(code)
+            }}
             className="gap-2"
           >
             <span>{LANG_FLAGS[code]}</span>

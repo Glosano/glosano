@@ -61,6 +61,11 @@ async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFuncti
 async def _setup_item(s: AsyncSession) -> tuple[uuid.UUID, uuid.UUID]:
     """Вернуть (user_id, review_item_id) для tracked-слова с переводом."""
     user_id = await _make_user(s)
+    from flinq.modules.identity.models import UserProfile
+
+    profile = await s.get(UserProfile, user_id)
+    assert profile
+    profile.ui_language_code = "ru"
     item = await vocab.create_item(
         s,
         user_id=user_id,
@@ -196,3 +201,80 @@ async def test_writing_exercise_needs_items(monkeypatch: pytest.MonkeyPatch) -> 
         )
     assert "Ответы" in res.payload["text"]
     assert provider.calls[0]["max_tokens"] == 1200
+
+
+async def test_ui_language_controls_feedback_and_saved_translation(monkeypatch: pytest.MonkeyPatch):
+    from flinq.modules.identity.models import UserProfile, UserSettings
+    from flinq.modules.review.exercises import _load_context
+    from flinq.modules.review.service import get_queue
+
+    monkeypatch.setattr(get_settings(), "llm_enabled", True)
+    provider = FakeProvider([json.dumps({"feedback": "Good"})])
+    async with session_scope() as s:
+        user_id, ri_id = await _setup_item(s)
+        profile = await s.get(UserProfile, user_id)
+        settings = await s.get(UserSettings, user_id)
+        assert profile and settings
+        profile.ui_language_code = "en"
+        settings.preferred_translation_language_code = "ru"  # stale legacy preference
+        ctx = await _load_context(s, user_id=user_id, review_item_id=ri_id)
+        assert ctx.target_lang == "en"
+        assert ctx.translation is None  # never label an RU translation as English
+        ri = await s.get(ReviewItem, ri_id)
+        assert ri
+        await vocab.add_translation(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=ri.item_id,
+            target_language_code="en",
+            translation_text="every",
+            source_type="user",
+        )
+        ctx = await _load_context(s, user_id=user_id, review_item_id=ri_id)
+        assert ctx.translation == "every"
+        items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=datetime.now(UTC))
+        assert items[0].translation == "every"
+        await translation_feedback(
+            s,
+            user_id=user_id,
+            review_item_id=ri_id,
+            sentence_translation="Every day",
+            user_text="Cada dia",
+            provider=provider,
+        )
+        prompt = str(provider.calls[0]["user"])
+        assert "Answer in English" in prompt
+        assert "Answer in Russian" not in prompt
+        assert "плохо" not in prompt
+        profile.ui_language_code = "ru"
+        assert (
+            await _load_context(s, user_id=user_id, review_item_id=ri_id)
+        ).translation == "каждый"
+        assert (
+            len(
+                (
+                    await s.scalars(
+                        select(PersonalTranslation).where(
+                            PersonalTranslation.owner_user_id == user_id
+                        )
+                    )
+                ).all()
+            )
+            == 2
+        )
+
+
+def test_writing_instructions_and_feedback_follow_target_language():
+    from flinq.modules.review import exercise_prompts as prompts
+
+    for code, language in [("en", "English"), ("ru", "Russian")]:
+        writing = prompts.build_writing_prompt(
+            pairs=[("cada", None)], learn_lang="pt", target_lang=code
+        )
+        assert f"headings and instructions in {language}" in writing
+        feedback = prompts.build_feedback_prompt(
+            word="cada", sentence_translation="x", user_text="y", learn_lang="pt", target_lang=code
+        )
+        assert f"Answer in {language}" in feedback
+        assert "Portuguese" in feedback

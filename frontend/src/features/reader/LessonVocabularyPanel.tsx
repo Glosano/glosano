@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
@@ -49,6 +50,7 @@ export function LessonVocabularyPanel({
   card,
   renderList,
 }: LessonVocabularyPanelProps) {
+  const tr = useTranslation()
   const desktop = useDesktopPanel()
   const visible = pinned || selectedWord !== null
   const [tab, setTab] = useState<VocabularyTab>('added')
@@ -120,13 +122,13 @@ export function LessonVocabularyPanel({
         >
           <button
             type="button"
-            aria-label="Скрыть словарь урока"
+            aria-label={tr('Скрыть словарь урока')}
             onClick={onHide}
             className="absolute right-3 top-3 z-10 rounded-md p-1 hover:bg-accent"
           >
             <X className="h-4 w-4" />
           </button>
-          <h2 className="shrink-0 px-4 py-4 pr-12 text-base font-semibold">Словарь урока</h2>
+          <h2 className="shrink-0 px-4 py-4 pr-12 text-base font-semibold">{tr('Словарь урока')}</h2>
           {renderList({
             tab,
             onTabChange: setTab,
@@ -143,7 +145,7 @@ export function LessonVocabularyPanel({
     return (
       <aside
         id="lesson-vocabulary-panel"
-        aria-label="Словарь урока"
+        aria-label={tr('Словарь урока')}
         data-reader-panel
         className="fixed bottom-24 right-4 top-20 z-[var(--z-fixed)] flex w-[var(--reader-panel-width)] min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg"
       >
@@ -173,7 +175,7 @@ export function LessonVocabularyPanel({
             dismissCurrentLayer()
           }}
         >
-          <DialogPrimitive.Title className="sr-only">Словарь урока</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="sr-only">{tr('Словарь урока')}</DialogPrimitive.Title>
           {body}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

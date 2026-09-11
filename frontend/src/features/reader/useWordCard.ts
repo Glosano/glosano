@@ -60,9 +60,15 @@ export function useWordCardMutations(opts: {
   })
 
   const saveTranslation = useMutation({
-    mutationFn: (v: { itemId: string; text: string; source?: 'user' | 'ai' | 'dictionary' }) =>
+    mutationFn: (v: {
+      itemId: string
+      text: string
+      source?: 'user' | 'ai' | 'dictionary'
+      // Preserve a draft's target while asynchronous item creation is pending.
+      target?: string
+    }) =>
       vocabularyApi.addTranslation(opts.kind, v.itemId, {
-        target_language_code: opts.target,
+        target_language_code: v.target ?? opts.target,
         translation_text: v.text,
         source_type: v.source ?? 'user',
       }),

@@ -1,3 +1,4 @@
+import { useTranslation, translate } from '@/lib/i18n'
 import { useState } from 'react'
 import { Play } from 'lucide-react'
 
@@ -9,9 +10,6 @@ import { SentenceTokens } from './SentenceTokens'
 import { SentenceVocabList } from './SentenceVocabList'
 import { useSegmentTranslation } from './useReaderQueries'
 import type { DragRange } from './usePhraseSelection'
-
-// TODO(FLQ-9): read from user settings
-export const DEFAULT_TRANSLATION_LANG = 'ru' as const
 
 interface SelectedWord {
   t: string
@@ -33,9 +31,9 @@ interface Props {
 
 function translationErrorMessage(error: unknown): string {
   if (error instanceof ApiError && error.status === 503) {
-    return 'AI отключён администратором'
+    return translate('AI отключён администратором')
   }
-  return 'Не удалось перевести'
+  return translate('Не удалось перевести')
 }
 
 // Слова для списка лексики: изучаемые (tracked) и новые (без статуса).
@@ -65,6 +63,7 @@ export function SentenceView({
   onWordClick,
   onPhraseClick,
 }: Props) {
+  const tr = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [translationRequested, setTranslationRequested] = useState(false)
 
@@ -91,8 +90,8 @@ export function SentenceView({
         <button
           type="button"
           disabled
-          title="Скоро"
-          aria-label="Воспроизвести аудио"
+          title={tr('Скоро')}
+          aria-label={tr('Воспроизвести аудио')}
           className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-[1.5px] border-[#D9DBE0] disabled:opacity-60"
         >
           <Play aria-hidden className="h-5 w-5" />
@@ -118,13 +117,13 @@ export function SentenceView({
             onClick={handleToggle}
             className="text-sm text-muted-foreground underline hover:text-foreground"
           >
-            Показать перевод ▾
+            {tr('Показать перевод ▾')}
           </button>
         </div>
 
         {expanded && (
           <div data-testid="sentence-translation" className="mt-2 text-sm italic">
-            {translation.isLoading && <p className="text-muted-foreground">Переводим…</p>}
+            {translation.isLoading && <p className="text-muted-foreground">{tr('Переводим…')}</p>}
             {translation.isError && (
               <div>
                 <p className="text-destructive">{translationErrorMessage(translation.error)}</p>
@@ -134,7 +133,7 @@ export function SentenceView({
                     onClick={() => translation.refetch()}
                     className="mt-1 text-sm underline"
                   >
-                    Повторить
+                    {tr('Повторить')}
                   </button>
                 )}
               </div>

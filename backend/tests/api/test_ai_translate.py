@@ -148,3 +148,52 @@ async def test_translate_empty_response_502(monkeypatch: pytest.MonkeyPatch) -> 
         r = await c.post("/api/ai/translate", json=BODY, headers={"X-CSRF-Token": csrf})
         assert r.status_code == 502
         assert r.json()["detail"] == "ai_empty_response"
+
+
+async def test_target_comes_from_ui_language_and_prompt_hash_changes(
+    monkeypatch: pytest.MonkeyPatch, client: AsyncClient
+):
+    import uuid
+
+    from sqlalchemy import select
+
+    from flinq.core.db import session_scope
+    from flinq.modules.ai_translation.models import AIRequest
+
+    prompts: list[str] = []
+
+    class LanguageProvider:
+        async def complete(self, *, system: str, user: str) -> LLMCompletion:
+            prompts.append(system + user)
+            return LLMCompletion(text="translation", input_tokens=1, output_tokens=1)
+
+    monkeypatch.setattr(service, "_default_provider", lambda: LanguageProvider())
+    csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com", "pt")
+    client.headers["X-CSRF-Token"] = csrf
+    user_id = (await client.get("/me")).json()["id"]
+    assert (await client.post("/api/ai/translate", json=BODY)).status_code == 200
+    assert "English" in prompts[0]
+    assert (
+        await client.patch(
+            "/me/preferences",
+            json={
+                "ui_language": "ru",
+                "learning_languages": ["pt"],
+                "daily_goal_minutes": 15,
+                "daily_goal_reviews": 500,
+            },
+        )
+    ).status_code == 200
+    assert (
+        await client.post("/api/ai/translate", json={**BODY, "target_language_code": "en"})
+    ).status_code == 200
+    assert "Russian" in prompts[1]
+    async with session_scope() as session:
+        rows = list(
+            (
+                await session.scalars(
+                    select(AIRequest).where(AIRequest.user_id == uuid.UUID(user_id))
+                )
+            ).all()
+        )
+        assert len(rows) == 2 and rows[0].prompt_hash != rows[1].prompt_hash

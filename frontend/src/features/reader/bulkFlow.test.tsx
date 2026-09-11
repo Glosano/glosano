@@ -219,7 +219,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     )
 
     const toast = await screen.findByTestId('undo-toast')
-    expect(toast).toHaveTextContent('2 слов помечены как known')
+    expect(toast).toHaveTextContent('2 слова отмечены как известные')
 
     // Page advanced to the second page (contains the first word of sentence 2).
     await waitFor(() => expect(screen.getByTestId('page-view-slot')).toHaveTextContent('w250'))
@@ -298,7 +298,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     )
 
     const toast = await screen.findByTestId('undo-toast')
-    expect(toast).toHaveTextContent('250 слов помечены как known')
+    expect(toast).toHaveTextContent('250 слов отмечены как известные')
     await waitFor(() => expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('w250'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Отменить' }))

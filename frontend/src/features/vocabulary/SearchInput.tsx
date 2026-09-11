@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 
@@ -8,6 +9,7 @@ const DEBOUNCE_MS = 300
 
 /** Toolbar search input: local state, debounced 300ms into store.setQ. */
 export function SearchInput() {
+  const tr = useTranslation()
   const storeQ = useVocabularyStore((s) => s.q)
   const setQ = useVocabularyStore((s) => s.setQ)
   const [value, setValue] = useState(storeQ)
@@ -42,7 +44,7 @@ export function SearchInput() {
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         type="search"
-        placeholder="Поиск в словаре"
+        placeholder={tr('Поиск в словаре')}
         value={value}
         onChange={(e) => { setValue(e.target.value) }}
         className="pl-10"

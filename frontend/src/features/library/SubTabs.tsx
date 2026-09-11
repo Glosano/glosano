@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useLibraryStore } from './libraryStore'
 
 const TABS = [
@@ -6,6 +7,7 @@ const TABS = [
 ]
 
 export function SubTabs() {
+  const translate = useTranslation()
   const tab = useLibraryStore((s) => s.tab)
   const setTab = useLibraryStore((s) => s.setTab)
 
@@ -17,7 +19,9 @@ export function SubTabs() {
           <button
             key={t.id}
             type="button"
-            onClick={() => { setTab(t.id) }}
+            onClick={() => {
+              setTab(t.id)
+            }}
             className={[
               'relative -mb-px py-3 text-sm transition-colors',
               active
@@ -25,10 +29,8 @@ export function SubTabs() {
                 : 'text-muted-foreground hover:text-foreground',
             ].join(' ')}
           >
-            {t.label}
-            {active && (
-              <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
-            )}
+            {translate(t.label)}
+            {active && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />}
           </button>
         )
       })}

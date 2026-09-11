@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function LoginForm() {
+  const t = useTranslation()
   const navigate = useNavigate()
   const setUser = useUserStore((s) => s.setUser)
   const [email, setEmail] = useState('')
@@ -21,6 +23,15 @@ export function LoginForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const emailInput = e.currentTarget.querySelector<HTMLInputElement>('[type="email"]')
+    if (!email.trim() || emailInput?.validity.typeMismatch) {
+      setError('Введите корректный адрес электронной почты.')
+      return
+    }
+    if (!password) {
+      setError('Введите пароль.')
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -49,45 +60,55 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-      <h1 className="text-3xl font-semibold text-center">Вход</h1>
+    <form noValidate onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
+      <h1 className="text-3xl font-semibold text-center">{t('Вход')}</h1>
       <div className="space-y-2">
-        <Label htmlFor="email">Электронная почта</Label>
+        <Label htmlFor="email">{t('Электронная почта')}</Label>
         <Input
           id="email"
           type="email"
           autoComplete="email"
           required
           value={email}
-          onChange={(e) => { setEmail(e.target.value) }}
+          onChange={(e) => {
+            setEmail(e.target.value)
+          }}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Пароль</Label>
+        <Label htmlFor="password">{t('Пароль')}</Label>
         <Input
           id="password"
           type="password"
           autoComplete="current-password"
           required
           value={password}
-          onChange={(e) => { setPassword(e.target.value) }}
+          onChange={(e) => {
+            setPassword(e.target.value)
+          }}
         />
       </div>
       <label className="flex items-center gap-2 text-sm">
         <Checkbox
           checked={remember}
-          onCheckedChange={(v) => { setRemember(v === true) }}
+          onCheckedChange={(v) => {
+            setRemember(v === true)
+          }}
         />
-        Запомнить меня
+        {t('Запомнить меня')}
       </label>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {t(error)}
+        </p>
+      )}
       <Button type="submit" className="w-full" disabled={submitting}>
-        Вход
+        {t('Вход')}
       </Button>
       <p className="text-sm text-center text-muted-foreground">
-        Нет аккаунта?{' '}
+        {t('Нет аккаунта?')}{' '}
         <Link to="/register" className="text-primary hover:underline">
-          Зарегистрироваться
+          {t('Зарегистрироваться')}
         </Link>
       </p>
     </form>

@@ -24,7 +24,7 @@ vi.mock('@/api/vocabulary', () => ({
 
 import { vocabularyApi } from '@/api/vocabulary'
 
-import { DEFAULT_TRANSLATION_LANG, SentenceView } from './SentenceView'
+import { SentenceView } from './SentenceView'
 
 const sentence: Sentence = {
   seg_id: 'seg-1',
@@ -59,7 +59,7 @@ function renderView(overrides: Partial<ComponentProps<typeof SentenceView>> = {}
         phraseIndex={new Map()}
         dragRange={null}
         lang="en"
-        targetLang={DEFAULT_TRANSLATION_LANG}
+        targetLang="ru"
         onWordClick={onWordClick}
         {...overrides}
       />

@@ -12,7 +12,7 @@ if (typeof window !== 'undefined' && !window.PointerEvent) {
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LessonDetail } from '@/api/lessons'
 import type { LessonContent, StatusMap } from '@/api/reader'
@@ -70,6 +70,9 @@ import { aiApi } from '@/api/ai'
 
 import { useReaderStore } from './readerStore'
 import { ReaderPage } from './ReaderPage'
+import { setUiLanguage } from '@/lib/i18n'
+
+afterEach(() => { setUiLanguage('ru') })
 
 const baseLesson: LessonDetail = {
   id: 'lesson-1',
@@ -134,6 +137,7 @@ function renderPage(
 
 describe('ReaderPage', () => {
   beforeEach(() => {
+    setUiLanguage('ru')
     vi.clearAllMocks()
     vi.mocked(vocabularyApi.phrases).mockResolvedValue([])
     vi.mocked(readerApi.vocabulary).mockResolvedValue({
@@ -151,6 +155,57 @@ describe('ReaderPage', () => {
       font: { size: 1, lineHeight: 1, serif: false },
       wordCardExpanded: false,
     })
+  })
+
+  it('switches reader labels and all translation targets live without changing saved translations', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'saved', status: 'known', confidence: null,
+      translations: {
+        primary: null,
+        all: [
+          { id: 'ru-saved', text: 'Мой перевод', target_language_code: 'ru', is_primary: true, source_type: 'user' },
+          { id: 'en-saved', text: 'My translation', target_language_code: 'en', is_primary: true, source_type: 'user' },
+        ],
+      }, note: null, tags: [],
+    })
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      entries: [], attribution: { source: 'Wiktionary', license: 'CC-BY-SA 4.0', url: '' }, external_links: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: 'test', latency_ms: 1 })
+    vi.mocked(readerApi.segmentTranslation).mockImplementation(async (_lesson, _segment, target) => ({
+      text: target === 'en' ? 'English sentence translation' : 'Русский перевод предложения',
+      source: 'ai', model: 'test', stored: true,
+    }))
+    setUiLanguage('en')
+    renderPage()
+    fireEvent.click(await screen.findByText('Hello'))
+    await screen.findByDisplayValue('My translation')
+    expect(screen.getByRole('button', { name: 'Close card' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+    await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'en', 'hello'))
+    await waitFor(() => expect(aiApi.translate).toHaveBeenCalledWith(expect.objectContaining({ target_language_code: 'en' })))
+
+    act(() => { setUiLanguage('ru') })
+    await screen.findByDisplayValue('Мой перевод')
+    expect(screen.getByRole('button', { name: 'Закрыть карточку' })).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('My translation')).not.toBeInTheDocument()
+    await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'ru', 'hello'))
+    await waitFor(() => expect(aiApi.translate).toHaveBeenCalledWith(expect.objectContaining({ target_language_code: 'ru' })))
+    expect(vocabularyApi.updateTranslation).not.toHaveBeenCalled()
+    expect(vocabularyApi.addTranslation).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть карточку' }))
+    act(() => { useReaderStore.setState({ mode: 'sentence' }) })
+    fireEvent.click(await screen.findByTestId('toggle-translation'))
+    await screen.findByText('Русский перевод предложения')
+    act(() => { setUiLanguage('en') })
+    await screen.findByText('English sentence translation')
+    expect(readerApi.segmentTranslation).toHaveBeenCalledWith('lesson-1', 'seg-1', 'en')
+    expect(screen.getByRole('button', { name: 'Previous sentence' })).toBeInTheDocument()
+    expect(screen.getAllByText('Hello').length).toBeGreaterThan(0)
   })
 
   it('shows processing state and does not fetch reader content', async () => {

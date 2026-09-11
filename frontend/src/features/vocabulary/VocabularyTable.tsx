@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import type { VocabListItem } from '@/api/vocabulary'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
 
@@ -41,6 +42,7 @@ export function VocabularyTable({
   onPick,
   onOpenTerm,
 }: Props) {
+  const tr = useTranslation()
   const pageIds = items.map((item) => item.item_id)
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selection.includes(id))
 
@@ -49,21 +51,21 @@ export function VocabularyTable({
       <div className={`grid ${GRID_COLS} items-center px-4 py-2`}>
         <input
           type="checkbox"
-          aria-label="Выбрать все на странице"
+          aria-label={tr('Выбрать все на странице')}
           checked={allSelected}
           onChange={() => (allSelected ? onClearSelection() : onSelectPage(pageIds))}
         />
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          ТЕРМИН
+          {tr('ТЕРМИН')}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          ПЕРЕВОД
+          {tr('ПЕРЕВОД')}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          ИСХОДНЫЙ ТЕКСТ
+          {tr('ИСХОДНЫЙ ТЕКСТ')}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          СТАТУС
+          {tr('СТАТУС')}
         </span>
       </div>
       <div className="flex flex-col gap-2">
@@ -74,7 +76,7 @@ export function VocabularyTable({
           >
             <input
               type="checkbox"
-              aria-label={`Выбрать ${item.text}`}
+              aria-label={tr('Выбрать {{value0}}', { value0: item.text })}
               checked={selection.includes(item.item_id)}
               onChange={() => onToggleSelected(item.item_id)}
             />

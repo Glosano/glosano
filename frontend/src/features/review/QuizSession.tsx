@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -14,20 +15,29 @@ const SUBTITLES: Record<QuizKind, string> = {
   reverse: 'Квиз: перевод',
 }
 
-export function QuizSession({
-  lang,
-  kind,
-  lessonId,
-}: {
+interface QuizSessionProps {
   lang: string
   kind: QuizKind
   lessonId?: string
-}) {
+}
+
+export function QuizSession(props: QuizSessionProps) {
+  const { language } = useI18n()
+  return (
+    <QuizSessionContent
+      key={`${language}:${props.kind}:${props.lang}:${props.lessonId ?? ''}`}
+      {...props}
+    />
+  )
+}
+
+function QuizSessionContent({ lang, kind, lessonId }: QuizSessionProps) {
+  const { language, t } = useI18n()
   const s = useReviewSession(lang, { serverMode: 'due', lessonId })
   const [picked, setPicked] = useState<number | null>(null)
 
   const exercise = useQuery({
-    queryKey: ['exercise', kind, s.current?.review_item_id ?? null],
+    queryKey: ['exercise', language, kind, s.current?.review_item_id ?? null],
     queryFn: () =>
       reviewApi.exercise<QuizPayload>({ kind, review_item_id: s.current!.review_item_id }),
     enabled: s.current !== undefined,
@@ -51,7 +61,9 @@ export function QuizSession({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const subtitle = lessonId ? `${SUBTITLES[kind]} · Слова урока` : SUBTITLES[kind]
+  const subtitle = lessonId
+    ? t('{{value0}} · Слова урока', { value0: t(SUBTITLES[kind]) })
+    : t(SUBTITLES[kind])
 
   const states = SessionStates(s, subtitle, { lessonId, showWriting: true, lang })
   if (states) return states
@@ -66,17 +78,19 @@ export function QuizSession({
       <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
         {kind === 'reverse' && <p className="text-center text-2xl font-medium">{item.text}</p>}
         {exercise.isPending && (
-          <p className="mt-4 text-center text-sm text-muted-foreground">Готовим упражнение…</p>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            {t('Готовим упражнение…')}
+          </p>
         )}
         {exercise.isError && (
           <div className="mt-4 text-center">
-            <p className="text-sm text-destructive">Не удалось сгенерировать упражнение</p>
+            <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
-                Повторить
+                {t('Повторить')}
               </button>
               <button type="button" className="underline" onClick={s.skip}>
-                Пропустить
+                {t('Пропустить')}
               </button>
             </div>
           </div>
@@ -117,7 +131,11 @@ export function QuizSession({
             {picked !== null && (
               <>
                 <p className="mt-4 text-center text-base">
-                  {isCorrect ? '✅ Верно!' : `❌ Правильный ответ: ${options[correctIdx]?.text}`}
+                  {isCorrect
+                    ? t('✅ Верно!')
+                    : t('❌ Правильный ответ: {{value0}}', {
+                        value0: options[correctIdx]?.text ?? '—',
+                      })}
                 </p>
                 {s.answerError && (
                   <p className="mt-2 text-center text-sm text-destructive">{s.answerError}</p>

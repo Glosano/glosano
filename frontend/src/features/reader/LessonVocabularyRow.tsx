@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useState } from 'react'
 import { Check, CircleSlash2, Plus } from 'lucide-react'
 import { Popover as PopoverPrimitive } from 'radix-ui'
@@ -35,6 +36,7 @@ export function LessonVocabularyRow({
   onActionStart,
   onActionComplete,
 }: Props) {
+  const tr = useTranslation()
   const key = vocabularyRowKey(item)
   const [failedAttempt, setFailedAttempt] = useState<Attempt | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -64,7 +66,7 @@ export function LessonVocabularyRow({
     }
   }
 
-  const translation = item.primary_translation?.text ?? 'Без перевода'
+  const translation = item.primary_translation?.text ?? tr('Без перевода')
 
   return (
     <li
@@ -77,7 +79,7 @@ export function LessonVocabularyRow({
           <button
             type="button"
             data-vocabulary-action="add"
-            aria-label={`Добавить ${item.display_text} в изучение`}
+            aria-label={tr('Добавить {{value0}} в изучение', { value0: item.display_text })}
             disabled={pending}
             onClick={() => void apply({ action: 'add', status: 'tracked', confidence: 1 })}
             className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-accent disabled:opacity-50"
@@ -93,7 +95,7 @@ export function LessonVocabularyRow({
               <button
                 type="button"
                 data-vocabulary-action="confidence"
-                aria-label={`Изменить уровень ${item.display_text}, текущий ${item.confidence}`}
+                aria-label={tr('Изменить уровень {{value0}}, текущий {{value1}}', { value0: item.display_text, value1: item.confidence ?? '—' })}
                 disabled={pending}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-full"
               >
@@ -126,7 +128,7 @@ export function LessonVocabularyRow({
         {item.status === 'known' && (
           <span
             role="img"
-            aria-label="Известно"
+            aria-label={tr('Известно')}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--vocab-known-bg)] text-white"
           >
             <Check className="h-4 w-4" />
@@ -135,7 +137,7 @@ export function LessonVocabularyRow({
         {item.status === 'ignored' && (
           <span
             role="img"
-            aria-label="Игнорируется"
+            aria-label={tr('Игнорируется')}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground"
           >
             <CircleSlash2 className="h-4 w-4" />
@@ -146,7 +148,7 @@ export function LessonVocabularyRow({
       <button
         type="button"
         data-vocabulary-action="open"
-        aria-label={`Открыть карточку ${item.display_text}`}
+        aria-label={tr('Открыть карточку {{value0}}', { value0: item.display_text })}
         disabled={pending}
         onClick={() => onOpen(item)}
         className="min-w-0 border-b border-border py-3 text-left disabled:opacity-60"
@@ -158,7 +160,7 @@ export function LessonVocabularyRow({
           </span>
         )}
         {item.context === null && (
-          <span className="mt-1 block text-xs text-muted-foreground">Нет в текущем тексте</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{tr('Нет в текущем тексте')}</span>
         )}
       </button>
 
@@ -168,22 +170,22 @@ export function LessonVocabularyRow({
             <button
               type="button"
               data-vocabulary-action="known"
-              aria-label={`Отметить ${item.display_text} как известное`}
+              aria-label={tr('Отметить {{value0}} как известное', { value0: item.display_text })}
               disabled={pending}
               onClick={() => void apply({ action: 'known', status: 'known', confidence: null })}
               className="min-h-11 rounded-md px-2 text-xs font-medium hover:bg-accent disabled:opacity-50"
             >
-              Знаю
+              {tr('Знаю')}
             </button>
             <button
               type="button"
               data-vocabulary-action="ignore"
-              aria-label={`Игнорировать ${item.display_text}`}
+              aria-label={tr('Игнорировать {{value0}}', { value0: item.display_text })}
               disabled={pending}
               onClick={() => void apply({ action: 'ignore', status: 'ignored', confidence: null })}
               className="min-h-11 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50"
             >
-              Игнорировать
+              {tr('Игнорировать')}
             </button>
           </>
         )}
@@ -194,14 +196,14 @@ export function LessonVocabularyRow({
           role="alert"
           className="col-span-3 flex items-center justify-between pb-2 text-sm text-destructive"
         >
-          <span>Не удалось сохранить</span>
+          <span>{tr('Не удалось сохранить')}</span>
           <button
             type="button"
             disabled={pending}
             onClick={() => void apply(failedAttempt)}
             className="rounded px-2 py-1 underline disabled:opacity-50"
           >
-            Повторить
+            {tr('Повторить')}
           </button>
         </div>
       )}

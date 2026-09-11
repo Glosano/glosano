@@ -1,3 +1,4 @@
+import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -7,13 +8,7 @@ import { Popover } from 'radix-ui'
 import { statsApi, type StatsOverview } from '@/api/stats'
 import { Button } from '@/components/ui/button'
 
-const LANGUAGES: Record<string, string> = { en: 'English', ru: 'Русский', pt: 'Português' }
-const formatNumber = new Intl.NumberFormat('ru-RU')
-const formatDate = new Intl.DateTimeFormat('ru-RU', {
-  day: 'numeric',
-  month: 'long',
-  timeZone: 'UTC',
-})
+const LANGUAGES: Record<string, string> = { en: 'Английский', ru: 'Русский', pt: 'Португальский' }
 
 function utcDay() {
   return new Date().toISOString().slice(0, 10)
@@ -68,6 +63,8 @@ function StatsRing() {
 }
 
 function MetricRow({ label, value }: { label: string; value: number }) {
+  const { language } = useI18n()
+  const formatNumber = new Intl.NumberFormat(language)
   return (
     <div className="flex items-baseline gap-2 border-b border-border py-3">
       <dd className="order-first min-w-5 text-[17px] leading-6 font-bold tabular-nums">
@@ -79,44 +76,46 @@ function MetricRow({ label, value }: { label: string; value: number }) {
 }
 
 function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: () => void }) {
+  const { language, t } = useI18n()
+  const formatNumber = new Intl.NumberFormat(language)
   return (
     <>
       <div className="py-6 text-center">
         <p
-          aria-label="Новые слова сегодня"
+          aria-label={t('Новые слова сегодня')}
           className="text-[40px] leading-tight font-bold tracking-tight tabular-nums"
         >
           {formatNumber.format(data.new_items_today)}
         </p>
-        <p className="mt-1 text-[15px] font-medium">Новые слова</p>
+        <p className="mt-1 text-[15px] font-medium">{t('Новые слова')}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {data.new_items_today === 0
-            ? 'Добавьте первое слово сегодня'
-            : 'Добавлено в изучение сегодня'}
+            ? t('Добавьте первое слово сегодня')
+            : t('Добавлено в изучение сегодня')}
         </p>
       </div>
 
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-semibold">
-          Сегодня · {LANGUAGES[data.language_code] ?? data.language_code}
+          {t('Сегодня ·')} {t(LANGUAGES[data.language_code] ?? data.language_code)}
         </h3>
-        <span className="text-xs text-muted-foreground">Сутки по UTC</span>
+        <span className="text-xs text-muted-foreground">{t('Сутки по UTC')}</span>
       </div>
       <dl className="mt-1">
-        <MetricRow label="Прочитано слов" value={data.tokens_read_today} />
-        <MetricRow label="Новые слова" value={data.new_items_today} />
-        <MetricRow label="Выучено на повторении" value={data.learned_items_today} />
+        <MetricRow label={t('Прочитано слов')} value={data.tokens_read_today} />
+        <MetricRow label={t('Новые слова')} value={data.new_items_today} />
+        <MetricRow label={t('Выучено на повторении')} value={data.learned_items_today} />
       </dl>
 
-      <h3 className="mt-5 text-sm font-semibold">Всего</h3>
+      <h3 className="mt-5 text-sm font-semibold">{t('Всего')}</h3>
       <dl className="mt-1">
-        <MetricRow label="В изучении" value={data.tracked_items_count} />
-        <MetricRow label="Известные слова" value={data.known_items_count} />
+        <MetricRow label={t('В изучении')} value={data.tracked_items_count} />
+        <MetricRow label={t('Известные слова')} value={data.known_items_count} />
       </dl>
 
       <div className="mt-4 rounded-lg bg-muted px-3 py-3">
         <div className="flex items-center justify-between gap-3 text-sm">
-          <span>Доступно к повторению</span>
+          <span>{t('Доступно к повторению')}</span>
           <strong className="tabular-nums">{formatNumber.format(data.due_reviews)}</strong>
         </div>
         {data.due_reviews > 0 ? (
@@ -127,23 +126,31 @@ function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: (
             onClick={onNavigate}
             className="mt-2 flex items-center gap-1 rounded-sm text-sm text-[var(--vocab-translation-fg)] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Перейти к повторению <ChevronRight className="size-4" aria-hidden="true" />
+            {t('Перейти к повторению')} <ChevronRight className="size-4" aria-hidden="true" />
           </Link>
         ) : (
-          <p className="mt-1 text-xs text-muted-foreground">Пока нет карточек для повторения</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t('Пока нет карточек для повторения')}
+          </p>
         )}
       </div>
       <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        В словарных показателях учитываются слова и фразы.
+        {t('В словарных показателях учитываются слова и фразы.')}
       </p>
       <details className="mt-2 text-xs leading-relaxed text-muted-foreground">
         <summary className="w-fit cursor-pointer rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-          Как считается чтение
+          {t('Как считается чтение')}
         </summary>
         <p className="mt-1">
-          Чтение учитывается при переходе к следующей странице или предложению. Одно вхождение слова
-          считается один раз в сутки. Учёт ведётся с{' '}
-          {formatDate.format(new Date(data.reading_tracking_started_at))}.
+          {t(
+            'Чтение учитывается при переходе к следующей странице или предложению. Одно вхождение слова считается один раз в сутки. Учёт ведётся с',
+          )}{' '}
+          {new Intl.DateTimeFormat(language, {
+            day: 'numeric',
+            month: 'long',
+            timeZone: 'UTC',
+          }).format(new Date(data.reading_tracking_started_at))}
+          .
         </p>
       </details>
     </>
@@ -151,6 +158,8 @@ function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: (
 }
 
 export function StatisticsDropdown({ lang }: { lang: string }) {
+  const { language, t } = useI18n()
+  const formatNumber = new Intl.NumberFormat(language)
   const [open, setOpen] = useState(false)
   const day = useUtcDay()
   const query = useQuery({
@@ -170,7 +179,7 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
       <Popover.Trigger asChild>
         <button
           type="button"
-          aria-label="Открыть статистику"
+          aria-label={t('Открыть статистику')}
           className="flex shrink-0 items-center gap-2 rounded-lg p-1.5 text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring sm:px-2"
         >
           <StatsRing />
@@ -188,7 +197,7 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
           align="end"
           sideOffset={10}
           collisionPadding={16}
-          aria-label="Статистика"
+          aria-label={t('Статистика')}
           className="z-[var(--z-popover)] max-h-[var(--radix-popover-content-available-height)] w-[400px] max-w-[calc(100vw-32px)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-[0_8px_24px_rgba(0,0,0,0.1)] outline-none"
         >
           <div className="flex items-center gap-2">
@@ -196,11 +205,11 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
             <span className="text-base font-semibold tabular-nums">
               {data ? formatNumber.format(data.known_items_count) : '—'}
             </span>
-            <span className="text-[15px]">Известные слова</span>
+            <span className="text-[15px]">{t('Известные слова')}</span>
             <Popover.Close asChild>
               <button
                 type="button"
-                aria-label="Закрыть статистику"
+                aria-label={t('Закрыть статистику')}
                 className="-mr-1 ml-auto rounded-md p-1.5 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-[18px]" aria-hidden="true" />
@@ -209,7 +218,7 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
           </div>
           {query.isError ? (
             <div role="alert" className="py-8 text-center">
-              <p className="text-sm">Не удалось загрузить статистику</p>
+              <p className="text-sm">{t('Не удалось загрузить статистику')}</p>
               <Button
                 variant="outline"
                 className="mt-3"
@@ -217,14 +226,14 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
                   void query.refetch()
                 }}
               >
-                Попробовать снова
+                {t('Попробовать снова')}
               </Button>
             </div>
           ) : data ? (
             <StatsContent data={data} onNavigate={() => setOpen(false)} />
           ) : (
             <div role="status" className="space-y-4 py-8">
-              <span className="sr-only">Загрузка статистики</span>
+              <span className="sr-only">{t('Загрузка статистики')}</span>
               <div className="mx-auto h-14 w-20 animate-pulse rounded-lg bg-muted" />
               {[0, 1, 2, 3].map((row) => (
                 <div key={row} className="h-10 animate-pulse rounded-md bg-muted" />

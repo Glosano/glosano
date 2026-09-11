@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from flinq.core.db import get_session
 from flinq.modules.ai_translation import service as ai_translation_service
 from flinq.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
+from flinq.modules.identity.service import translation_target
 from flinq.modules.lesson_library.models import Lesson
 from flinq.modules.reader_state.access import (
     LessonForbidden,
@@ -142,7 +143,7 @@ async def segment_translation(
             user_id=user_id,
             lesson=lesson,
             segment_id=segment_id,
-            target_language_code=body.target_language_code,
+            target_language_code=await translation_target(session, user_id),
         )
     except SegmentNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None

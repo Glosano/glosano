@@ -124,7 +124,9 @@ def build_writing_prompt(
         f"For each word write one {_lang(learn_lang)} sentence with the word replaced "
         f"by a gap '___' (change the word form where natural), followed by its "
         f"{_lang(target_lang)} translation. After all sentences add an 'Answers' "
-        f"section listing the correct forms. Plain text, numbered.\n"
+        f"section listing the correct forms. "
+        f"Use headings and instructions in {_lang(target_lang)}. "
+        f"Keep the correct forms in {_lang(learn_lang)}. Plain text, numbered.\n"
         'JSON schema: {"text": str}'
     )
 
@@ -143,9 +145,11 @@ def build_feedback_prompt(
         f"Sentence: {sentence_translation}\n"
         f"Learner's translation: {user_text}\n"
         f"The sentence practices the word: {word}\n"
-        f"Grade the translation (плохо / нормально / хорошо / отлично), point out "
+        f"Grade the translation (poor / fair / good / excellent, "
+        f"localized into {_lang(target_lang)}), point out "
         f"every inaccuracy briefly (missing diacritics and misspellings count), "
-        f"and give a correct reference translation. Answer in Russian.\n"
+        f"and give a correct reference translation in {_lang(learn_lang)}. "
+        f"Answer in {_lang(target_lang)}.\n"
         'JSON schema: {"feedback": str}'
     )
 

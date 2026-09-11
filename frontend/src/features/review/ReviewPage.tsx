@@ -1,3 +1,4 @@
+import { useTranslation, useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 
 import type { ReviewMode } from '@/api/review'
@@ -17,8 +18,12 @@ interface Props {
 }
 
 export function ReviewPage({ lang, lessonId, mode }: Props) {
+  const { language } = useI18n()
   if (!mode) return <ModeSelect lang={lang} lessonId={lessonId} />
-  if (mode === 'cards') return <CardsSession lang={lang} lessonId={lessonId} />
+  if (mode === 'cards')
+    return (
+      <CardsSession key={`${language}:${lang}:${lessonId ?? ''}`} lang={lang} lessonId={lessonId} />
+    )
   if (mode === 'new') return <NewWordsSession lang={lang} lessonId={lessonId} />
   if (mode === 'cloze') return <QuizSession lang={lang} kind="cloze" lessonId={lessonId} />
   if (mode === 'reverse') return <QuizSession lang={lang} kind="reverse" lessonId={lessonId} />
@@ -26,6 +31,7 @@ export function ReviewPage({ lang, lessonId, mode }: Props) {
 }
 
 function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | undefined }) {
+  const t = useTranslation()
   const s = useReviewSession(lang, { serverMode: 'due', lessonId })
   const { current, idx, total, answering, answerError, graduated, dismissGraduation, grade } = s
 
@@ -52,14 +58,19 @@ function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | und
     return () => window.removeEventListener('keydown', onKey)
   }, [current, flipped, grade])
 
-  const subtitle = lessonId ? 'Слова урока' : undefined
+  const subtitle = lessonId ? t('Слова урока') : undefined
   const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
-  if (!current) return <SessionShell subtitle={subtitle}>Загрузка…</SessionShell>
+  if (!current) return <SessionShell subtitle={subtitle}>{t('Загрузка…')}</SessionShell>
 
   return (
     <SessionShell subtitle={subtitle} idx={idx} total={total}>
-      <ReviewCard item={current} flipped={flipped} error={answerError} onFlip={() => setFlipped(true)} />
+      <ReviewCard
+        item={current}
+        flipped={flipped}
+        error={answerError}
+        onFlip={() => setFlipped(true)}
+      />
       {flipped && <GradeBar onGrade={grade} disabled={answering} />}
       {graduated && <GraduationToast onDismiss={dismissGraduation} />}
     </SessionShell>

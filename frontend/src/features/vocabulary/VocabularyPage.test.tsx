@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
 
@@ -34,6 +34,9 @@ import type { VocabListItem } from '@/api/vocabulary'
 
 import { addedAfterFromPreset, VocabularyPage } from './VocabularyPage'
 import { useVocabularyStore } from './vocabularyStore'
+import { setUiLanguage } from '@/lib/i18n'
+
+afterEach(() => { setUiLanguage('ru') })
 
 describe('addedAfterFromPreset', () => {
   it('added_after is stable across renders within the same day (no infinite refetch loop)', async () => {
@@ -91,12 +94,52 @@ function renderPage() {
 
 describe('VocabularyPage states', () => {
   beforeEach(() => {
+    setUiLanguage('ru')
     vi.clearAllMocks()
     resetStore()
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [], attribution: { source: '', license: '', url: '' }, external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+  })
+
+  it('renders English controls and switches vocabulary and card targets without rewriting saved text', async () => {
+    setUiLanguage('en')
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 25 })
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'i1', status: 'tracked', confidence: 2,
+      translations: { primary: null, all: [] }, note: null, tags: [],
+    })
+    renderPage()
+    fireEvent.click((await screen.findAllByRole('button', { name: 'abaixaram' }))[0]!)
+    expect(screen.getByRole('heading', { name: 'Vocabulary' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'All' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search vocabulary')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Sort order' })).toBeInTheDocument()
+    expect(screen.getByText('Newest first')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+    expect(screen.getAllByText('опустили')).toHaveLength(2)
+    await waitFor(() => expect(vocabularyApi.lookup).toHaveBeenCalledWith('pt', 'abaixaram', 'en', 'token'))
+    expect(vocabularyApi.list).toHaveBeenCalledWith(expect.objectContaining({ target: 'en' }))
+
+    act(() => { setUiLanguage('ru') })
+    await waitFor(() => expect(vocabularyApi.lookup).toHaveBeenCalledWith('pt', 'abaixaram', 'ru', 'token'))
+    expect(vocabularyApi.list).toHaveBeenCalledWith(expect.objectContaining({ target: 'ru' }))
+    expect(screen.getByRole('heading', { name: 'Словарь' })).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Поиск в словаре')).toBeInTheDocument()
+    expect(vocabularyApi.updateTranslation).not.toHaveBeenCalled()
+    expect(vocabularyApi.addTranslation).not.toHaveBeenCalled()
+  })
+
+  it('does not show previous-target vocabulary as placeholder data while a new target is loading', async () => {
+    vi.mocked(vocabularyApi.list).mockImplementation((params) => params.target === 'ru'
+      ? Promise.resolve({ items: [item], total: 1, page: 1, page_size: 25 })
+      : new Promise(() => {}))
+    renderPage()
+    await screen.findAllByText('опустили')
+    act(() => { setUiLanguage('en') })
+    expect(screen.queryByText('опустили')).not.toBeInTheDocument()
+    expect(screen.getByTestId('vocab-skeleton')).toBeInTheDocument()
   })
 
   it('shows the empty-default state with a CTA to the library when the vocab is empty and filters are default', async () => {

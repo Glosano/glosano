@@ -4,8 +4,6 @@ import { vocabularyApi } from '@/api/vocabulary'
 import type { ItemKind, VocabListParams } from '@/api/vocabulary'
 import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
 
-export const VOCAB_TARGET = 'ru'
-
 export function vocabListKey(params: VocabListParams) {
   return ['vocab-list', params] as const
 }
@@ -15,7 +13,8 @@ export function useVocabList(params: VocabListParams, enabled = true) {
     queryKey: vocabListKey(params),
     queryFn: () => vocabularyApi.list(params),
     enabled,
-    placeholderData: (prev) => prev,
+    placeholderData: (prev, query) =>
+      (query?.queryKey[1] as VocabListParams | undefined)?.target === params.target ? prev : undefined,
   })
 }
 

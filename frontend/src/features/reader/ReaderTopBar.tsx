@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { PanelLeft, PanelRight, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 
@@ -42,6 +43,7 @@ export function ReaderTopBar({
   vocabularyPanelPinned,
   onToggleVocabularyPanel,
 }: Props) {
+  const tr = useTranslation()
   const navigate = useNavigate()
   const font = useReaderStore((s) => s.font)
   const setFont = useReaderStore((s) => s.setFont)
@@ -50,7 +52,7 @@ export function ReaderTopBar({
     <div className="flex h-14 items-center gap-4 border-b border-border">
       <button
         type="button"
-        aria-label="Закрыть"
+        aria-label={tr('Закрыть')}
         onClick={() => {
           void navigate({ to: '/learn/$lang/library', params: { lang } })
         }}
@@ -87,7 +89,7 @@ export function ReaderTopBar({
                 }}
                 className={cn(font.size === opt.size && 'bg-accent')}
               >
-                {opt.label}
+                {tr(opt.label)}
               </DropdownMenuItem>
             ))}
           </div>
@@ -101,7 +103,7 @@ export function ReaderTopBar({
                 }}
                 className={cn(font.lineHeight === opt.lineHeight && 'bg-accent')}
               >
-                {opt.label}
+                {tr(opt.label)}
               </DropdownMenuItem>
             ))}
           </div>
@@ -112,7 +114,7 @@ export function ReaderTopBar({
             }}
             className={cn(font.serif && 'bg-accent')}
           >
-            Serif
+            {tr('С засечками')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -120,7 +122,7 @@ export function ReaderTopBar({
       {mode === 'page' && (
         <button
           type="button"
-          aria-label="Оглавление"
+          aria-label={tr('Оглавление')}
           aria-pressed={sidebarOpen}
           onClick={onToggleSidebar}
           className="rounded-md p-2 hover:bg-accent"
@@ -131,7 +133,7 @@ export function ReaderTopBar({
 
       <button
         type="button"
-        aria-label={vocabularyPanelPinned ? 'Скрыть словарь урока' : 'Показать словарь урока'}
+        aria-label={vocabularyPanelPinned ? tr('Скрыть словарь урока') : tr('Показать словарь урока')}
         aria-expanded={vocabularyPanelPinned}
         aria-controls="lesson-vocabulary-panel"
         onClick={onToggleVocabularyPanel}

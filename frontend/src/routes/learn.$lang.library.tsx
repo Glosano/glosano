@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { createRoute, useParams } from '@tanstack/react-router'
 
@@ -15,6 +16,7 @@ export const learnLibraryRoute = createRoute({
   getParentRoute: () => learnLangRoute,
   path: 'library',
   component: function LibraryView() {
+    const t = useTranslation()
     const params = useParams({ from: '/learn/$lang/library' })
     const lang = params.lang
     const tab = useLibraryStore((s) => s.tab)
@@ -32,12 +34,8 @@ export const learnLibraryRoute = createRoute({
         <FilterRow />
         <SubTabs />
         <div className="py-6">
-          {isLoading && (
-            <p className="text-muted-foreground">Загрузка…</p>
-          )}
-          {isError && (
-            <p className="text-destructive">Ошибка загрузки уроков</p>
-          )}
+          {isLoading && <p className="text-muted-foreground">{t('Загрузка…')}</p>}
+          {isError && <p className="text-destructive">{t('Ошибка загрузки уроков')}</p>}
           {data && data.items.length > 0 && <LessonCarousel items={data.items} />}
           {data && data.items.length === 0 && <LibraryEmptyState />}
         </div>

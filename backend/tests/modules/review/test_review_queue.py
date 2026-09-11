@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from flinq.core.config import get_settings
 from flinq.core.db import session_scope
 from flinq.core.security import hash_password
-from flinq.modules.identity.models import UserSettings
+from flinq.modules.identity.models import UserProfile, UserSettings
 from flinq.modules.identity.repo import UserRepo
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.review.models import ReviewEvent, ReviewItem
@@ -117,6 +117,9 @@ async def test_main_queue_returns_due_sorted_and_skips_not_due():
 async def test_queue_includes_translation_and_confidence():
     async with session_scope() as s:
         user_id = await _make_user(s)
+        profile = await s.get(UserProfile, user_id)
+        assert profile
+        profile.ui_language_code = "ru"
         item = await _tracked_token(s, user_id, "cada")
         await vocab.add_translation(
             s,

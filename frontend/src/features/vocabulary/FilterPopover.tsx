@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ const ADDED_PRESETS: { id: 'all' | '7d' | '30d'; label: string }[] = [
 
 /** Toolbar filter popover: status / confidence / tags / date preset, no radix dependency. */
 export function FilterPopover() {
+  const tr = useTranslation()
   const [open, setOpen] = useState(false)
   const [tagDraft, setTagDraft] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -88,36 +90,36 @@ export function FilterPopover() {
         onClick={() => { setOpen((v) => !v) }}
         className="h-8 border-0 px-2 text-[13px] font-normal text-[var(--vocab-muted-fg)] hover:bg-transparent hover:text-[var(--vocab-term-fg)] aria-expanded:bg-transparent aria-expanded:text-[var(--vocab-term-fg)]"
       >
-        {'⊟ Фильтры'}
+        {tr('⊟ Фильтры')}
       </Button>
       {open && (
         <div className="absolute left-0 top-full z-20 mt-2 w-80 rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-md">
           <fieldset className="space-y-1.5">
-            <legend className="mb-1 text-xs font-medium text-muted-foreground">Статус</legend>
+            <legend className="mb-1 text-xs font-medium text-muted-foreground">{tr('Статус')}</legend>
             {STATUS_OPTIONS.map((opt) => (
               <label key={opt.id} className="flex items-center gap-2">
                 <Checkbox
                   checked={statuses.includes(opt.id)}
                   onCheckedChange={() => { toggleStatus(opt.id) }}
                 />
-                {opt.label}
+                {tr(opt.label)}
               </label>
             ))}
           </fieldset>
 
           <div className="mt-3 space-y-1.5">
             <span className="block text-xs font-medium text-muted-foreground">
-              Уровень уверенности
+              {tr('Уровень уверенности')}
             </span>
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5">
-                от
+                {tr('от')}
                 <Select
                   disabled={confidenceDisabled}
                   value={String(min)}
                   onValueChange={(v) => { setConfidence([Number(v), max]) }}
                 >
-                  <SelectTrigger size="sm" aria-label="Уверенность от">
+                  <SelectTrigger size="sm" aria-label={tr('Уверенность от')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -128,13 +130,13 @@ export function FilterPopover() {
                 </Select>
               </label>
               <label className="flex items-center gap-1.5">
-                до
+                {tr('до')}
                 <Select
                   disabled={confidenceDisabled}
                   value={String(max)}
                   onValueChange={(v) => { setConfidence([min, Number(v)]) }}
                 >
-                  <SelectTrigger size="sm" aria-label="Уверенность до">
+                  <SelectTrigger size="sm" aria-label={tr('Уверенность до')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -148,9 +150,9 @@ export function FilterPopover() {
           </div>
 
           <div className="mt-3 space-y-1.5">
-            <span className="block text-xs font-medium text-muted-foreground">Теги</span>
+            <span className="block text-xs font-medium text-muted-foreground">{tr('Теги')}</span>
             <Input
-              placeholder="Добавить тег…"
+              placeholder={tr('Добавить тег…')}
               value={tagDraft}
               onChange={(e) => { setTagDraft(e.target.value) }}
               onKeyDown={(e) => {
@@ -167,7 +169,7 @@ export function FilterPopover() {
                     key={t}
                     type="button"
                     onClick={() => { removeTag(t) }}
-                    aria-label={`Удалить тег ${t}`}
+                    aria-label={tr('Удалить тег {{value0}}', { value0: t })}
                     className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs"
                   >
                     {t}
@@ -179,7 +181,7 @@ export function FilterPopover() {
           </div>
 
           <fieldset className="mt-3 space-y-1.5">
-            <legend className="mb-1 text-xs font-medium text-muted-foreground">Добавлено</legend>
+            <legend className="mb-1 text-xs font-medium text-muted-foreground">{tr('Добавлено')}</legend>
             {ADDED_PRESETS.map((p) => (
               <label key={p.id} className="flex items-center gap-2">
                 <input
@@ -188,7 +190,7 @@ export function FilterPopover() {
                   checked={addedPreset === p.id}
                   onChange={() => { setAddedPreset(p.id) }}
                 />
-                {p.label}
+                {tr(p.label)}
               </label>
             ))}
           </fieldset>
@@ -200,9 +202,9 @@ export function FilterPopover() {
                 onCheckedChange={() => { setShowAuto(!showAuto) }}
               />
               <span className="leading-tight">
-                <span className="block">Показывать авто-изученные</span>
+                <span className="block">{tr('Показывать авто-изученные')}</span>
                 <span className="block text-xs text-muted-foreground">
-                  слова, отмеченные изученными при листании
+                  {tr('слова, отмеченные изученными при листании')}
                 </span>
               </span>
             </label>
@@ -210,7 +212,7 @@ export function FilterPopover() {
 
           <div className="mt-4 flex justify-end">
             <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
-              Сбросить
+              {tr('Сбросить')}
             </Button>
           </div>
         </div>

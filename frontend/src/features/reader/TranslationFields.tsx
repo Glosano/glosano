@@ -1,3 +1,4 @@
+import { useTranslation } from '@/lib/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 
@@ -18,6 +19,7 @@ interface Props {
  * field is always present when there are no variants.
  */
 export function TranslationFields({ translations, onCreate, onUpdate, onDelete }: Props) {
+  const tr = useTranslation()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   // null = no pending new field; '' or text = the single pending field's draft.
   const [newDraft, setNewDraft] = useState<string | null>(null)
@@ -103,14 +105,14 @@ export function TranslationFields({ translations, onCreate, onUpdate, onDelete }
           />
           <span className="absolute inset-y-0 right-2 hidden items-center gap-1 group-focus-within:flex group-hover:flex">
             <button
-              type="button" aria-label="Добавить вариант"
+              type="button" aria-label={tr('Добавить вариант')}
               onClick={openNewField}
               className="rounded p-1 text-muted-foreground hover:bg-accent"
             >
               <Plus className="h-4 w-4" />
             </button>
             <button
-              type="button" aria-label={`Удалить вариант: ${t.text}`}
+              type="button" aria-label={tr('Удалить вариант: {{value0}}', { value0: t.text })}
               onClick={() => void run(() => onDelete(t.id))}
               className="rounded p-1 text-muted-foreground hover:bg-accent"
             >
@@ -124,14 +126,14 @@ export function TranslationFields({ translations, onCreate, onUpdate, onDelete }
           // autoFocus: the field appears on explicit "+" click, not on page load.
           autoFocus={newDraft !== null}
           className="w-full rounded-md border border-border px-3 py-2 text-base"
-          placeholder="Введите новый перевод здесь"
+          placeholder={tr('Введите новый перевод здесь')}
           value={pendingValue}
           onChange={(e) => setNewDraft(e.target.value)}
           onBlur={() => void commitNew()}
           onKeyDown={(e) => { if (e.key === 'Enter') void commitNew() }}
         />
       )}
-      {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+      {saveError && <p className="text-sm text-destructive">{tr(saveError)}</p>}
     </div>
   )
 }

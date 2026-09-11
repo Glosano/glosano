@@ -7,6 +7,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request, Response, status
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +24,7 @@ from flinq.modules.identity.middleware import (
     SESSION_COOKIE,
     SESSION_TTL,
 )
-from flinq.modules.identity.models import User, UserLearningLanguage
+from flinq.modules.identity.models import User, UserLearningLanguage, UserProfile, UserSession
 from flinq.modules.identity.repo import SessionRepo, UserRepo
 
 
@@ -84,7 +85,9 @@ async def login_user(
             headers={"Retry-After": str(retry_after)},
         )
 
-    user = await user_repo.get_by_email(email)
+    # Serialize verification + session creation with password changes. Otherwise a
+    # login paused after checking an old password could survive session revocation.
+    user = await user_repo.get_by_email(email, for_update=True)
     if user is None or not verify_password(password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
 
@@ -194,7 +197,7 @@ async def complete_onboarding(
     *,
     ui_language: str,
     learning_languages: list[str],
-    translation_language: str,
+    translation_language: str | None,
     user_repo: UserRepo,
     session: AsyncSession,
 ) -> str:
@@ -204,7 +207,7 @@ async def complete_onboarding(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
 
     user.profile.ui_language_code = ui_language
-    user.settings.preferred_translation_language_code = translation_language
+    user.settings.preferred_translation_language_code = ui_language
     user.settings.last_learning_language_code = learning_languages[0]
 
     existing = {ll.language_code for ll in user.learning_languages}
@@ -214,3 +217,72 @@ async def complete_onboarding(
 
     await user_repo.mark_onboarded(user_id, datetime.now(UTC))
     return learning_languages[0]
+
+
+async def update_profile(user_id: uuid.UUID, *, display_name: str, user_repo: UserRepo) -> None:
+    user = await user_repo.get_by_id_full(user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    user.profile.display_name = display_name
+
+
+async def update_preferences(
+    user_id: uuid.UUID,
+    *,
+    ui_language: str,
+    learning_languages: list[str],
+    daily_goal_minutes: int,
+    daily_goal_reviews: int,
+    user_repo: UserRepo,
+) -> None:
+    user = await user_repo.get_by_id_full(user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    user.profile.ui_language_code = ui_language
+    user.settings.preferred_translation_language_code = ui_language
+    user.settings.daily_goal_minutes = daily_goal_minutes
+    user.settings.daily_goal_reviews = daily_goal_reviews
+    if user.settings.last_learning_language_code not in learning_languages:
+        user.settings.last_learning_language_code = learning_languages[0]
+    existing = {row.language_code for row in user.learning_languages}
+    await user_repo.session.execute(
+        delete(UserLearningLanguage).where(
+            UserLearningLanguage.user_id == user_id,
+            UserLearningLanguage.language_code.not_in(learning_languages),
+        )
+    )
+    for code in learning_languages:
+        if code not in existing:
+            user_repo.session.add(UserLearningLanguage(user_id=user_id, language_code=code))
+    await user_repo.session.flush()
+    await user_repo.session.refresh(user, ["learning_languages"])
+
+
+async def change_password(
+    user_id: uuid.UUID,
+    *,
+    current_password: str,
+    new_password: str,
+    current_session_token: str,
+    user_repo: UserRepo,
+) -> None:
+    # Serialize password changes so two concurrent requests cannot retain stale credentials.
+    user = (
+        await user_repo.session.execute(select(User).where(User.id == user_id).with_for_update())
+    ).scalar_one_or_none()
+    if user is None or not verify_password(current_password, user.password_hash):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid password")
+    user.password_hash = hash_password(new_password)
+    await user_repo.session.execute(
+        delete(UserSession).where(
+            UserSession.user_id == user_id,
+            UserSession.id != current_session_token,
+        )
+    )
+
+
+async def translation_target(session: AsyncSession, user_id: uuid.UUID) -> str:
+    profile = await session.get(UserProfile, user_id)
+    if profile is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    return profile.ui_language_code

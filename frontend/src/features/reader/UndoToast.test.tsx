@@ -1,7 +1,8 @@
-import { render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { UndoToast } from './UndoToast'
+import { setUiLanguage } from '@/lib/i18n'
 
 describe('UndoToast', () => {
   beforeEach(() => {
@@ -10,6 +11,20 @@ describe('UndoToast', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    setUiLanguage('ru')
+  })
+
+  it('uses the locale plural forms and switches labels without remounting', () => {
+    setUiLanguage('en')
+    const { rerender } = render(<UndoToast count={1} onUndo={vi.fn()} onDismiss={vi.fn()} />)
+    expect(screen.getByTestId('undo-toast')).toHaveTextContent('1 word marked as known')
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    act(() => { setUiLanguage('ru') })
+    expect(screen.getByTestId('undo-toast')).toHaveTextContent('1 слово отмечено как известное')
+    rerender(<UndoToast count={2} onUndo={vi.fn()} onDismiss={vi.fn()} />)
+    expect(screen.getByTestId('undo-toast')).toHaveTextContent('2 слова отмечены как известные')
+    rerender(<UndoToast count={5} onUndo={vi.fn()} onDismiss={vi.fn()} />)
+    expect(screen.getByTestId('undo-toast')).toHaveTextContent('5 слов отмечены как известные')
   })
 
   it('auto-dismisses 6s from mount and is NOT extended by parent re-renders with a new onDismiss', async () => {

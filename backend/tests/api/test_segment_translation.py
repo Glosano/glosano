@@ -81,7 +81,7 @@ async def test_first_call_translates_and_stores(
         row = await db_session.scalar(
             select(LessonSegmentTranslation).where(
                 LessonSegmentTranslation.segment_id == segment_id,
-                LessonSegmentTranslation.target_language_code == "ru",
+                LessonSegmentTranslation.target_language_code == "en",
             )
         )
         assert row is not None
@@ -190,3 +190,76 @@ async def test_unauthenticated_post_requires_csrf() -> None:
             json={"target_language_code": "ru"},
         )
         assert r.status_code == 403
+
+
+async def test_cache_isolated_by_user_and_ui_language(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+):
+    from flinq.core.db import session_scope
+    from flinq.modules.lesson_library.models import Lesson
+
+    monkeypatch.setattr(get_settings(), "llm_enabled", True)
+    fake = _GoodProvider("Personal response")
+    monkeypatch.setattr(service, "_default_provider", lambda: fake)
+    transport = ASGITransport(app=create_app())
+    async with (
+        AsyncClient(transport=transport, base_url="http://test") as first,
+        AsyncClient(transport=transport, base_url="http://test") as second,
+    ):
+        csrf = await _register_and_onboard(first, f"{uuid.uuid4()}@example.com")
+        csrf2 = await _register_and_onboard(second, f"{uuid.uuid4()}@example.com")
+        first.headers["X-CSRF-Token"] = csrf
+        second.headers["X-CSRF-Token"] = csrf2
+        for user_client in (first, second):
+            assert (
+                await user_client.patch(
+                    "/me/preferences",
+                    json={
+                        "ui_language": "ru",
+                        "learning_languages": ["pt"],
+                        "daily_goal_minutes": 15,
+                        "daily_goal_reviews": 500,
+                    },
+                )
+            ).status_code == 200
+        lesson_id = await _seed_ready_lesson(first, csrf, monkeypatch)
+        segment_id = await _first_segment_id(db_session, lesson_id)
+        async with session_scope() as s:
+            lesson = await s.get(Lesson, lesson_id)
+            assert lesson
+            lesson.visibility = "shared"
+            # Legacy unowned cache cannot be attributed to either user.
+            s.add(
+                LessonSegmentTranslation(
+                    segment_id=segment_id,
+                    target_language_code="ru",
+                    translation_text="Legacy private response",
+                    model="old",
+                )
+            )
+        url = f"/api/lessons/{lesson_id}/segments/{segment_id}/translation"
+        body = {"target_language_code": "ru"}
+        a = await first.post(url, json=body)
+        assert a.status_code == 200 and a.json()["stored"] is False
+        b = await second.post(url, json=body)
+        assert b.status_code == 200 and b.json()["stored"] is False
+        assert fake.calls == 2
+        assert (await first.post(url, json=body)).json()["stored"] is True
+        assert (
+            await second.patch(
+                "/me/preferences",
+                json={
+                    "ui_language": "en",
+                    "learning_languages": ["pt"],
+                    "daily_goal_minutes": 15,
+                    "daily_goal_reviews": 500,
+                },
+            )
+        ).status_code == 200
+        switched = await second.post(url, json=body)  # intentionally stale RU request
+        assert switched.status_code == 200 and switched.json()["stored"] is False
+        assert fake.calls == 3
+        exported = (await second.get("/me/export")).json()["data"]["lesson_segment_translations"]
+        assert len(exported) == 2
+        assert {row["target_language_code"] for row in exported} == {"en", "ru"}
+        assert all(row["translation_text"] == "Personal response" for row in exported)
