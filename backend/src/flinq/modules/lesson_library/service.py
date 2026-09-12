@@ -46,6 +46,7 @@ async def create_lesson_for_import(
     raw_text: str,
     visibility: str,
     repo: LessonRepo,
+    original_filename: str | None = None,
 ) -> tuple[Lesson, uuid.UUID]:
     """Create a processing lesson + v1 source + pending job. Returns (lesson, job_id)."""
     canonical = _normalize_newlines(raw_text)
@@ -56,7 +57,12 @@ async def create_lesson_for_import(
         raw_text=canonical,
         visibility=visibility,
     )
-    await repo.add_source(lesson_id=lesson.id, content_hash=content_hash(canonical))
+    await repo.add_source(
+        lesson_id=lesson.id,
+        content_hash=content_hash(canonical),
+        source_type="file" if original_filename is not None else "manual",
+        original_filename=original_filename,
+    )
     job = await repo.add_import_job(lesson_id=lesson.id, requested_by_user_id=owner_user_id)
     return lesson, job.id
 

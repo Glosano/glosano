@@ -47,7 +47,7 @@ describe('Library localization', () => {
       screen.getByText('Paste text for a new lesson in the current language (PT).'),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Title')).toBeInTheDocument()
-    expect(screen.getByLabelText('Text')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Text' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
     act(() => setUiLanguage('ru'))
     expect(screen.getByRole('dialog', { name: 'Импорт урока' })).toBeInTheDocument()

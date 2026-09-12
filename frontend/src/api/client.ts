@@ -62,7 +62,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const csrf = getCookie('flinq_csrf')
     if (csrf) headers.set('X-CSRF-Token', csrf)
   }
-  if (init.body && !headers.has('Content-Type')) {
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
   if (!headers.has('Accept')) {

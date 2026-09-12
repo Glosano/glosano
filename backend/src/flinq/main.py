@@ -26,6 +26,7 @@ from flinq.api.stats import router as stats_router
 from flinq.api.vocabulary import router as vocabulary_router
 from flinq.core.config import get_settings
 from flinq.core.db import dispose_engine, init_engine
+from flinq.core.lesson_upload import LessonUploadMiddleware
 from flinq.core.logging import configure_logging
 from flinq.modules.identity.middleware import CSRFMiddleware, SessionMiddleware
 
@@ -55,11 +56,12 @@ def create_app() -> FastAPI:
     )
 
     # Starlette stacks middleware in reverse add order: last added = outermost (runs first).
-    # Execution order wanted: Session (sets state) → CSRF (reads cookies) → handler → GZip.
+    # Execution order wanted: Session (sets state) → CSRF → upload limit → GZip → handler.
     # GZip must be innermost (closest to the handler) so it compresses responses
     # before they pass back up through CSRF/Session — it is added FIRST.
     # Session must be outermost, so it is added LAST.
     app.add_middleware(GZipMiddleware, minimum_size=1024)
+    app.add_middleware(LessonUploadMiddleware)
     app.add_middleware(CSRFMiddleware)
     app.add_middleware(SessionMiddleware)  # outer — runs first per request
 

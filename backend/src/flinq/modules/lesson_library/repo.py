@@ -85,12 +85,14 @@ class LessonRepo:
         lesson_id: uuid.UUID,
         content_hash: str,
         source_type: str = "manual",
+        original_filename: str | None = None,
         version_number: int = 1,
     ) -> LessonSource:
         source = LessonSource(
             lesson_id=lesson_id,
             content_hash=content_hash,
             source_type=source_type,
+            original_filename=original_filename,
             version_number=version_number,
         )
         self.session.add(source)

@@ -23,6 +23,11 @@ export interface LessonListResponse {
   page_size: number
 }
 
+export interface LessonCreated {
+  id: string
+  status: LessonStatus
+}
+
 export interface CreateLessonPayload {
   title: string
   language_code: string
@@ -45,15 +50,27 @@ interface ListParams {
 
 export const lessonsApi = {
   list: (lang: string, params: ListParams = {}) => {
-    const search = new URLSearchParams({ lang, ...Object.fromEntries(
-      Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])
-    ) })
+    const search = new URLSearchParams({
+      lang,
+      ...Object.fromEntries(
+        Object.entries(params)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, String(v)]),
+      ),
+    })
     return api<LessonListResponse>(`/api/lessons?${search.toString()}`)
   },
   create: (data: CreateLessonPayload) =>
-    api<LessonSummary>('/api/lessons', {
+    api<LessonCreated>('/api/lessons', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  importFile: (file: File, title: string, languageCode: string) => {
+    const body = new FormData()
+    body.set('file', file)
+    body.set('title', title)
+    body.set('language_code', languageCode)
+    return api<LessonCreated>('/api/lessons/import-file', { method: 'POST', body })
+  },
   get: (id: string) => api<LessonDetail>(`/api/lessons/${id}`),
 }

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from loguru import logger
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
+from flinq.core.lesson_upload import MAX_LESSON_FILE_BYTES
 from flinq.modules.lesson_library import service
 from flinq.modules.lesson_library.progress import ZERO_PROGRESS, progress_for_lessons
 from flinq.modules.lesson_library.repo import LessonRepo
@@ -83,7 +85,16 @@ async def create_lesson(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> LessonCreatedResponse:
-    user_id = _require_user(request)
+    return await _create_and_enqueue(body, _require_user(request), session)
+
+
+async def _create_and_enqueue(
+    body: CreateLessonRequest,
+    user_id: uuid.UUID,
+    session: AsyncSession,
+    *,
+    original_filename: str | None = None,
+) -> LessonCreatedResponse:
     lesson, job_id = await service.create_lesson_for_import(
         owner_user_id=user_id,
         title=body.title,
@@ -91,6 +102,7 @@ async def create_lesson(
         raw_text=body.raw_text,
         visibility=body.visibility,
         repo=LessonRepo(session),
+        original_filename=original_filename,
     )
     lesson_id = lesson.id
     lesson_status = lesson.status
@@ -110,6 +122,63 @@ async def create_lesson(
             status.HTTP_503_SERVICE_UNAVAILABLE, "could not queue lesson import"
         ) from exc
     return LessonCreatedResponse(id=lesson_id, status=lesson_status)
+
+
+# Browsers may report Markdown as plain text or omit its MIME type entirely.
+_FILE_MIME_TYPES = {
+    ".txt": {"text/plain", "application/octet-stream", ""},
+    ".md": {"text/plain", "text/markdown", "text/x-markdown", "application/octet-stream", ""},
+}
+
+
+@router.post(
+    "/import-file", status_code=status.HTTP_202_ACCEPTED, response_model=LessonCreatedResponse
+)
+async def import_lesson_file(
+    request: Request,
+    file: UploadFile,
+    language_code: str = Form(),
+    title: str | None = Form(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> LessonCreatedResponse:
+    user_id = _require_user(request)
+    try:
+        # Never interpret a client filename as a path on the server.
+        filename = (file.filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+        if len(filename) > 255:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid lesson metadata")
+        stem, separator, extension = filename.rpartition(".")
+        suffix = f".{extension.lower()}" if separator else ""
+        mime = (file.content_type or "").split(";", 1)[0].strip().lower()
+        if suffix not in _FILE_MIME_TYPES or mime not in _FILE_MIME_TYPES[suffix]:
+            raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "unsupported lesson file")
+        content = await file.read(MAX_LESSON_FILE_BYTES + 1)
+        if len(content) > MAX_LESSON_FILE_BYTES:
+            raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "lesson file too large")
+        try:
+            raw_text = content.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "lesson file must be UTF-8"
+            ) from exc
+        if not raw_text.strip() or "\x00" in raw_text:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "lesson file must contain text"
+            )
+        try:
+            body = CreateLessonRequest(
+                title=(title if title is not None else stem).strip(),
+                language_code=language_code,
+                raw_text=raw_text,
+                visibility="private",
+            )
+        except ValidationError as exc:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid lesson metadata"
+            ) from exc
+    finally:
+        await file.close()
+    return await _create_and_enqueue(body, user_id, session, original_filename=filename)
 
 
 @router.get("/{lesson_id}", response_model=LessonStatusResponse)
