@@ -56,6 +56,18 @@ class DictionaryRepo:
         version.metadata_json = {**version.metadata_json, "error": error}
         await self.session.flush()
 
+    async def has_active_pair(self, source_lang: str, target_lang: str) -> bool:
+        stmt = (
+            select(DictionarySourceVersion.id)
+            .where(
+                DictionarySourceVersion.status == "active",
+                DictionarySourceVersion.source_language_code == source_lang,
+                DictionarySourceVersion.target_language_code == target_lang,
+            )
+            .limit(1)
+        )
+        return (await self.session.scalar(stmt)) is not None
+
     async def lookup(
         self, *, source_lang: str, target_lang: str, normalized: str
     ) -> list[DictionaryEntry]:

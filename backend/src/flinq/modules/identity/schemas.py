@@ -8,7 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-SUPPORTED_LEARNING_LANGUAGES = frozenset({"en", "ru", "pt"})
+from flinq.core.languages import SUPPORTED_LEARNING_LANGUAGES, LearningLanguageCode
+
 SUPPORTED_UI_LANGUAGES = frozenset({"en", "ru"})
 
 
@@ -67,6 +68,10 @@ class SetLastLanguageRequest(BaseModel):
         return v
 
 
+class AddLearningLanguageRequest(BaseModel):
+    language_code: LearningLanguageCode
+
+
 class MeResponse(BaseModel):
     id: uuid.UUID
     email: str
@@ -93,7 +98,7 @@ class UpdateProfileRequest(BaseModel):
 
 class UpdatePreferencesRequest(BaseModel):
     ui_language: Literal["en", "ru"]
-    learning_languages: list[Literal["en", "ru", "pt"]] = Field(min_length=1)
+    learning_languages: list[LearningLanguageCode] = Field(min_length=1)
     daily_goal_minutes: int = Field(ge=1, le=1440, strict=True)
     daily_goal_reviews: int = Field(ge=1, le=10000, strict=True)
 

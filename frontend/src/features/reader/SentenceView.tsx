@@ -1,4 +1,4 @@
-import { useTranslation, translate } from '@/lib/i18n'
+import { useTranslation, translate, type UiLanguage } from '@/lib/i18n'
 import { useState } from 'react'
 import { Play } from 'lucide-react'
 
@@ -10,6 +10,7 @@ import { SentenceTokens } from './SentenceTokens'
 import { SentenceVocabList } from './SentenceVocabList'
 import { useSegmentTranslation } from './useReaderQueries'
 import type { DragRange } from './usePhraseSelection'
+import { learningContentDirection } from '@/lib/languages'
 
 interface SelectedWord {
   t: string
@@ -24,7 +25,7 @@ interface Props {
   phraseIndex: PhraseIndex
   dragRange: DragRange | null
   lang: string
-  targetLang: 'en' | 'ru' | 'pt'
+  targetLang: UiLanguage
   onWordClick?: (word: SelectedWord) => void
   onPhraseClick?: (match: PhraseMatch, sentence: Sentence) => void
 }
@@ -99,7 +100,11 @@ export function SentenceView({
       </div>
 
       <div className="mt-10 px-4 sm:px-16">
-        <p className="text-xl leading-[1.8]">
+        <p
+          data-testid="learning-content"
+          dir={learningContentDirection(lang)}
+          className="text-xl leading-[1.8]"
+        >
           <SentenceTokens
             sentence={sentence}
             statuses={statuses}

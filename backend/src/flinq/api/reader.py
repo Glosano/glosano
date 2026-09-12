@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import uuid
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
+from flinq.core.languages import LearningLanguageCode
 from flinq.modules.ai_translation import service as ai_translation_service
 from flinq.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
 from flinq.modules.identity.service import translation_target
@@ -91,7 +91,7 @@ async def lesson_token_statuses_route(
 @router.get("/lessons/{lesson_id}/vocabulary", response_model=LessonVocabularyResponse)
 async def lesson_vocabulary(
     lesson_id: uuid.UUID,
-    target: Literal["en", "ru", "pt"],
+    target: LearningLanguageCode,
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> LessonVocabularyResponse:

@@ -1,4 +1,5 @@
 import { useI18n } from '@/lib/i18n'
+import { learningLanguageLabel } from '@/lib/languages'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
@@ -140,14 +141,10 @@ function TranslationSessionContent({ lang, lessonId }: { lang: string; lessonId?
               <>
                 <p className="mt-3 text-sm text-muted-foreground">
                   {t('Переведите предложение на {{language}}.', {
-                    language: t(
-                      (
-                        { en: 'английский', ru: 'русский', pt: 'португальский' } as Record<
-                          string,
-                          string
-                        >
-                      )[lang] ?? lang,
-                    ),
+                    language:
+                      language === 'ru'
+                        ? learningLanguageLabel(lang, language).toLocaleLowerCase('ru')
+                        : learningLanguageLabel(lang, language),
                   })}
                 </p>
                 <textarea

@@ -399,6 +399,40 @@ describe('WordCard core', () => {
     expect(screen.queryByRole('button', { name: 'Повторить' })).not.toBeInTheDocument()
   })
 
+  it('explains an uninstalled dictionary pair while keeping manual translation available', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(aiApi.translate).mockRejectedValue(new ApiError(503, 'disabled'))
+    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
+      availability: 'not_installed',
+      entries: [],
+      attribution: { source: 'Wiktionary', license: 'CC BY-SA 4.0', url: '' },
+      external_links: [],
+    })
+
+    renderCard()
+
+    expect(
+      await screen.findByText(
+        'Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Введите новый перевод здесь')).toBeEnabled()
+    act(() => setUiLanguage('en'))
+    expect(
+      await screen.findByText(
+        'The dictionary for this language pair is not installed. You can add a translation manually.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Enter a new translation here')).toBeEnabled()
+  })
+
   it('shows an inline error with retry on a real AI failure', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
       item_id: null,

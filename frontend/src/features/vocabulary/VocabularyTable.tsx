@@ -1,6 +1,7 @@
 import { useTranslation } from '@/lib/i18n'
 import type { VocabListItem } from '@/api/vocabulary'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
+import { learningLanguageFlag } from '@/lib/languages'
 
 const CONTEXT_MAX = 80
 
@@ -16,17 +17,6 @@ interface Props {
 
 const GRID_COLS =
   'grid-cols-[40px_minmax(240px,1fr)_minmax(200px,0.8fr)_minmax(240px,1fr)_260px]'
-
-const FLAGS: Record<string, string> = {
-  ru: '🇷🇺',
-  en: '🇬🇧',
-  pt: '🇧🇷',
-}
-
-/** Flag emoji for a target language code (spec §2.2); unknown codes fall back to a neutral flag. */
-function flagFor(code: string): string {
-  return FLAGS[code] ?? '🏳'
-}
 
 function truncateContext(context: string): string {
   return context.length > CONTEXT_MAX ? `${context.slice(0, CONTEXT_MAX)}…` : context
@@ -110,7 +100,7 @@ export function VocabularyTable({
               {item.primary_translation !== null
                 ? (
                   <span className="flex items-center gap-1.5 text-[var(--vocab-translation-fg)]">
-                    <span aria-hidden="true">{flagFor(item.primary_translation.target_language_code)}</span>
+                    <span aria-hidden="true">{learningLanguageFlag(item.primary_translation.target_language_code)}</span>
                     <span>{item.primary_translation.text}</span>
                   </span>
                   )

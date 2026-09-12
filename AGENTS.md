@@ -43,7 +43,7 @@ Full rationale in the decision log and ADRs. This section is a lookup table, not
 - **Audience:** learner-only. No teacher/LMS features.
 - **Library:** private imports + shared library inside the instance. License/source/author fields are required for shared content.
 - **Import formats:** `.txt`, `.md` only. PDF/EPUB/scans go through an **external OCR service** with its own API that returns `.md`.
-- **Languages (learning):** EN, RU, PT.
+- **Languages (learning):** EN, RU, PT, ES, FR, DE, ZH-Hans (Simplified Chinese), JA, AR, HI — ADR-0012 supersedes the original three-language scope.
 - **Languages (UI):** EN, RU.
 - **Auth:** email + password. No SSO.
 - **Delivery:** Docker Compose. Target class: personal homelab + small team.
@@ -137,7 +137,7 @@ If a user asks for any of these, point them at `docs/specs/2026-04-11-mvp-produc
 - Marketplace or federation between instances.
 - Social feed, comments on lessons.
 - Built-in catalog of curated lessons shipped with the product.
-- Automatic support for many languages at launch.
+- Automatic language support beyond the ten-language catalog in ADR-0012, or automatic dictionary-package downloads.
 - Shared AI cache between users.
 - FSRS or other adaptive SRS in the first release (simple SM-2-class is fine).
 - Metrics dashboard with heatmaps, cohorts, retention curves.

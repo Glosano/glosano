@@ -112,8 +112,18 @@ describe('settings', () => {
     )
     await waitFor(() => expect(screen.getByLabelText('Daily review limit')).toHaveValue(35))
     expect(screen.getByLabelText('Interface language')).toHaveValue('en')
-    expect(screen.getByLabelText('Русский')).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Russian' })).toBeChecked()
     expect(screen.getByLabelText('Reading goal, minutes per day')).toHaveValue(45)
+  })
+
+  it('offers the complete localized learning-language catalog with flags', () => {
+    show(<PreferencesSettings />)
+
+    expect(screen.getAllByRole('checkbox')).toHaveLength(10)
+    expect(screen.getByRole('checkbox', { name: 'Китайский (упрощённый)' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Арабский' })).toBeInTheDocument()
+    expect(screen.getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('🇸🇦')).toHaveAttribute('aria-hidden', 'true')
   })
 
   it('invalidates cached review queues when only the daily limit changes', async () => {
@@ -157,11 +167,11 @@ describe('settings', () => {
       preferred_translation_language_code: 'en',
     })
     show(<PreferencesSettings />)
-    fireEvent.click(screen.getByLabelText('Português'))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Португальский' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Выберите хотя бы один язык.')
     expect(meApi.updatePreferences).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByLabelText('Português'))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Португальский' }))
     fireEvent.change(screen.getByLabelText('Язык интерфейса'), { target: { value: 'en' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
     await waitFor(() => expect(screen.getByText('Interface language')).toBeInTheDocument())

@@ -93,6 +93,20 @@ describe('StatisticsDropdown', () => {
     expect(fetch).toHaveBeenCalledWith('/api/stats/overview?lang=pt', expect.anything())
   })
 
+  it('uses the shared localized name for simplified Chinese', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      respond({ ...DATA, language_code: 'zh-Hans' }),
+    )
+    setUiLanguage('en')
+    setup('zh-Hans')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open statistics' }))
+
+    const panel = await screen.findByRole('dialog', { name: 'Statistics' })
+    expect(await within(panel).findByText('Today · Chinese (Simplified)')).toBeInTheDocument()
+    expect(within(panel).getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('closes with Escape and returns keyboard focus to its trigger', async () => {
     const user = userEvent.setup()
     setup()

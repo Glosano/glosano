@@ -4,6 +4,11 @@ import { useNavigate } from '@tanstack/react-router'
 
 import { meApi } from '@/api/me'
 import { useUserStore } from '@/stores/userStore'
+import {
+  LEARNING_LANGUAGES,
+  learningLanguageLabel,
+  type LearningLanguageCode,
+} from '@/lib/languages'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -15,29 +20,24 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface Lang {
-  code: string
+interface UiLang {
+  code: UiLanguage
   name: string
 }
-const UI_LANGS: Lang[] = [
+const UI_LANGS: UiLang[] = [
   { code: 'en', name: 'English' },
   { code: 'ru', name: 'Русский' },
-]
-const LEARN_LANGS: Lang[] = [
-  { code: 'en', name: 'Английский' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'pt', name: 'Португальский' },
 ]
 
 export function OnboardingForm() {
   const { language: uiLang, t } = useI18n()
   const navigate = useNavigate()
   const setUser = useUserStore((s) => s.setUser)
-  const [learning, setLearning] = useState<Set<string>>(new Set())
+  const [learning, setLearning] = useState<Set<LearningLanguageCode>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  function toggleLearning(code: string) {
+  function toggleLearning(code: LearningLanguageCode) {
     setLearning((prev) => {
       const next = new Set(prev)
       if (next.has(code)) next.delete(code)
@@ -98,15 +98,16 @@ export function OnboardingForm() {
       <div className="space-y-2">
         <Label>{t('Я хочу изучать')}</Label>
         <div className="space-y-2 rounded-md border p-3">
-          {LEARN_LANGS.map((l) => (
-            <label key={l.code} className="flex items-center gap-2 text-sm">
+          {LEARNING_LANGUAGES.map((item) => (
+            <label key={item.code} className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={learning.has(l.code)}
+                checked={learning.has(item.code)}
                 onCheckedChange={() => {
-                  toggleLearning(l.code)
+                  toggleLearning(item.code)
                 }}
               />
-              {t(l.name)}
+              <span aria-hidden="true">{item.flag}</span>
+              <span>{learningLanguageLabel(item.code, uiLang)}</span>
             </label>
           ))}
         </div>

@@ -3,19 +3,21 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
+from flinq.core.languages import LearningLanguageCode
 from flinq.modules.dictionary.links import render_external_links
 from flinq.modules.dictionary.provider import WIKTIONARY_ATTRIBUTION, WiktionaryLocalProvider
+from flinq.modules.dictionary.repo import DictionaryRepo
 from flinq.modules.dictionary.schemas import DictionaryLookupResponse, ExternalLinkOut
 
 router = APIRouter(prefix="/api/dictionary", tags=["dictionary"])
 
-LangCode = Literal["en", "ru", "pt"]
+LangCode = LearningLanguageCode
 
 
 def _require_user(request: Request) -> uuid.UUID:
@@ -40,5 +42,10 @@ async def lookup(
         for link in render_external_links(text, lang, target)
     ]
     return DictionaryLookupResponse(
-        entries=entries, attribution=WIKTIONARY_ATTRIBUTION, external_links=links
+        availability="available"
+        if await DictionaryRepo(session).has_active_pair(lang, target)
+        else "not_installed",
+        entries=entries,
+        attribution=WIKTIONARY_ATTRIBUTION,
+        external_links=links,
     )

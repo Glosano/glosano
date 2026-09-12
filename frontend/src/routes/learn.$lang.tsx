@@ -2,16 +2,15 @@ import { Outlet, createRoute, redirect } from '@tanstack/react-router'
 
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppTopBar } from '@/components/AppTopBar'
+import { isLearningLanguageCode } from '@/lib/languages'
 
 import { rootRoute } from './__rootRoute'
-
-const SUPPORTED_LANGS = new Set(['en', 'ru', 'pt'])
 
 export const learnLangRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/learn/$lang',
   beforeLoad: ({ params }) => {
-    if (!SUPPORTED_LANGS.has(params.lang)) {
+    if (!isLearningLanguageCode(params.lang)) {
       throw redirect({ to: '/' })
     }
   },

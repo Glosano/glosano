@@ -4,6 +4,7 @@ import { getApiErrorKey } from '@/api/client'
 import { meApi } from '@/api/me'
 import { useI18n, type UiLanguage } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
+import { LEARNING_LANGUAGES, learningLanguageLabel } from '@/lib/languages'
 import { buttonClass, FormMessage, inputClass, SettingsSection } from './shared'
 import { useApplyProfile } from './useApplyProfile'
 
@@ -74,24 +75,21 @@ export function PreferencesSettings() {
         <fieldset>
           <legend className="mb-2 text-sm font-medium">{t('Изучаемые языки')}</legend>
           <div className="flex flex-wrap gap-4">
-            {[
-              ['en', 'English'],
-              ['ru', 'Русский'],
-              ['pt', 'Português'],
-            ].map(([code, label]) => (
-              <label key={code} className="flex items-center gap-2 text-sm">
+            {LEARNING_LANGUAGES.map((item) => (
+              <label key={item.code} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={languages.includes(code!)}
+                  checked={languages.includes(item.code)}
                   onChange={(e) =>
                     setLanguages(
                       e.target.checked
-                        ? [...languages, code!]
-                        : languages.filter((l) => l !== code),
+                        ? [...languages, item.code]
+                        : languages.filter((languageCode) => languageCode !== item.code),
                     )
                   }
                 />
-                {label}
+                <span aria-hidden="true">{item.flag}</span>
+                <span>{learningLanguageLabel(item.code, language)}</span>
               </label>
             ))}
           </div>

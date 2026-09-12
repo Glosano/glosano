@@ -15,7 +15,7 @@ async def test_stats_requires_auth(client: AsyncClient) -> None:
 
 async def test_stats_empty_and_language_validation(client: AsyncClient) -> None:
     await register_and_onboard(client, f"{uuid.uuid4()}@example.com")
-    assert (await client.get("/api/stats/overview?lang=de")).status_code == 422
+    assert (await client.get("/api/stats/overview?lang=xx")).status_code == 422
     response = await client.get("/api/stats/overview?lang=pt")
     assert response.status_code == 200
     data = response.json()

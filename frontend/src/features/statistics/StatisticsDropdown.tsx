@@ -7,8 +7,7 @@ import { Popover } from 'radix-ui'
 
 import { statsApi, type StatsOverview } from '@/api/stats'
 import { Button } from '@/components/ui/button'
-
-const LANGUAGES: Record<string, string> = { en: 'Английский', ru: 'Русский', pt: 'Португальский' }
+import { learningLanguageFlag, learningLanguageLabel } from '@/lib/languages'
 
 function utcDay() {
   return new Date().toISOString().slice(0, 10)
@@ -96,9 +95,12 @@ function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: (
       </div>
 
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-semibold">
-          {t('Сегодня ·')} {t(LANGUAGES[data.language_code] ?? data.language_code)}
-        </h3>
+        <div className="flex items-baseline gap-1.5">
+          <span aria-hidden="true">{learningLanguageFlag(data.language_code)}</span>
+          <h3 className="text-sm font-semibold">
+            {t('Сегодня ·')} {learningLanguageLabel(data.language_code, language)}
+          </h3>
+        </div>
         <span className="text-xs text-muted-foreground">{t('Сутки по UTC')}</span>
       </div>
       <dl className="mt-1">

@@ -123,7 +123,7 @@ async def test_create_validates_language() -> None:
             "/api/lessons",
             json={
                 "title": "X",
-                "language_code": "fr",  # not supported
+                "language_code": "xx",  # not supported
                 "raw_text": "x",
             },
             headers={"X-CSRF-Token": csrf},

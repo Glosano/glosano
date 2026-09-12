@@ -2,12 +2,12 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Literal
 
 from sqlalchemy import func, literal, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from flinq.core.languages import LearningLanguageCode
 from flinq.modules.lesson_library.models import Lesson, LessonTokenOccurrence
 from flinq.modules.review.models import ReviewEvent, ReviewItem
 from flinq.modules.review.service import get_counts
@@ -75,7 +75,7 @@ async def get_overview(
     session: AsyncSession,
     *,
     user_id: uuid.UUID,
-    language_code: Literal["en", "ru", "pt"],
+    language_code: LearningLanguageCode,
     now: datetime | None = None,
 ) -> Overview:
     now = (now or datetime.now(UTC)).astimezone(UTC)

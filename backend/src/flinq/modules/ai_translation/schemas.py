@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import uuid
-from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from flinq.core.languages import LearningLanguageCode
 
 
 class TranslateRequest(BaseModel):
     surface_text: str = Field(min_length=1, max_length=256)
     context_text: str = Field(min_length=1, max_length=1000)
-    target_language_code: Literal["en", "ru", "pt"]
+    target_language_code: LearningLanguageCode
     lesson_id: uuid.UUID | None = None
 
 

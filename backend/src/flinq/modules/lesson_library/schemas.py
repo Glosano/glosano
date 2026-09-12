@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from flinq.modules.identity.schemas import SUPPORTED_LEARNING_LANGUAGES
+from flinq.core.languages import SUPPORTED_LEARNING_LANGUAGES
 from flinq.modules.reader_state.schemas import ReaderPositionOut
 
 

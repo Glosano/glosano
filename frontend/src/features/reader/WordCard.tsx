@@ -235,6 +235,11 @@ export function WordCard({
           />
 
           <div data-testid="word-card-suggestions" className="mt-4">
+            {dict.data?.availability === 'not_installed' && (
+              <p className="mb-2 text-sm text-muted-foreground">
+                {tr('Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.')}
+              </p>
+            )}
             {visibleSuggestions.length > 0 && <p className="text-sm font-medium">{tr('Подсказки')}</p>}
             <ul className="mt-1 space-y-1">
               {visibleSuggestions.map((sug, idx) => (

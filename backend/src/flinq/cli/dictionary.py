@@ -34,8 +34,8 @@ async def _run_refresh(source_lang: str, target_lang: str, dump_path: Path, tag:
 
 @app.command()
 def refresh(
-    lang: str = typer.Option(..., help="Source language code (en|ru|pt)."),
-    target: str = typer.Option(..., help="Target language code (en|ru|pt)."),
+    lang: str = typer.Option(..., help="Source learning language code (for example zh-Hans)."),
+    target: str = typer.Option(..., help="Target language code (for example en or ru)."),
     file: Path | None = typer.Option(
         None, exists=True, dir_okay=False, help="Local JSONL[.gz] dump instead of downloading."
     ),

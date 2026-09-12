@@ -113,7 +113,7 @@ def parse_record(
     record: dict[str, Any], *, source_lang: str, target_lang: str
 ) -> ParsedEntry | None:
     """Turn one JSONL record into a ParsedEntry, or None when irrelevant."""
-    if record.get("lang_code") != source_lang:
+    if record.get("lang_code") != ("zh" if source_lang == "zh-Hans" else source_lang):
         return None
     word = record.get("word")
     if not isinstance(word, str) or not word:

@@ -181,7 +181,7 @@ async def set_last_language(
     user_repo: UserRepo,
 ) -> None:
     """Update user_settings.last_learning_language_code."""
-    user = await user_repo.get_by_id_full(user_id)
+    user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     if language_code not in {ll.language_code for ll in user.learning_languages}:
@@ -202,7 +202,7 @@ async def complete_onboarding(
     session: AsyncSession,
 ) -> str:
     """Persist onboarding choices and return the redirect target language."""
-    user = await user_repo.get_by_id_full(user_id)
+    user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
 
@@ -220,7 +220,7 @@ async def complete_onboarding(
 
 
 async def update_profile(user_id: uuid.UUID, *, display_name: str, user_repo: UserRepo) -> None:
-    user = await user_repo.get_by_id_full(user_id)
+    user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     user.profile.display_name = display_name
@@ -235,7 +235,7 @@ async def update_preferences(
     daily_goal_reviews: int,
     user_repo: UserRepo,
 ) -> None:
-    user = await user_repo.get_by_id_full(user_id)
+    user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     user.profile.ui_language_code = ui_language
@@ -286,3 +286,21 @@ async def translation_target(session: AsyncSession, user_id: uuid.UUID) -> str:
     if profile is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     return profile.ui_language_code
+
+
+async def add_learning_language(
+    user_id: uuid.UUID,
+    *,
+    language_code: str,
+    user_repo: UserRepo,
+) -> None:
+    """Append and select a language in one serialized, idempotent transaction."""
+    user = await user_repo.get_by_id_full(user_id, for_update=True)
+    if user is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    if language_code not in {row.language_code for row in user.learning_languages}:
+        user.learning_languages.append(
+            UserLearningLanguage(user_id=user_id, language_code=language_code)
+        )
+    user.settings.last_learning_language_code = language_code
+    await user_repo.session.flush()

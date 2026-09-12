@@ -9,7 +9,7 @@ const navigate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }))
 vi.mock('@/api/me', () => ({ meApi: { onboarding: vi.fn(), get: vi.fn() } }))
 
-import { meApi } from '@/api/me'
+import { meApi, type MeResponse } from '@/api/me'
 import { setUiLanguage } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
 import { OnboardingForm } from './OnboardingForm'
@@ -41,6 +41,17 @@ afterEach(() => {
 })
 
 describe('OnboardingForm localization', () => {
+  it('offers all ten learning languages with localized names and decorative flags', () => {
+    setUiLanguage('en')
+    render(<OnboardingForm />)
+
+    expect(screen.getAllByRole('checkbox')).toHaveLength(10)
+    expect(screen.getByRole('checkbox', { name: 'Chinese (Simplified)' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Arabic' })).toBeInTheDocument()
+    expect(screen.getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('🇸🇦')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it('previews the selected interface language and derives the translation target', async () => {
     const user = userEvent.setup()
     const me = {
@@ -56,7 +67,7 @@ describe('OnboardingForm localization', () => {
       preferred_translation_language_code: 'en' as const,
       daily_goal_minutes: 15,
       daily_goal_reviews: 20,
-    }
+    } satisfies MeResponse
     vi.mocked(meApi.onboarding).mockResolvedValue({ ok: true, redirect: '/learn/pt/library' })
     vi.mocked(meApi.get).mockResolvedValue(me)
     render(<OnboardingForm />)

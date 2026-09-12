@@ -111,6 +111,9 @@ async def test_unknown_word_and_uncovered_pair_return_200_empty(db_session: Asyn
             r = await c.get("/api/dictionary/lookup", params=params)
             assert r.status_code == 200
             body = r.json()
+            assert body["availability"] == (
+                "available" if params["lang"] == "en" else "not_installed"
+            )
             assert body["entries"] == []
             assert body["external_links"]
             assert body["attribution"]["license"] == "CC-BY-SA 4.0"

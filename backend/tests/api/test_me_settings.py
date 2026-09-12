@@ -77,7 +77,7 @@ async def test_preferences_replace_languages_and_synchronize_target(client: Asyn
     [
         {"ui_language": "pt"},
         {"learning_languages": []},
-        {"learning_languages": ["de"]},
+        {"learning_languages": ["xx"]},
         {"daily_goal_minutes": 0},
         {"daily_goal_minutes": 1441},
         {"daily_goal_reviews": 0},

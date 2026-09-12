@@ -5,11 +5,13 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
+from flinq.core.languages import LearningLanguageCode
+
 Count = Annotated[int, Field(ge=0)]
 
 
 class Overview(BaseModel):
-    language_code: Literal["en", "ru", "pt"]
+    language_code: LearningLanguageCode
     date: date
     timezone: Literal["UTC"] = "UTC"
     known_items_count: Count

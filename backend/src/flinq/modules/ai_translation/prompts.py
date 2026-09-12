@@ -10,11 +10,11 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from flinq.core.languages import LANGUAGE_NAMES
+
 _WS_RE = re.compile(r"\s+")
 _LEAD_JUNK_RE = re.compile(r"^\s*(?:[-*•·]+\s+|\d+[.)]\s*)")
 _QUOTES = "\"'«»„“”‚‘’"  # noqa: RUF001 -- U+2019 etc. are the point
-
-LANGUAGE_NAMES: dict[str, str] = {"en": "English", "ru": "Russian", "pt": "Portuguese"}
 
 SYSTEM_PROMPT = (
     "You are a translation assistant inside a language-learning reader. "

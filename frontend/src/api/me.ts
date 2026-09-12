@@ -1,4 +1,5 @@
 import { api } from './client'
+import type { LearningLanguageCode } from '@/lib/languages'
 
 export type UserRole = 'learner' | 'admin'
 
@@ -8,8 +9,8 @@ export interface MeResponse {
   role: UserRole
   display_name: string
   ui_language_code: string
-  learning_languages: string[]
-  last_learning_language_code: string | null
+  learning_languages: LearningLanguageCode[]
+  last_learning_language_code: LearningLanguageCode | null
   needs_onboarding: boolean
   onboarded_at: string | null
   preferred_translation_language_code?: string
@@ -19,14 +20,14 @@ export interface MeResponse {
 
 export interface PreferencesPayload {
   ui_language: 'en' | 'ru'
-  learning_languages: string[]
+  learning_languages: LearningLanguageCode[]
   daily_goal_minutes: number
   daily_goal_reviews: number
 }
 
 export interface OnboardingPayload {
   ui_language: string
-  learning_languages: string[]
+  learning_languages: LearningLanguageCode[]
   translation_language: string
 }
 
@@ -50,9 +51,14 @@ export const meApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  setLastLanguage: (language_code: string) =>
+  setLastLanguage: (language_code: LearningLanguageCode) =>
     api<{ ok: boolean }>('/me/last-language', {
       method: 'PATCH',
+      body: JSON.stringify({ language_code }),
+    }),
+  addLearningLanguage: (language_code: LearningLanguageCode) =>
+    api<MeResponse>('/me/learning-languages', {
+      method: 'POST',
       body: JSON.stringify({ language_code }),
     }),
   delete: (password: string) =>

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
+from flinq.core.languages import LearningLanguageCode
 from flinq.modules.vocabulary import service
 from flinq.modules.vocabulary.models import PersonalTranslation
 from flinq.modules.vocabulary.schemas import (
@@ -37,7 +38,7 @@ from flinq.modules.vocabulary.schemas import (
 
 router = APIRouter(prefix="/api/vocabulary", tags=["vocabulary"])
 
-LangCode = Literal["en", "ru", "pt"]
+LangCode = LearningLanguageCode
 Kind = Literal["token", "phrase"]
 
 

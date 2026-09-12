@@ -11,6 +11,7 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from flinq.core.languages import LearningLanguageCode
 from flinq.modules.vocabulary.schemas import PrimaryTranslationOut
 
 
@@ -120,7 +121,7 @@ class BulkUndoResponse(BaseModel):
 
 
 class SegmentTranslationRequest(BaseModel):
-    target_language_code: Literal["en", "ru", "pt"]
+    target_language_code: LearningLanguageCode
 
 
 class SegmentTranslationResponse(BaseModel):

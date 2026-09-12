@@ -6,17 +6,19 @@ import type { PageSlice } from './pagination'
 import type { PhraseIndex, PhraseMatch } from './phraseMatching'
 import { SentenceTokens } from './SentenceTokens'
 import type { DragRange } from './usePhraseSelection'
+import { learningContentDirection } from '@/lib/languages'
 
 interface Props {
   page: PageSlice
   statuses: StatusMap
   phraseIndex: PhraseIndex
   dragRange: DragRange | null
+  languageCode: string
   onWordClick?: (word: { t: string; n: string; i: number }) => void
   onPhraseClick?: (match: PhraseMatch, sentence: Sentence) => void
 }
 
-export function PageView({ page, statuses, phraseIndex, dragRange, onWordClick, onPhraseClick }: Props) {
+export function PageView({ page, statuses, phraseIndex, dragRange, languageCode, onWordClick, onPhraseClick }: Props) {
   const paragraphOrder: number[] = []
   const paragraphs = new Map<number, PageSlice['sentences']>()
   for (const entry of page.sentences) {
@@ -29,7 +31,7 @@ export function PageView({ page, statuses, phraseIndex, dragRange, onWordClick, 
 
   return (
     <div className="mx-auto max-w-[720px]">
-      <div>
+      <div data-testid="learning-content" dir={learningContentDirection(languageCode)}>
         {paragraphOrder.map((paragraphIndex) => (
           <p key={paragraphIndex} className="mb-4">
             {paragraphs.get(paragraphIndex)!.map((entry, sentenceIdx) => (

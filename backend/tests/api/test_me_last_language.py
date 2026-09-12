@@ -58,7 +58,7 @@ async def test_set_last_language_rejects_unsupported() -> None:
         csrf = await _register_and_onboard(c, "lang-fr@example.com", ["pt"])
         r = await c.patch(
             "/me/last-language",
-            json={"language_code": "fr"},
+            json={"language_code": "xx"},
             headers={"X-CSRF-Token": csrf},
         )
         assert r.status_code == 422

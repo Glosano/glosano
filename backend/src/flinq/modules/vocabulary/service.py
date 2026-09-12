@@ -202,7 +202,7 @@ async def create_item(
         language_code=language_code,
     )
     if kind == "phrase":
-        normalized = normalize_phrase(text)
+        normalized = normalize_phrase(text, language_code=language_code)
         word_count = len(normalized.split(" ")) if normalized else 0
         if not 2 <= word_count <= 8:
             raise InvalidPhrase(text)
@@ -454,7 +454,7 @@ async def lookup(
 ) -> LookupResult:
     _check_kind(kind)
     if kind == "phrase":
-        normalized = normalize_phrase(text)
+        normalized = normalize_phrase(text, language_code=language_code)
         item: VocabItem | None = await _get_phrase_item(
             session, user_id=user_id, language_code=language_code, text=normalized
         )

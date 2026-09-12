@@ -33,7 +33,7 @@
 | 17 | Переходы в reader | Per-page bulk: `new` на странице → `known` при «next page»; `Ignore` и `Add to study` — per-word действия в карточке; `tracked → known` через SRS graduation или вручную | LingQ-style → ADR-0005 |
 | 18 | Streak | Вне MVP | отказ от рекомендации |
 | 19 | Метрики MVP | Прочитанные токены, счётчик `tracked`, счётчик `known`, счётчик `ignored` (вспомогательный) | **зауже** |
-| 20 | Языки изучения | EN, RU, PT | совпадает |
+| 20 | Языки изучения | EN, RU, PT, ES, FR, DE, ZH-Hans, JA, AR, HI | расширено ADR-0012 |
 | 21 | Язык UI | EN, RU | совпадает |
 | 22 | LLM-провайдер | OpenAI-compatible adapter (покрывает облачные и локальные бэкенды) | → ADR-0003 |
 | 23 | Словарь | Wiktionary dump (CC-BY-SA) + provider interface | → ADR-0004 |
@@ -141,7 +141,7 @@
 
 ### 10.1 Поддерживаемые языки
 
-- **Языки изучения:** EN, RU, PT.
+- **Языки изучения:** EN, RU, PT, ES, FR, DE, ZH-Hans (китайский упрощённый), JA, AR, HI. Первоначальное ограничение EN/RU/PT заменено [ADR-0012](../adr/ADR-0012-ten-learning-languages.md), расширение явно согласовано в FLQ-25.
 - **Язык UI:** EN, RU.
 - **Язык перевода:** любой изучаемый может использоваться как язык перевода, так что пары — EN↔RU, EN↔PT, RU↔PT.
 
@@ -193,7 +193,7 @@
 - SSO, tenant isolation, quota management UI.
 - Marketplace контента между инсталляциями.
 - Social feed, комментарии учеников к урокам.
-- Автоматическая поддержка десятков языков.
+- Автоматическая поддержка языков за пределами десяти из [ADR-0012](../adr/ADR-0012-ten-learning-languages.md); автоматическая загрузка словарей для новых пар.
 - Shared AI-кэш между пользователями.
 - FSRS или иной адаптивный SRS на первом релизе (базовый алгоритм допустим).
 - Metrics dashboard с heatmap, cohort analytics, retention-графиками.

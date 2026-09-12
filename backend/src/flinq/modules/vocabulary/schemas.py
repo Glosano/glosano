@@ -8,7 +8,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-LangCode = Literal["en", "ru", "pt"]
+from flinq.core.languages import LearningLanguageCode
+
+LangCode = LearningLanguageCode
 ItemStatus = Literal["tracked", "known", "ignored"]
 
 

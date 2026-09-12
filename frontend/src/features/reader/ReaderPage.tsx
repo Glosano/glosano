@@ -534,6 +534,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
           <div data-testid="page-view-slot">
             <PageView
               page={currentPage}
+              languageCode={content.language_code}
               statuses={statusMap}
               phraseIndex={phraseIndex}
               dragRange={dragRange ?? selectionRange}

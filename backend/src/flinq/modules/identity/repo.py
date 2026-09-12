@@ -48,7 +48,7 @@ class UserRepo:
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return await self.session.get(User, user_id)
 
-    async def get_by_id_full(self, user_id: uuid.UUID) -> User | None:
+    async def get_by_id_full(self, user_id: uuid.UUID, *, for_update: bool = False) -> User | None:
         """Return User with profile, settings, and learning_languages eager-loaded."""
         stmt = (
             select(User)
@@ -59,6 +59,8 @@ class UserRepo:
                 selectinload(User.learning_languages),
             )
         )
+        if for_update:
+            stmt = stmt.with_for_update()
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
     async def mark_onboarded(self, user_id: uuid.UUID, when: datetime) -> None:

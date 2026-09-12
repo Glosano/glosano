@@ -248,6 +248,23 @@ describe('ReaderPage', () => {
     expect(slot).toHaveTextContent('Goodbye now.')
   })
 
+  it('sets RTL direction only on Arabic learning content in both reader modes', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue({ ...baseLesson, language_code: 'ar' })
+    vi.mocked(readerApi.content).mockResolvedValue({ ...content, language_code: 'ar' })
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+
+    renderPage()
+
+    const pageSlot = await screen.findByTestId('page-view-slot')
+    expect(within(pageSlot).getByTestId('learning-content')).toHaveAttribute('dir', 'rtl')
+    expect(screen.getByTestId('reader-page')).not.toHaveAttribute('dir', 'rtl')
+
+    act(() => useReaderStore.setState({ mode: 'sentence' }))
+    const sentenceSlot = await screen.findByTestId('sentence-view-slot')
+    expect(within(sentenceSlot).getByTestId('learning-content')).toHaveAttribute('dir', 'rtl')
+    expect(screen.getByTestId('reader-page')).not.toHaveAttribute('dir', 'rtl')
+  })
+
   it('restores sentence-mode position to the segment referenced by current_segment_id', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,

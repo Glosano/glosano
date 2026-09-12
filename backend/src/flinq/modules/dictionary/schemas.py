@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -35,6 +37,7 @@ class ExternalLinkOut(BaseModel):
 
 
 class DictionaryLookupResponse(BaseModel):
+    availability: Literal["available", "not_installed"] = "available"
     entries: list[DictionaryEntryOut]
     attribution: AttributionOut
     external_links: list[ExternalLinkOut]

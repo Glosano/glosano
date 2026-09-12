@@ -125,7 +125,11 @@ async def process_lesson_import(session: AsyncSession, lesson_id: uuid.UUID) -> 
             session.add(segment)
             await session.flush()  # assign segment.id for the occurrence FK
 
-            for seg_idx, tok in enumerate(tokenize(sentence.text, base_offset=sentence.start)):
+            for seg_idx, tok in enumerate(
+                tokenize(
+                    sentence.text, base_offset=sentence.start, language_code=lesson.language_code
+                )
+            ):
                 session.add(
                     LessonTokenOccurrence(
                         lesson_id=lesson_id,

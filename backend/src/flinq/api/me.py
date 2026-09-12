@@ -12,6 +12,7 @@ from flinq.modules.identity.export import export_user_data
 from flinq.modules.identity.middleware import CSRF_COOKIE, SESSION_COOKIE
 from flinq.modules.identity.repo import UserRepo
 from flinq.modules.identity.schemas import (
+    AddLearningLanguageRequest,
     ChangePasswordRequest,
     DeleteMeRequest,
     MeResponse,
@@ -163,3 +164,18 @@ async def get_export(
             "Cache-Control": "no-store",
         },
     )
+
+
+@router.post("/learning-languages", response_model=MeResponse)
+async def post_learning_language(
+    body: AddLearningLanguageRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> MeResponse:
+    user_id = getattr(request.state, "user_id", None)
+    if user_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    await service.add_learning_language(
+        user_id, language_code=body.language_code, user_repo=UserRepo(session)
+    )
+    return await get_me(request, session)

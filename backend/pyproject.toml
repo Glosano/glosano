@@ -37,6 +37,10 @@ dependencies = [
 
     # Security
     "argon2-cffi>=23.1",
+
+    # Surface segmentation (ADR-0012)
+    "jieba==0.42.1",
+    "tinysegmenter==0.4",
 ]
 
 [project.scripts]
@@ -76,19 +80,27 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "B",    # flake8-bugbear
+    "E",
+    # pycodestyle errors
+    "W",
+    # pycodestyle warnings
+    "F",
+    # pyflakes
+    "I",
+    # isort
+    "B",
+    # flake8-bugbear
     "C4",   # flake8-comprehensions
     "UP",   # pyupgrade
     "SIM",  # flake8-simplify
     "RUF",  # ruff-specific
-    "N",    # pep8-naming
+    "N",
+    # pep8-naming
     "ASYNC", # flake8-async
-    "S",    # flake8-bandit (security)
-    "A",    # flake8-builtins
+    "S",
+    # flake8-bandit (security)
+    "A",
+    # flake8-builtins
     "T20",  # flake8-print
 ]
 ignore = [

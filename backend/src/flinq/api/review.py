@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
+from flinq.core.languages import LearningLanguageCode
 from flinq.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
 from flinq.modules.ai_translation.service import AIDisabled
 from flinq.modules.review import exercises, service
@@ -27,7 +28,7 @@ from flinq.modules.review.schemas import (
 
 router = APIRouter(prefix="/api/review", tags=["review"])
 
-LangCode = Literal["en", "ru", "pt"]
+LangCode = LearningLanguageCode
 
 
 def _require_user(request: Request) -> uuid.UUID:
