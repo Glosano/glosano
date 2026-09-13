@@ -74,7 +74,7 @@ export function PreferencesSettings() {
         </div>
         <fieldset>
           <legend className="mb-2 text-sm font-medium">{t('Изучаемые языки')}</legend>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col items-start gap-3">
             {LEARNING_LANGUAGES.map((item) => (
               <label key={item.code} className="flex items-center gap-2 text-sm">
                 <input
