@@ -14,6 +14,7 @@ export interface LessonSummary {
   created_at: string
   read_percent: number
   new_words_remaining: number
+  can_manage: boolean
 }
 
 export interface LessonListResponse {
@@ -35,9 +36,17 @@ export interface CreateLessonPayload {
   visibility?: LessonVisibility
 }
 
-export type LessonDetail = LessonSummary & {
+export type LessonDetail = Omit<LessonSummary, 'can_manage'> & {
   segment_count: number
   reader_position: ReaderPosition | null
+}
+
+export interface LessonEditData {
+  id: string
+  title: string
+  raw_text: string
+  language_code: string
+  status: LessonStatus
 }
 
 interface ListParams {
@@ -73,4 +82,8 @@ export const lessonsApi = {
     return api<LessonCreated>('/api/lessons/import-file', { method: 'POST', body })
   },
   get: (id: string) => api<LessonDetail>(`/api/lessons/${id}`),
+  getForEdit: (id: string) => api<LessonEditData>(`/api/lessons/${id}/edit`),
+  update: (id: string, data: Pick<LessonEditData, 'title' | 'raw_text'>) =>
+    api<LessonEditData>(`/api/lessons/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string) => api<void>(`/api/lessons/${id}`, { method: 'DELETE' }),
 }

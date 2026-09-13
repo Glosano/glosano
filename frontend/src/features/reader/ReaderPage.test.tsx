@@ -90,6 +90,7 @@ const baseLesson: LessonDetail = {
 
 const content: LessonContent = {
   lesson_id: 'lesson-1',
+  source_version: 1,
   language_code: 'en',
   word_count: 4,
   paragraphs: [
@@ -1058,6 +1059,7 @@ describe('ReaderPage', () => {
         const calls = vi.mocked(readerApi.putPosition).mock.calls.map((call) => call[0])
         expect(calls).toContainEqual({
           lesson_id: 'lesson-1',
+          source_version: 1,
           view_mode: 'page',
           current_segment_id: 'seg-1',
           current_token_ordinal: 3,
@@ -1070,6 +1072,7 @@ describe('ReaderPage', () => {
   it('sends null instead of a negative ordinal for a page with no word tokens', async () => {
     const punctuationOnlyContent: LessonContent = {
       lesson_id: 'lesson-1',
+      source_version: 1,
       language_code: 'en',
       word_count: 0,
       paragraphs: [
@@ -1100,6 +1103,7 @@ describe('ReaderPage', () => {
         const calls = vi.mocked(readerApi.putPosition).mock.calls.map((call) => call[0])
         expect(calls).toContainEqual({
           lesson_id: 'lesson-1',
+          source_version: 1,
           view_mode: 'page',
           current_segment_id: 'seg-punct',
           current_token_ordinal: null,

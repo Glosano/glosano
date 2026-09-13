@@ -55,7 +55,10 @@ describe('usePositionSync', () => {
   })
 
   it('flushes the latest pending payload on unmount before the 2s debounce fires', async () => {
-    const { rerender, unmount } = renderPositionSync({ currentSegmentId: 'seg-1', currentOrdinal: 0 })
+    const { rerender, unmount } = renderPositionSync({
+      currentSegmentId: 'seg-1',
+      currentOrdinal: 0,
+    })
 
     rerender({ currentSegmentId: 'seg-2', currentOrdinal: 10 })
     rerender({ currentSegmentId: 'seg-3', currentOrdinal: 20 })
@@ -69,6 +72,7 @@ describe('usePositionSync', () => {
     expect(callArgs(vi.mocked(readerApi.putPosition))).toEqual([
       {
         lesson_id: 'lesson-1',
+        source_version: 1,
         view_mode: 'page',
         current_segment_id: 'seg-3',
         current_token_ordinal: 20,

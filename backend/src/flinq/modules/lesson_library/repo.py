@@ -140,6 +140,15 @@ class LessonRepo:
         stmt = select(LessonImportJob).where(LessonImportJob.id == job_id).with_for_update()
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
+    async def lock_import_jobs(self, lesson_id: uuid.UUID) -> None:
+        """Use the worker's job-before-lesson lock order for edit/delete."""
+        await self.session.execute(
+            select(LessonImportJob)
+            .where(LessonImportJob.lesson_id == lesson_id)
+            .order_by(LessonImportJob.id)
+            .with_for_update()
+        )
+
     async def delete_facts(self, lesson_id: uuid.UUID) -> None:
         """Remove all segments + occurrences for a lesson (occurrences first)."""
         await self.session.execute(

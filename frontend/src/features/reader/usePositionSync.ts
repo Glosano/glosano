@@ -12,11 +12,12 @@ interface Params {
   currentOrdinal: number | null
   enabled: boolean
   lang: string
+  sourceVersion?: number
 }
 
 const DEBOUNCE_MS = 2000
 
-type PositionPayload = { lesson_id: string } & ReaderPosition
+type PositionPayload = { lesson_id: string; source_version: number } & ReaderPosition
 
 export function usePositionSync({
   lessonId,
@@ -25,8 +26,9 @@ export function usePositionSync({
   currentOrdinal,
   enabled,
   lang,
+  sourceVersion = 1,
 }: Params) {
-  const { mutate } = usePutPosition(lang)
+  const { mutate, error } = usePutPosition(lang)
   const mutateRef = useRef(mutate)
   mutateRef.current = mutate
 
@@ -38,6 +40,7 @@ export function usePositionSync({
 
     const payload: PositionPayload = {
       lesson_id: lessonId,
+      source_version: sourceVersion,
       view_mode: mode,
       current_segment_id: currentSegmentId,
       current_token_ordinal: currentOrdinal,
@@ -57,7 +60,7 @@ export function usePositionSync({
         timerRef.current = null
       }
     }
-  }, [enabled, lessonId, mode, currentSegmentId, currentOrdinal])
+  }, [enabled, lessonId, mode, currentSegmentId, currentOrdinal, sourceVersion])
 
   // Flush any pending update immediately on unmount rather than losing it.
   // NOTE: this must NOT gate on timerRef — effect cleanups run in declaration
@@ -72,4 +75,5 @@ export function usePositionSync({
       }
     }
   }, [])
+  return { error }
 }

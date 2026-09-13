@@ -46,6 +46,7 @@ class ParagraphOut(BaseModel):
 
 class LessonContentResponse(BaseModel):
     lesson_id: uuid.UUID
+    source_version: int = 1
     language_code: str
     word_count: int
     paragraphs: list[ParagraphOut]
@@ -86,6 +87,7 @@ class LessonVocabularyResponse(BaseModel):
 
 class ReaderPositionPut(BaseModel):
     lesson_id: uuid.UUID
+    source_version: int = Field(default=1, ge=1)
     view_mode: Literal["page", "sentence"]
     current_segment_id: uuid.UUID | None
     current_token_ordinal: int | None = Field(default=None, ge=0)
@@ -101,6 +103,7 @@ class ReaderPositionOut(BaseModel):
 
 class BulkKnownRequest(BaseModel):
     lesson_id: uuid.UUID
+    source_version: int = Field(default=1, ge=1)
     from_ordinal: int = Field(ge=0)
     to_ordinal: int = Field(ge=0)
 

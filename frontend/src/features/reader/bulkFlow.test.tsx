@@ -106,6 +106,7 @@ const sentence2 = makeSentence('seg-2', 1, 250, 10)
 
 const content: LessonContent = {
   lesson_id: 'lesson-1',
+  source_version: 1,
   language_code: 'en',
   word_count: 260,
   paragraphs: [{ sentences: [sentence1, sentence2] }],
@@ -213,6 +214,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
         lesson_id: 'lesson-1',
+        source_version: 1,
         from_ordinal: 0,
         to_ordinal: 249,
       }),
@@ -241,6 +243,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
         lesson_id: 'lesson-1',
+        source_version: 1,
         from_ordinal: 0,
         to_ordinal: 249,
       }),
@@ -265,6 +268,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
         lesson_id: 'lesson-1',
+        source_version: 1,
         from_ordinal: 0,
         to_ordinal: 249,
       }),
@@ -292,6 +296,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
         lesson_id: 'lesson-1',
+        source_version: 1,
         from_ordinal: 0,
         to_ordinal: 249,
       }),

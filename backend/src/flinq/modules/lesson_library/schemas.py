@@ -40,6 +40,7 @@ class LessonSummary(BaseModel):
     # поэтому нужны значения по умолчанию — model_validate(lesson) их не найдёт.
     read_percent: int = 0
     new_words_remaining: int = 0
+    can_manage: bool = False
 
 
 class LessonListResponse(BaseModel):
@@ -66,3 +67,27 @@ class LessonStatusResponse(BaseModel):
     visibility: str
     created_at: datetime
     reader_position: ReaderPositionOut | None = None
+
+
+class LessonEditResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    raw_text: str
+    language_code: str
+    status: str
+
+
+class UpdateLessonRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=200)
+    raw_text: str = Field(min_length=1)
+
+    @field_validator("title", "raw_text")
+    @classmethod
+    def _nonblank(cls, value: str) -> str:
+        if not value.strip() or "\x00" in value:
+            raise ValueError("must contain non-empty text without null characters")
+        return value

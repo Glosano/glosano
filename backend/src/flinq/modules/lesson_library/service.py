@@ -6,6 +6,7 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
+from sqlalchemy import delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.modules.lesson_library.models import (
@@ -15,9 +16,12 @@ from flinq.modules.lesson_library.models import (
 )
 from flinq.modules.lesson_library.repo import LessonRepo
 from flinq.modules.lesson_library.tokenization import RegexSegmenter, tokenize
+from flinq.modules.reader_state.models import BulkAction, ReaderPosition
+from flinq.modules.statistics.models import DailyReadOccurrence
+from flinq.modules.vocabulary.models import PhraseItem, TokenItem
 
-# Lesson statuses from which (re)processing is allowed. A `ready` lesson is
-# immutable (domain model §14.1), so it is never reprocessed.
+# Ordinary import deliveries cannot overwrite ready content. Explicit edits
+# create a source version before reprocessing in the same transaction (ADR-0013).
 _PROCESSABLE = {"processing", "failed"}
 
 
@@ -87,6 +91,70 @@ async def mark_import_failed(
         job.status = "failed"
         job.error_message = error
         job.finished_at = datetime.now(UTC)
+    await session.flush()
+
+
+async def get_owned_lesson(
+    session: AsyncSession, *, lesson_id: uuid.UUID, user_id: uuid.UUID, lock: bool = False
+) -> Lesson:
+    repo = LessonRepo(session)
+    lesson = await repo.get_lesson(lesson_id)
+    if lesson is None or lesson.owner_user_id != user_id:
+        raise LessonNotFoundError(str(lesson_id))
+    if lock:
+        await repo.lock_import_jobs(lesson_id)
+        lesson = await repo.lock_lesson(lesson_id)
+        if lesson is None or lesson.owner_user_id != user_id:
+            raise LessonNotFoundError(str(lesson_id))
+        # The row may have changed while we waited for a worker's transaction.
+        await session.refresh(lesson)
+    return lesson
+
+
+async def update_lesson(
+    session: AsyncSession, *, lesson_id: uuid.UUID, user_id: uuid.UUID, title: str, raw_text: str
+) -> Lesson:
+    """Apply an explicit source revision atomically; caller commits or rolls back."""
+    lesson = await get_owned_lesson(session, lesson_id=lesson_id, user_id=user_id, lock=True)
+    if lesson.status == "processing":
+        raise LessonNotProcessableError("lesson is still processing")
+    canonical = _normalize_newlines(raw_text)
+    lesson.title = title.strip()
+    if canonical != lesson.raw_text:
+        lesson.raw_text = canonical
+        lesson.current_source_version += 1
+        repo = LessonRepo(session)
+        await repo.add_source(
+            lesson_id=lesson_id,
+            content_hash=content_hash(canonical),
+            version_number=lesson.current_source_version,
+        )
+        # Ordinals and segment IDs refer to the old content. Historical totals
+        # and personal learning items are independent and must survive.
+        for model in (ReaderPosition, BulkAction, DailyReadOccurrence):
+            await session.execute(delete(model).where(model.lesson_id == lesson_id))
+        for model in (TokenItem, PhraseItem):
+            await session.execute(
+                update(model)
+                .where(model.created_from_lesson_id == lesson_id)
+                .values(created_from_segment_id=None)
+            )
+        lesson.status = "processing"
+        await process_lesson_import(session, lesson_id)
+    await session.flush()
+    return lesson
+
+
+async def delete_lesson(session: AsyncSession, *, lesson_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    lesson = await get_owned_lesson(session, lesson_id=lesson_id, user_id=user_id, lock=True)
+    for model in (TokenItem, PhraseItem):
+        await session.execute(
+            update(model)
+            .where(model.created_from_lesson_id == lesson_id)
+            .values(created_from_segment_id=None)
+        )
+    # Cascades remove lesson facts/state; vocabulary provenance uses SET NULL.
+    await session.delete(lesson)
     await session.flush()
 
 

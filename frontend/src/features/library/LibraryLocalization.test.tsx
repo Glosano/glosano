@@ -73,6 +73,7 @@ describe('Library localization', () => {
               created_at: '',
               read_percent: 0,
               new_words_remaining: 10,
+              can_manage: true,
             },
           ]}
         />

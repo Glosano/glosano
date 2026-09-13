@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile, status
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,9 +17,11 @@ from flinq.modules.lesson_library.repo import LessonRepo
 from flinq.modules.lesson_library.schemas import (
     CreateLessonRequest,
     LessonCreatedResponse,
+    LessonEditResponse,
     LessonListResponse,
     LessonStatusResponse,
     LessonSummary,
+    UpdateLessonRequest,
 )
 from flinq.modules.reader_state.positions import get_position
 from flinq.modules.reader_state.schemas import ReaderPositionOut
@@ -67,6 +69,7 @@ async def list_lessons(
                 update={
                     "read_percent": item_progress.read_percent,
                     "new_words_remaining": item_progress.new_words_remaining,
+                    "can_manage": item.owner_user_id == user_id,
                 }
             )
         )
@@ -197,3 +200,49 @@ async def get_lesson(
     position = await get_position(session, user_id=user_id, lesson_id=lesson_id)
     resp.reader_position = ReaderPositionOut.model_validate(position) if position else None
     return resp
+
+
+@router.get("/{lesson_id}/edit", response_model=LessonEditResponse)
+async def get_lesson_for_edit(
+    lesson_id: uuid.UUID, request: Request, session: AsyncSession = Depends(get_session)
+) -> LessonEditResponse:
+    try:
+        lesson = await service.get_owned_lesson(
+            session, lesson_id=lesson_id, user_id=_require_user(request)
+        )
+    except service.LessonNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from exc
+    return LessonEditResponse.model_validate(lesson)
+
+
+@router.patch("/{lesson_id}", response_model=LessonEditResponse)
+async def update_lesson(
+    lesson_id: uuid.UUID,
+    body: UpdateLessonRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> LessonEditResponse:
+    try:
+        lesson = await service.update_lesson(
+            session,
+            lesson_id=lesson_id,
+            user_id=_require_user(request),
+            title=body.title,
+            raw_text=body.raw_text,
+        )
+    except service.LessonNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from exc
+    except service.LessonNotProcessableError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "lesson is still processing") from exc
+    return LessonEditResponse.model_validate(lesson)
+
+
+@router.delete("/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lesson(
+    lesson_id: uuid.UUID, request: Request, session: AsyncSession = Depends(get_session)
+) -> Response:
+    try:
+        await service.delete_lesson(session, lesson_id=lesson_id, user_id=_require_user(request))
+    except service.LessonNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

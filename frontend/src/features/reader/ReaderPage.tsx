@@ -1,6 +1,7 @@
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { ApiError } from '@/api/client'
 
 import { isWord, type LessonVocabularyItem, type Sentence } from '@/api/reader'
 import { cn } from '@/lib/utils'
@@ -308,6 +309,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       {
         lesson_id: lessonId,
         from_ordinal: currentPage.fromOrdinal,
+        source_version: content?.source_version ?? 1,
         to_ordinal: currentPage.toOrdinal,
       },
       {
@@ -352,6 +354,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       {
         lesson_id: lessonId,
         from_ordinal: firstWord.i,
+        source_version: content?.source_version ?? 1,
         to_ordinal: lastWord.i,
       },
       {
@@ -401,8 +404,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
       ? currentOrdinalForProgress
       : null
 
-  usePositionSync({
+  const { error: positionError } = usePositionSync({
     lessonId,
+    sourceVersion: content?.source_version ?? 1,
     mode,
     currentSegmentId: positionSegmentId,
     currentOrdinal: positionOrdinal,
@@ -430,6 +434,24 @@ export function ReaderPage({ lang, lessonId }: Props) {
     const timer = window.setTimeout(() => setBulkErrorVisible(false), 4000)
     return () => window.clearTimeout(timer)
   }, [bulkErrorVisible])
+
+  if (
+    [positionError, bulkKnown.error].some(
+      (error) => error instanceof ApiError && error.detail === 'lesson_version_changed',
+    )
+  ) {
+    return (
+      <div
+        role="alert"
+        className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center gap-4 px-6 text-center"
+      >
+        <p>{tr('Материал изменился. Обновите страницу, чтобы продолжить чтение.')}</p>
+        <a href={`/learn/${lang}/lessons/${lessonId}`} className="text-primary underline">
+          {tr('Обновить страницу')}
+        </a>
+      </div>
+    )
+  }
 
   if (lessonDetailError) {
     return (
@@ -564,7 +586,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
         <>
           <button
             type="button"
-            aria-label={mode === 'sentence' ? tr('Предыдущее предложение') : tr('Предыдущая страница')}
+            aria-label={
+              mode === 'sentence' ? tr('Предыдущее предложение') : tr('Предыдущая страница')
+            }
             onClick={handlePrev}
             disabled={mode === 'sentence' ? !canPrevSentence : !canPrev}
             className="fixed left-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
@@ -573,7 +597,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
           </button>
           <button
             type="button"
-            aria-label={mode === 'sentence' ? tr('Следующее предложение') : tr('Следующая страница')}
+            aria-label={
+              mode === 'sentence' ? tr('Следующее предложение') : tr('Следующая страница')
+            }
             onClick={handleNext}
             disabled={mode === 'sentence' ? !canNextSentence : !canNext}
             className={cn(

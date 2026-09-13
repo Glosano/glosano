@@ -17,6 +17,7 @@ const lesson: LessonSummary = {
   created_at: '2026-07-25T00:00:00Z',
   read_percent: 42,
   new_words_remaining: 87,
+  can_manage: true,
 }
 
 describe('LessonCard', () => {

@@ -8,6 +8,7 @@ import { onboardingRoute } from './routes/onboarding'
 import { learnLangRoute } from './routes/learn.$lang'
 import { learnLibraryRoute } from './routes/learn.$lang.library'
 import { learnLessonRoute } from './routes/learn.$lang.lessons.$lessonId'
+import { learnLessonEditRoute } from './routes/learn.$lang.lessons.$lessonId.edit'
 import { learnVocabularyRoute } from './routes/learn.$lang.vocabulary'
 import { learnReviewRoute } from './routes/learn.$lang.review'
 import {
@@ -41,6 +42,7 @@ export const routeTree = rootRoute.addChildren([
   learnLangRoute.addChildren([
     learnLibraryRoute,
     learnLessonRoute,
+    learnLessonEditRoute,
     learnVocabularyRoute,
     learnReviewRoute,
   ]),

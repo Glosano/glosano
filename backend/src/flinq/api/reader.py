@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.core.db import get_session
@@ -53,8 +54,19 @@ def _require_user(request: Request) -> uuid.UUID:
 
 
 async def _load_lesson(
-    session: AsyncSession, lesson_id: uuid.UUID, user_id: uuid.UUID, *, require_ready: bool = True
+    session: AsyncSession,
+    lesson_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    require_ready: bool = True,
+    lock_content: bool = False,
 ) -> Lesson:
+    if lock_content:
+        # Keep revision checks, ordinal writes and multi-query content assembly
+        # on one version while allowing readers to run concurrently (ADR-0013).
+        await session.execute(
+            select(Lesson).where(Lesson.id == lesson_id).with_for_update(read=True)
+        )
     try:
         return await get_readable_lesson(session, lesson_id, user_id, require_ready=require_ready)
     except LessonNotFound:
@@ -65,6 +77,11 @@ async def _load_lesson(
         raise HTTPException(status.HTTP_409_CONFLICT, detail="lesson_not_ready") from None
 
 
+def _check_source_version(lesson: Lesson, source_version: int) -> None:
+    if lesson.current_source_version != source_version:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="lesson_version_changed")
+
+
 @router.get("/lessons/{lesson_id}/content", response_model=LessonContentResponse)
 async def lesson_content(
     lesson_id: uuid.UUID,
@@ -72,7 +89,7 @@ async def lesson_content(
     session: AsyncSession = Depends(get_session),
 ) -> LessonContentResponse:
     user_id = _require_user(request)
-    lesson = await _load_lesson(session, lesson_id, user_id)
+    lesson = await _load_lesson(session, lesson_id, user_id, lock_content=True)
     return await build_lesson_content(session, lesson)
 
 
@@ -113,7 +130,10 @@ async def put_reader_position(
 ) -> None:
     user_id = _require_user(request)
     # Positions may be written for a lesson still processing (e.g. mode preference).
-    await _load_lesson(session, body.lesson_id, user_id, require_ready=False)
+    lesson = await _load_lesson(
+        session, body.lesson_id, user_id, require_ready=False, lock_content=True
+    )
+    _check_source_version(lesson, body.source_version)
     await upsert_position(
         session,
         user_id=user_id,
@@ -168,7 +188,8 @@ async def bulk_known(
     session: AsyncSession = Depends(get_session),
 ) -> BulkKnownResponse:
     user_id = _require_user(request)
-    lesson = await _load_lesson(session, body.lesson_id, user_id)
+    lesson = await _load_lesson(session, body.lesson_id, user_id, lock_content=True)
+    _check_source_version(lesson, body.source_version)
     action_id, created_count = await bulk_mark_known(
         session,
         user_id=user_id,

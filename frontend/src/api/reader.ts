@@ -27,6 +27,7 @@ export interface Paragraph {
 }
 export interface LessonContent {
   lesson_id: string
+  source_version: number
   language_code: string
   word_count: number
   paragraphs: Paragraph[]
@@ -85,9 +86,14 @@ export const readerApi = {
     const params = new URLSearchParams({ target })
     return api<LessonVocabularyResponse>(`/api/lessons/${lessonId}/vocabulary?${params}`)
   },
-  putPosition: (body: { lesson_id: string } & ReaderPosition) =>
+  putPosition: (body: { lesson_id: string; source_version?: number } & ReaderPosition) =>
     api<void>('/api/reader/positions', { method: 'PUT', body: JSON.stringify(body) }),
-  bulkKnown: (body: { lesson_id: string; from_ordinal: number; to_ordinal: number }) =>
+  bulkKnown: (body: {
+    lesson_id: string
+    source_version?: number
+    from_ordinal: number
+    to_ordinal: number
+  }) =>
     api<BulkKnownResult>('/api/reader/bulk-known', { method: 'POST', body: JSON.stringify(body) }),
   undoBulk: (actionId: string) =>
     api<{ undone_count: number }>(`/api/reader/bulk-actions/${actionId}/undo`, { method: 'POST' }),

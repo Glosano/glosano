@@ -92,6 +92,7 @@ async def build_lesson_content(session: AsyncSession, lesson: Lesson) -> LessonC
         para_out.append(ParagraphOut(sentences=inner))
     return LessonContentResponse(
         lesson_id=lesson.id,
+        source_version=lesson.current_source_version,
         language_code=lesson.language_code,
         word_count=word_count,
         paragraphs=para_out,
