@@ -53,6 +53,8 @@ async def test_put_position_then_get_lesson_reflects_it(
         assert r.status_code == 200
         body = r.json()
         assert body["reader_position"] == {
+            "completed_at": None,
+            "completion_action_id": None,
             "view_mode": "sentence",
             "current_segment_id": seg_id,
             "current_token_ordinal": 3,
@@ -106,6 +108,8 @@ async def test_second_put_updates_same_row_no_duplicate(
         r = await c.get(f"/api/lessons/{lesson_id}")
         body = r.json()
         assert body["reader_position"] == {
+            "completed_at": None,
+            "completion_action_id": None,
             "view_mode": "sentence",
             "current_segment_id": seg_id_2,
             "current_token_ordinal": 5,

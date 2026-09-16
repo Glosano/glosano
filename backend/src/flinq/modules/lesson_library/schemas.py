@@ -41,6 +41,7 @@ class LessonSummary(BaseModel):
     read_percent: int = 0
     new_words_remaining: int = 0
     can_manage: bool = False
+    completed_at: datetime | None = None
 
 
 class LessonListResponse(BaseModel):

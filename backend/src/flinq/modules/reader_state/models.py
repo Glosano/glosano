@@ -22,6 +22,8 @@ class ReaderPosition(Base):
     view_mode: Mapped[str] = mapped_column(String(16), default="page")  # page | sentence
     current_segment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     current_token_ordinal: Mapped[int | None] = mapped_column()
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completion_action_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     last_opened_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

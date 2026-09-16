@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import type { ViewMode } from './readerStore'
 
 interface Props {
+  disabled?: boolean
   mode: ViewMode
   onToggleMode: () => void
   /** Сжать сетку действий на ширину открытой боковой панели WordCard. */
@@ -37,7 +38,7 @@ function Action({ icon, label, onClick, disabled, title }: ActionProps) {
   )
 }
 
-export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview }: Props) {
+export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview, disabled }: Props) {
   const tr = useTranslation()
   return (
     <div className="fixed inset-x-0 bottom-0 z-[var(--z-fixed)] border-t border-border bg-background">
@@ -51,13 +52,14 @@ export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview }: Props
         <Action
           icon="📖"
           label={mode === 'sentence' ? tr('Показать всю страницу') : tr('По предложениям')}
+          disabled={disabled}
           onClick={onToggleMode}
         />
         <Action
           icon="✓"
           label={tr('Повторить лексику')}
           onClick={onReview}
-          disabled={!onReview}
+          disabled={disabled || !onReview}
           title={onReview ? undefined : tr('Скоро (FLQ-7)')}
         />
       </div>

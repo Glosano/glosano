@@ -13,11 +13,12 @@ import math
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.lesson_library.models import LessonTokenOccurrence
+from flinq.modules.lesson_library.models import Lesson, LessonTokenOccurrence
 from flinq.modules.reader_state.models import ReaderPosition
 from flinq.modules.vocabulary.models import TokenItem
 
@@ -26,6 +27,7 @@ from flinq.modules.vocabulary.models import TokenItem
 class LessonProgress:
     read_percent: int
     new_words_remaining: int
+    completed_at: datetime | None = None
 
 
 #: Урок, по которому агрегат не вернул строки (в тексте нет word-like токенов).
@@ -62,8 +64,8 @@ async def progress_for_lessons(
     (user_id, lesson_id), token_items — по (user_id, language_code,
     token_text). Поэтому MAX(rp.current_token_ordinal) — это способ протащить
     позицию через GROUP BY, а COUNT(DISTINCT ...) считает ровно то, что
-    заявлено. Уроки без word-like токенов в результат не попадают — вызывающий
-    подставляет им ZERO_PROGRESS.
+    заявлено. LEFT JOIN от lessons сохраняет завершение материалов без слов.
+    Подтверждённое завершение имеет приоритет над текущей позицией перечитывания.
 
     Инвариант, которым эта функция не владеет, но на который полагается:
     `token_items` соединяется по единому `lang`, а не по `language_code`
@@ -78,21 +80,22 @@ async def progress_for_lessons(
     occ = LessonTokenOccurrence
     stmt = (
         select(
-            occ.lesson_id,
+            Lesson.id,
             func.max(occ.ordinal_in_lesson),
             func.max(ReaderPosition.current_token_ordinal),
+            func.max(ReaderPosition.completed_at),
             func.count(distinct(occ.normalized_text)).filter(
                 TokenItem.id.is_(None),
                 occ.normalized_text != "",
-                occ.ordinal_in_lesson
-                > func.coalesce(ReaderPosition.current_token_ordinal, -1),
+                occ.ordinal_in_lesson > func.coalesce(ReaderPosition.current_token_ordinal, -1),
             ),
         )
-        .select_from(occ)
+        .select_from(Lesson)
+        .outerjoin(occ, and_(occ.lesson_id == Lesson.id, occ.is_word_like.is_(True)))
         .outerjoin(
             ReaderPosition,
             and_(
-                ReaderPosition.lesson_id == occ.lesson_id,
+                ReaderPosition.lesson_id == Lesson.id,
                 ReaderPosition.user_id == user_id,
             ),
         )
@@ -104,15 +107,16 @@ async def progress_for_lessons(
                 TokenItem.token_text == occ.normalized_text,
             ),
         )
-        .where(occ.lesson_id.in_(lesson_ids), occ.is_word_like.is_(True))
-        .group_by(occ.lesson_id)
+        .where(Lesson.id.in_(lesson_ids))
+        .group_by(Lesson.id)
     )
 
     rows = (await session.execute(stmt)).all()
     return {
         lesson_id: LessonProgress(
-            read_percent=read_percent(position, max_ordinal),
+            read_percent=100 if completed_at else read_percent(position, max_ordinal),
+            completed_at=completed_at,
             new_words_remaining=new_remaining,
         )
-        for lesson_id, max_ordinal, position, new_remaining in rows
+        for lesson_id, max_ordinal, position, completed_at, new_remaining in rows
     }

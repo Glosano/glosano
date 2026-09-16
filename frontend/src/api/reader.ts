@@ -41,6 +41,8 @@ export interface TokenStatusEntry {
 export type StatusMap = Record<string, TokenStatusEntry>
 
 export interface ReaderPosition {
+  completed_at?: string | null
+  completion_action_id?: string | null
   view_mode: 'page' | 'sentence'
   current_segment_id: string | null
   current_token_ordinal: number | null
@@ -48,6 +50,30 @@ export interface ReaderPosition {
 export interface BulkKnownResult {
   action_id: string
   created_count: number
+}
+export interface CompleteLessonRequest {
+  lesson_id: string
+  source_version: number
+  view_mode: 'page' | 'sentence'
+  last_segment_id: string | null
+  from_ordinal: number | null
+  to_ordinal: number | null
+}
+export interface CompletionSummary {
+  total_words: number
+  unique_words: number
+  known_words: number
+  new_words: number
+  tracked_words: number
+  ignored_words: number
+  added_words: number
+  added_phrases: number
+  reading_days: number
+  marked_known_words: number
+}
+export interface CompleteLessonResult extends BulkKnownResult {
+  completed_at: string
+  summary?: CompletionSummary | null
 }
 export interface SegmentTranslation {
   text: string
@@ -95,6 +121,15 @@ export const readerApi = {
     to_ordinal: number
   }) =>
     api<BulkKnownResult>('/api/reader/bulk-known', { method: 'POST', body: JSON.stringify(body) }),
+  completionSummary: (lessonId: string, actionId: string) =>
+    api<CompleteLessonResult>(
+      `/api/lessons/${lessonId}/completion-summary?action_id=${encodeURIComponent(actionId)}`,
+    ),
+  complete: (body: CompleteLessonRequest) =>
+    api<CompleteLessonResult>('/api/reader/complete', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   undoBulk: (actionId: string) =>
     api<{ undone_count: number }>(`/api/reader/bulk-actions/${actionId}/undo`, { method: 'POST' }),
   segmentTranslation: (lessonId: string, segId: string, target: string) =>

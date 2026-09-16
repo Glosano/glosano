@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { lessonsApi } from '@/api/lessons'
+import { ApiError } from '@/api/client'
+import { lessonsApi, type LessonDetail } from '@/api/lessons'
 import { readerApi } from '@/api/reader'
 import { vocabularyApi } from '@/api/vocabulary'
 import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
@@ -70,16 +71,85 @@ export function useBulkKnown(lessonId: string, lang: string) {
   })
 }
 
+export function useCompleteLesson(_lessonId: string, lang: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: readerApi.complete,
+    onMutate: () => ({ lang }),
+    onSuccess: async (result, body, context) => {
+      const lessonId = body.lesson_id
+      queryClient.setQueryData(['completion-summary', lessonId, result.action_id], result)
+      await queryClient.cancelQueries({ queryKey: ['lesson', lessonId] })
+      queryClient.setQueryData<LessonDetail>(['lesson', lessonId], (old) =>
+        old
+          ? {
+              ...old,
+              reader_position: {
+                view_mode: body.view_mode,
+                current_segment_id: body.last_segment_id,
+                current_token_ordinal: body.to_ordinal,
+                completed_at: result.completed_at,
+                completion_action_id: result.action_id,
+              },
+            }
+          : old,
+      )
+      return Promise.all([
+        invalidateVocabularyViews(queryClient),
+        queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] }),
+        queryClient.invalidateQueries({ queryKey: ['lessons', context?.lang ?? lang] }),
+      ]).then(() => undefined)
+    },
+  })
+}
+
 export function useUndoBulk(lessonId: string, lang: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: readerApi.undoBulk,
-    onSuccess: () =>
-      Promise.all([
+    mutationFn: async (actionId: string) => {
+      try {
+        return await readerApi.undoBulk(actionId)
+      } catch (error) {
+        // The write may have succeeded even when its response was lost.
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          error.detail === 'already_undone'
+        ) {
+          return { undone_count: 0, reconcile: true }
+        }
+        throw error
+      }
+    },
+    onMutate: () => ({ lessonId, lang }),
+    onSuccess: async (result, actionId, context) => {
+      const targetLessonId = context?.lessonId ?? lessonId
+      await queryClient.cancelQueries({ queryKey: ['lesson', targetLessonId] })
+      if ('reconcile' in result) {
+        await queryClient.fetchQuery({
+          queryKey: ['lesson', targetLessonId],
+          queryFn: () => lessonsApi.get(targetLessonId),
+          staleTime: 0,
+        })
+      } else
+        queryClient.setQueryData<LessonDetail>(['lesson', targetLessonId], (old) =>
+          old?.reader_position?.completion_action_id === actionId
+            ? {
+                ...old,
+                reader_position: {
+                  ...old.reader_position,
+                  completed_at: null,
+                  completion_action_id: null,
+                },
+              }
+            : old,
+        )
+      return Promise.all([
         invalidateVocabularyViews(queryClient),
-        queryClient.invalidateQueries({ queryKey: ['reader-statuses', lessonId] }),
-        queryClient.invalidateQueries({ queryKey: ['lessons', lang] }),
-      ]).then(() => undefined),
+        queryClient.invalidateQueries({ queryKey: ['reader-statuses', targetLessonId] }),
+        queryClient.invalidateQueries({ queryKey: ['lessons', context?.lang ?? lang] }),
+      ]).then(() => undefined)
+    },
   })
 }
 

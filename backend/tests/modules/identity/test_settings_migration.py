@@ -62,7 +62,7 @@ async def test_translation_migration_preserves_legacy_and_refuses_unsafe_downgra
             )
             user_id, segment_id = user.id, segment.id
             await session.commit()
-        migrate("head")
+        migrate("0017_ui_language_translation")
         async with AsyncSession(engine) as session:
             user = await UserRepo(session).get_by_id_full(user_id)
             assert user and user.settings.preferred_translation_language_code == "ru"
@@ -96,7 +96,7 @@ async def test_translation_migration_preserves_legacy_and_refuses_unsafe_downgra
                 await conn.scalar(text("SELECT translation_text FROM lesson_segment_translations"))
                 == "legacy"
             )
-        migrate("head")
+        migrate("0017_ui_language_translation")
         async with engine.connect() as conn:
             assert await conn.scalar(text("SELECT count(*) FROM lesson_segment_translations")) == 1
         await engine.dispose()

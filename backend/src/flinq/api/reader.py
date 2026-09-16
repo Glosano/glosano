@@ -26,12 +26,16 @@ from flinq.modules.reader_state.bulk import (
     bulk_mark_known,
     undo_bulk_action,
 )
+from flinq.modules.reader_state.completion import InvalidFinalFragment, complete_lesson
+from flinq.modules.reader_state.completion_summary import get_completion_summary
 from flinq.modules.reader_state.content import build_lesson_content
 from flinq.modules.reader_state.positions import upsert_position
 from flinq.modules.reader_state.schemas import (
     BulkKnownRequest,
     BulkKnownResponse,
     BulkUndoResponse,
+    CompleteLessonRequest,
+    CompleteLessonResponse,
     LessonContentResponse,
     LessonVocabularyResponse,
     ReaderPositionPut,
@@ -214,3 +218,37 @@ async def undo_bulk_known(
     except ActionAlreadyUndone:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="already_undone") from None
     return BulkUndoResponse(undone_count=undone_count)
+
+
+@router.post("/reader/complete", response_model=CompleteLessonResponse)
+async def complete_reader_lesson(
+    body: CompleteLessonRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> CompleteLessonResponse:
+    user_id = _require_user(request)
+    lesson = await _load_lesson(session, body.lesson_id, user_id, lock_content=True)
+    _check_source_version(lesson, body.source_version)
+    try:
+        return await complete_lesson(session, user_id=user_id, lesson=lesson, body=body)
+    except InvalidFinalFragment:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="invalid_final_fragment"
+        ) from None
+
+
+@router.get("/lessons/{lesson_id}/completion-summary", response_model=CompleteLessonResponse)
+async def reader_completion_summary(
+    lesson_id: uuid.UUID,
+    request: Request,
+    action_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> CompleteLessonResponse:
+    user_id = _require_user(request)
+    await _load_lesson(session, lesson_id, user_id, lock_content=True)
+    result = await get_completion_summary(session, user_id=user_id, lesson_id=lesson_id)
+    if result is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="lesson_not_completed")
+    if action_id is not None and result.action_id != action_id:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail="completion_changed")
+    return result

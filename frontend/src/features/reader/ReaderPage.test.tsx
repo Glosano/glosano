@@ -185,7 +185,7 @@ describe('ReaderPage', () => {
     fireEvent.click(await screen.findByText('Hello'))
     await screen.findByDisplayValue('My translation')
     expect(screen.getByRole('button', { name: 'Close card' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Finish material' })).toBeInTheDocument()
     await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'en', 'hello'))
     await waitFor(() => expect(aiApi.translate).toHaveBeenCalledWith(expect.objectContaining({ target_language_code: 'en' })))
 
@@ -351,7 +351,7 @@ describe('ReaderPage', () => {
 
     fireEvent.click(next)
     await waitFor(() => expect(slot).toHaveTextContent('Goodbye now.'))
-    expect(screen.getByRole('button', { name: 'Следующее предложение' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Завершить материал' })).toBeEnabled()
   })
 
   it('shows an error state and does not spin forever when the lesson fetch fails', async () => {

@@ -5,6 +5,7 @@ export type LessonVisibility = 'private' | 'shared'
 export type LessonStatus = 'draft' | 'processing' | 'ready' | 'failed' | 'archived'
 
 export interface LessonSummary {
+  completed_at?: string | null
   id: string
   title: string
   language_code: string

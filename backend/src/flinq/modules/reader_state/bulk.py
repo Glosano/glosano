@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.modules.lesson_library.models import Lesson, LessonTokenOccurrence
-from flinq.modules.reader_state.models import BulkAction
+from flinq.modules.reader_state.models import BulkAction, ReaderPosition
 from flinq.modules.statistics.service import record_reading
 from flinq.modules.vocabulary.models import TokenItem
 
@@ -34,6 +34,7 @@ async def bulk_mark_known(
     lesson: Lesson,
     from_ordinal: int,
     to_ordinal: int,
+    commit: bool = True,
 ) -> tuple[uuid.UUID, int]:
     await record_reading(
         session, user_id=user_id, lesson=lesson, from_ordinal=from_ordinal, to_ordinal=to_ordinal
@@ -87,18 +88,41 @@ async def bulk_mark_known(
         payload_json={"token_item_ids": [str(i) for i in created_ids]},
     )
     session.add(action)
-    await session.commit()
+    await session.flush()
+    if commit:
+        await session.commit()
     return action.id, len(created_ids)
 
 
 async def undo_bulk_action(
     session: AsyncSession, *, user_id: uuid.UUID, action_id: uuid.UUID
 ) -> int:
-    action = await session.get(BulkAction, action_id)
+    lesson_id = await session.scalar(
+        select(BulkAction.lesson_id).where(
+            BulkAction.id == action_id, BulkAction.user_id == user_id
+        )
+    )
+    if lesson_id is None:
+        raise ActionNotFound
+    # Same lock order as content editing: lesson before its reader state/actions.
+    await session.execute(
+        select(Lesson.id).where(Lesson.id == lesson_id).with_for_update(read=True)
+    )
+    action = await session.scalar(
+        select(BulkAction)
+        .where(BulkAction.id == action_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     if action is None or action.user_id != user_id:
         raise ActionNotFound
     if action.undone_at is not None:
         raise ActionAlreadyUndone
+    await session.execute(
+        update(ReaderPosition)
+        .where(ReaderPosition.user_id == user_id, ReaderPosition.completion_action_id == action_id)
+        .values(completed_at=None, completion_action_id=None)
+    )
     ids = [uuid.UUID(x) for x in action.payload_json.get("token_item_ids", [])]
     undone = 0
     if ids:

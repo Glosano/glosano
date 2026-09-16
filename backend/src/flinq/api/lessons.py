@@ -68,6 +68,7 @@ async def list_lessons(
             LessonSummary.model_validate(item).model_copy(
                 update={
                     "read_percent": item_progress.read_percent,
+                    "completed_at": item_progress.completed_at,
                     "new_words_remaining": item_progress.new_words_remaining,
                     "can_manage": item.owner_user_id == user_id,
                 }

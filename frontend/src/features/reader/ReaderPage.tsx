@@ -1,11 +1,21 @@
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
+import { Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ApiError } from '@/api/client'
 
 import { isWord, type LessonVocabularyItem, type Sentence } from '@/api/reader'
 import { cn } from '@/lib/utils'
 
+import { CompletionScreen } from './CompletionScreen'
 import { BottomToolbar } from './BottomToolbar'
 import { LessonVocabularyList } from './LessonVocabularyList'
 import { LessonVocabularyPanel } from './LessonVocabularyPanel'
@@ -22,6 +32,7 @@ import { usePositionSync } from './usePositionSync'
 import { useReaderHotkeys } from './useReaderHotkeys'
 import {
   useBulkKnown,
+  useCompleteLesson,
   useLessonContent,
   useLessonDetail,
   usePhrases,
@@ -56,6 +67,15 @@ export function ReaderPage({ lang, lessonId }: Props) {
   // (дальше слово помечает статусный цвет).
   const [selectionRange, setSelectionRange] = useState<DragRange | null>(null)
   const [toastCount, setToastCount] = useState<number | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [resultsDismissed, setResultsDismissed] = useState(false)
+  const [completionError, setCompletionError] = useState(false)
+  const mutationLock = useRef(false)
+  const activeLesson = useRef(lessonId)
+  activeLesson.current = lessonId
+  const completionStatus = useRef<HTMLDivElement>(null)
+  const finishButton = useRef<HTMLButtonElement>(null)
+  const restoreReaderFocus = useRef(false)
   const [bulkErrorVisible, setBulkErrorVisible] = useState(false)
 
   const mode = useReaderStore((s) => s.mode)
@@ -73,6 +93,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const setLastBulkActionId = useReaderStore((s) => s.setLastBulkActionId)
 
   const bulkKnown = useBulkKnown(lessonId, lang)
+  const completeLesson = useCompleteLesson(lessonId, lang)
   const undoBulk = useUndoBulk(lessonId, lang)
 
   const pages = useMemo(() => (content ? paginate(content.paragraphs) : []), [content])
@@ -94,6 +115,11 @@ export function ReaderPage({ lang, lessonId }: Props) {
     setLastBulkActionId(null)
     setToastCount(null)
     setBulkErrorVisible(false)
+    setConfirmOpen(false)
+    setCompletionError(false)
+    setResultsDismissed(false)
+    mutationLock.current = false
+    restoreReaderFocus.current = false
     setSelectedWord(null)
     setSelectionRange(null)
   }, [lessonId, setPageIndex, setSentenceFlatIndex, setLastBulkActionId])
@@ -105,6 +131,8 @@ export function ReaderPage({ lang, lessonId }: Props) {
   useEffect(() => {
     if (initializedRef.current === lessonId || !content || !lessonDetail) return
     const readerPosition = lessonDetail.reader_position
+    if (readerPosition?.completion_action_id)
+      setLastBulkActionId(readerPosition.completion_action_id)
     const initialMode = readerPosition?.view_mode ?? 'page'
     setMode(initialMode)
     if (initialMode === 'sentence' && readerPosition?.current_segment_id) {
@@ -124,6 +152,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
     setMode,
     setPageIndex,
     setSentenceFlatIndex,
+    setLastBulkActionId,
   ])
 
   const statusMap = statuses ?? {}
@@ -150,14 +179,30 @@ export function ReaderPage({ lang, lessonId }: Props) {
     return words.length > 0 ? (words[words.length - 1]?.i ?? null) : null
   }, [mode, currentPage, currentSentence])
 
+  const completedAt = lessonDetail?.reader_position?.completed_at
+  const completionActionId = lessonDetail?.reader_position?.completion_action_id
+  const showResults = !!completedAt && !!completionActionId && !resultsDismissed
+  useEffect(() => {
+    if (!showResults && restoreReaderFocus.current) {
+      const target = completedAt ? completionStatus.current : finishButton.current
+      if (target && !target.hasAttribute('disabled')) {
+        target.focus()
+        restoreReaderFocus.current = false
+      }
+    }
+  })
+  const isFinal = mode === 'page' ? !canNext : !canNextSentence
+  const busy = bulkKnown.isPending || completeLesson.isPending || undoBulk.isPending
+
   const progressPercent = useMemo(() => {
+    if (completedAt) return 100
     if (currentOrdinalForProgress == null || maxWordOrdinal < 0) return 0
     if (maxWordOrdinal === 0) return 100
     return Math.min(
       100,
       Math.max(0, Math.round((currentOrdinalForProgress / maxWordOrdinal) * 100)),
     )
-  }, [currentOrdinalForProgress, maxWordOrdinal])
+  }, [completedAt, currentOrdinalForProgress, maxWordOrdinal])
 
   const readyForInteraction = contentEnabled && !!content
   const panelVisible = vocabularyPanelPinned || selectedWord !== null
@@ -272,30 +317,104 @@ export function ReaderPage({ lang, lessonId }: Props) {
     void navigate({ to: '/learn/$lang/library', params: { lang } })
   }
 
-  function handleUndo() {
-    if (!lastBulkActionId) return
-    undoBulk.mutate(lastBulkActionId, {
+  function handleUndoAction(actionId: string | null | undefined) {
+    if (!actionId || mutationLock.current || busy) return
+    mutationLock.current = true
+    if (showResults) restoreReaderFocus.current = true
+    undoBulk.mutate(actionId, {
       onSuccess: () => {
+        if (activeLesson.current !== lessonId) return
         setLastBulkActionId(null)
         setToastCount(null)
       },
       onError: () => {
-        // The action may no longer be undoable (already undone, expired,
-        // etc.) — disarm undo rather than leave a dead "Отменить" button.
-        setLastBulkActionId(null)
-        setToastCount(null)
+        if (activeLesson.current === lessonId) setBulkErrorVisible(true)
+      },
+      onSettled: () => {
+        if (activeLesson.current === lessonId) mutationLock.current = false
       },
     })
   }
 
+  function handleUndo() {
+    handleUndoAction(lastBulkActionId)
+  }
+
+  function requestCompletion() {
+    if (
+      !readyForInteraction ||
+      !isFinal ||
+      completedAt ||
+      confirmOpen ||
+      mutationLock.current ||
+      busy
+    )
+      return
+    closeCard()
+    setCompletionError(false)
+    setConfirmOpen(true)
+  }
+
+  function handleComplete() {
+    if (!confirmOpen || mutationLock.current || busy || !content) return
+    mutationLock.current = true
+    setCompletionError(false)
+    const words = currentSentence?.tokens.filter(isWord) ?? []
+    const from =
+      mode === 'page'
+        ? currentPage?.wordCount
+          ? currentPage.fromOrdinal
+          : null
+        : (words[0]?.i ?? null)
+    const to =
+      mode === 'page'
+        ? currentPage?.wordCount
+          ? currentPage.toOrdinal
+          : null
+        : (words.at(-1)?.i ?? null)
+    completeLesson.mutate(
+      {
+        lesson_id: lessonId,
+        source_version: content.source_version,
+        view_mode: mode,
+        last_segment_id:
+          mode === 'page'
+            ? (currentPage?.sentences.at(-1)?.sentence.seg_id ?? null)
+            : (currentSentence?.seg_id ?? null),
+        from_ordinal: from,
+        to_ordinal: to,
+      },
+      {
+        onSuccess: (result) => {
+          if (activeLesson.current !== lessonId) return
+          setConfirmOpen(false)
+          setResultsDismissed(false)
+          setLastBulkActionId(result.action_id)
+          setToastCount(null)
+        },
+        onError: () => {
+          if (activeLesson.current === lessonId) setCompletionError(true)
+        },
+        onSettled: () => {
+          if (activeLesson.current === lessonId) mutationLock.current = false
+        },
+      },
+    )
+  }
+
   function handlePrevPage() {
-    if (!canPrev) return
+    if (!canPrev || confirmOpen || mutationLock.current || busy) return
     closeCard()
     setPageIndex(Math.max(0, pageIndex - 1))
   }
 
   function handleNextPage() {
-    if (!canNext || !currentPage) return
+    if (confirmOpen || mutationLock.current || busy) return
+    if (!canNext) {
+      requestCompletion()
+      return
+    }
+    if (!currentPage) return
 
     if (currentPage.wordCount === 0) {
       // Empty-page marker from pagination (ordinals are 0/-1) — nothing to
@@ -305,6 +424,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       return
     }
 
+    mutationLock.current = true
     bulkKnown.mutate(
       {
         lesson_id: lessonId,
@@ -313,6 +433,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
         to_ordinal: currentPage.toOrdinal,
       },
       {
+        onSettled: () => {
+          if (activeLesson.current === lessonId) mutationLock.current = false
+        },
         onSuccess: (result) => {
           closeCard()
           setPageIndex(Math.min(pages.length - 1, pageIndex + 1))
@@ -332,13 +455,18 @@ export function ReaderPage({ lang, lessonId }: Props) {
   }
 
   function handlePrevSentence() {
-    if (!canPrevSentence) return
+    if (!canPrevSentence || confirmOpen || mutationLock.current || busy) return
     closeCard()
     setSentenceFlatIndex(Math.max(0, clampedSentenceIndex - 1))
   }
 
   function handleNextSentence() {
-    if (!canNextSentence || !currentSentence) return
+    if (confirmOpen || mutationLock.current || busy) return
+    if (!canNextSentence) {
+      requestCompletion()
+      return
+    }
+    if (!currentSentence) return
 
     const words = currentSentence.tokens.filter(isWord)
     const firstWord = words[0]
@@ -350,6 +478,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       return
     }
 
+    mutationLock.current = true
     bulkKnown.mutate(
       {
         lesson_id: lessonId,
@@ -358,6 +487,9 @@ export function ReaderPage({ lang, lessonId }: Props) {
         to_ordinal: lastWord.i,
       },
       {
+        onSettled: () => {
+          if (activeLesson.current === lessonId) mutationLock.current = false
+        },
         onSuccess: (result) => {
           closeCard()
           setSentenceFlatIndex(Math.min(flatSentences.length - 1, clampedSentenceIndex + 1))
@@ -379,7 +511,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const handleNext = mode === 'page' ? handleNextPage : handleNextSentence
 
   useReaderHotkeys({
-    enabled: readyForInteraction,
+    enabled: readyForInteraction && !confirmOpen && !busy && !showResults,
     onPrev: handlePrev,
     onNext: handleNext,
     onToggleMode: () => setMode(mode === 'page' ? 'sentence' : 'page'),
@@ -436,7 +568,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
   }, [bulkErrorVisible])
 
   if (
-    [positionError, bulkKnown.error].some(
+    [positionError, bulkKnown.error, completeLesson.error].some(
       (error) => error instanceof ApiError && error.detail === 'lesson_version_changed',
     )
   ) {
@@ -515,6 +647,26 @@ export function ReaderPage({ lang, lessonId }: Props) {
     )
   }
 
+  if (showResults && completionActionId) {
+    return (
+      <CompletionScreen
+        key={lessonId}
+        lessonId={lessonId}
+        actionId={completionActionId}
+        lang={lang}
+        title={lessonDetail?.title ?? ''}
+        busy={busy}
+        undoError={bulkErrorVisible}
+        statusRef={completionStatus}
+        onRead={() => {
+          restoreReaderFocus.current = true
+          setResultsDismissed(true)
+        }}
+        onUndo={() => handleUndoAction(completionActionId)}
+      />
+    )
+  }
+
   const fontClass = cn(
     FONT_SIZE_CLASS[font.size],
     LINE_HEIGHT_CLASS[font.lineHeight],
@@ -539,6 +691,70 @@ export function ReaderPage({ lang, lessonId }: Props) {
         vocabularyPanelPinned={vocabularyPanelPinned}
         onToggleVocabularyPanel={toggleVocabularyPanel}
       />
+
+      {completedAt && (
+        <div
+          ref={completionStatus}
+          tabIndex={-1}
+          role="status"
+          className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm"
+        >
+          <Check aria-hidden="true" className="size-5 text-primary" />
+          <span>{tr('Материал завершён')}</span>
+          <Button variant="outline" size="sm" onClick={() => setResultsDismissed(false)}>
+            {tr('Итоги чтения')}
+          </Button>
+          {completionActionId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => handleUndoAction(completionActionId)}
+            >
+              {tr('Отменить завершение')}
+            </Button>
+          )}
+          <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
+            {tr('В библиотеку')}
+          </Link>
+        </div>
+      )}
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!busy) setConfirmOpen(open)
+        }}
+      >
+        <DialogContent
+          showCloseButton={!busy}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            const target = completedAt ? completionStatus.current : finishButton.current
+            target?.focus()
+          }}
+        >
+          <DialogTitle>{tr('Завершить материал?')}</DialogTitle>
+          <DialogDescription>
+            {tr(
+              'Оставшиеся новые слова текущего фрагмента будут отмечены как известные. Урок будет считаться пройденным.',
+            )}
+          </DialogDescription>
+          {completionError && (
+            <p role="alert" className="text-destructive">
+              {tr('Не удалось завершить материал. Попробуйте ещё раз.')}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setConfirmOpen(false)}>
+              {tr('Нет')}
+            </Button>
+            <Button disabled={busy} onClick={handleComplete}>
+              {tr('Да')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div
         className={cn('py-6', fontClass)}
@@ -590,7 +806,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
               mode === 'sentence' ? tr('Предыдущее предложение') : tr('Предыдущая страница')
             }
             onClick={handlePrev}
-            disabled={mode === 'sentence' ? !canPrevSentence : !canPrev}
+            disabled={busy || (mode === 'sentence' ? !canPrevSentence : !canPrev)}
             className="fixed left-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
           >
             ‹
@@ -598,21 +814,28 @@ export function ReaderPage({ lang, lessonId }: Props) {
           <button
             type="button"
             aria-label={
-              mode === 'sentence' ? tr('Следующее предложение') : tr('Следующая страница')
+              isFinal
+                ? tr('Завершить материал')
+                : mode === 'sentence'
+                  ? tr('Следующее предложение')
+                  : tr('Следующая страница')
             }
+            ref={finishButton}
+            title={isFinal ? tr('Завершить материал') : undefined}
             onClick={handleNext}
-            disabled={mode === 'sentence' ? !canNextSentence : !canNext}
+            disabled={busy || (isFinal && !!completedAt)}
             className={cn(
               'fixed right-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30',
               panelVisible && 'lg:right-[var(--reader-panel-reserve)]',
             )}
           >
-            ›
+            {isFinal ? <Check aria-hidden="true" className="size-7" /> : '›'}
           </button>
         </>
       )}
 
       <BottomToolbar
+        disabled={busy || confirmOpen}
         mode={mode}
         onToggleMode={() => setMode(mode === 'page' ? 'sentence' : 'page')}
         panelOpen={panelVisible}

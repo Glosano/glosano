@@ -23,6 +23,9 @@ export function LessonCard({ lesson }: Props) {
         <div className="flex h-[110px] flex-col gap-2 p-3">
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">{lesson.title}</h3>
           <div className="mt-auto space-y-1">
+            {lesson.completed_at && (
+              <p className="text-xs text-primary">✓ {t('Материал завершён')}</p>
+            )}
             <div
               role="progressbar"
               aria-valuenow={lesson.read_percent}
