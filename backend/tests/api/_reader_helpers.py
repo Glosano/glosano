@@ -12,8 +12,8 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from flinq.core.db import session_scope
-from flinq.modules.lesson_library import service
+from glosano.core.db import session_scope
+from glosano.modules.lesson_library import service
 
 # Two paragraphs, genuine Portuguese diacritics — must survive byte-for-byte.
 TEXT = "O edifício antigo fica na praça. Eu gosto dele.\n\nSegundo parágrafo aqui."
@@ -25,7 +25,7 @@ async def register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") -> 
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",
@@ -55,7 +55,7 @@ async def seed_ready_lesson(
     async def _noop(lesson_id: object, job_id: object) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", _noop)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", _noop)
 
     r = await c.post(
         "/api/lessons",

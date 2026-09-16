@@ -3,7 +3,7 @@
 
 import pytest
 
-from flinq.modules.lesson_library.tokenization import RegexSegmenter, normalize_phrase, tokenize
+from glosano.modules.lesson_library.tokenization import RegexSegmenter, normalize_phrase, tokenize
 
 
 @pytest.mark.parametrize(
@@ -45,13 +45,13 @@ def test_caseless_sentence_boundaries(lang: str, text: str, sentences: list[str]
 def test_normalization_preserves_final_combining_marks(word: str):
     import unicodedata
 
-    from flinq.core.textnorm import normalize_token
+    from glosano.core.textnorm import normalize_token
 
     assert normalize_token(f"«{word}!»") == unicodedata.normalize("NFC", word).casefold()
 
 
 def test_chinese_dictionary_language_code_alias():
-    from flinq.modules.dictionary.kaikki import parse_record
+    from glosano.modules.dictionary.kaikki import parse_record
 
     entry = parse_record(
         {"lang_code": "zh", "word": "学习", "senses": [{"glosses": ["to study"]}]},

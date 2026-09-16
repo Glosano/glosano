@@ -7,8 +7,8 @@ from pathlib import Path
 
 import httpx
 
-from flinq.modules.dictionary.download import download_dump, iter_dump_lines
-from flinq.modules.dictionary.sources import DUMP_SOURCES
+from glosano.modules.dictionary.download import download_dump, iter_dump_lines
+from glosano.modules.dictionary.sources import DUMP_SOURCES
 
 
 def test_registry_covers_the_five_pairs() -> None:

@@ -12,8 +12,8 @@
 
 - Python: async SQLAlchemy; every service function takes `session: AsyncSession` first, keyword-only args, and commits on success (reader_state pattern).
 - Endpoints get the user via `_require_user(request) -> uuid.UUID` (reads `request.state.user_id`, 401 if missing); DB session via `Depends(get_session)`. No auth dependency object exists — copy `_require_user` into the router.
-- CSRF: mutating requests need header `X-CSRF-Token` (frontend `api()` sets it automatically from the `flinq_csrf` cookie; backend tests must pass it explicitly).
-- `token_text` is stored ALREADY normalized via `flinq.core.textnorm.normalize_token`. All vocabulary lookups key on the normalized form.
+- CSRF: mutating requests need header `X-CSRF-Token` (frontend `api()` sets it automatically from the `glosano_csrf` cookie; backend tests must pass it explicitly).
+- `token_text` is stored ALREADY normalized via `glosano.core.textnorm.normalize_token`. All vocabulary lookups key on the normalized form.
 - `confidence` DB range is `0..5` (`ck_token_items_confidence_range`, already applied). Manual UI exposes `1..4` + `✓`(known) + `🗑`(ignored); `0` is system-assigned; `5` is SRS-only. No `token_items` migration.
 - Migration head is `0006_reader_state`; the new migration is `0007_vocabulary_card` with `down_revision = "0006_reader_state"`.
 - Commit trailer policy: do NOT add `Co-Authored-By`. Commit exact paths (avoid sweeping unrelated staged files).
@@ -23,15 +23,15 @@
 ## File Structure
 
 **Backend (create):**
-- `backend/src/flinq/modules/vocabulary/models.py` — extend with 3 models (already holds `TokenItem`).
-- `backend/src/flinq/modules/vocabulary/service.py` — module functions: lookup, item state, translations, notes, tags.
-- `backend/src/flinq/modules/vocabulary/schemas.py` — Pydantic DTOs.
-- `backend/src/flinq/api/vocabulary.py` — `/api/vocabulary` router.
+- `backend/src/glosano/modules/vocabulary/models.py` — extend with 3 models (already holds `TokenItem`).
+- `backend/src/glosano/modules/vocabulary/service.py` — module functions: lookup, item state, translations, notes, tags.
+- `backend/src/glosano/modules/vocabulary/schemas.py` — Pydantic DTOs.
+- `backend/src/glosano/api/vocabulary.py` — `/api/vocabulary` router.
 - `backend/migrations/versions/0007_vocabulary_card.py` — Alembic migration.
 - `backend/tests/api/test_vocabulary.py`, `backend/tests/modules/test_vocabulary_service.py`.
 
 **Backend (modify):**
-- `backend/src/flinq/main.py` — register `vocabulary_router`.
+- `backend/src/glosano/main.py` — register `vocabulary_router`.
 - `backend/tests/conftest.py` — ensure new models imported for `create_all` (vocabulary.models already imported at `conftest.py:78-80`; new classes live in the same module, so no change needed — verify).
 
 **Frontend (create):**
@@ -53,7 +53,7 @@
 ## Task 1: Backend DB layer — vocabulary annotation tables
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/models.py`
+- Modify: `backend/src/glosano/modules/vocabulary/models.py`
 - Create: `backend/migrations/versions/0007_vocabulary_card.py`
 - Test: `backend/tests/modules/test_vocabulary_service.py` (create; first test is the model round-trip)
 
@@ -70,10 +70,10 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from flinq.core.db import session_scope
-from flinq.modules.identity.repo import UserRepo
-from flinq.core.security import hash_password
-from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
+from glosano.core.db import session_scope
+from glosano.modules.identity.repo import UserRepo
+from glosano.core.security import hash_password
+from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
 async def _make_user(s) -> uuid.UUID:
@@ -127,7 +127,7 @@ Expected: FAIL — `ImportError: cannot import name 'PersonalTranslation'`.
 
 - [ ] **Step 3: Add the models**
 
-Append to `backend/src/flinq/modules/vocabulary/models.py` (imports `Boolean` is needed — add to the existing `from sqlalchemy import (...)` block):
+Append to `backend/src/glosano/modules/vocabulary/models.py` (imports `Boolean` is needed — add to the existing `from sqlalchemy import (...)` block):
 
 ```python
 class PersonalTranslation(Base):
@@ -284,14 +284,14 @@ Expected: PASS (conftest `_init_schema` calls `Base.metadata.create_all`, which 
 
 - [ ] **Step 6: Verify the migration applies against a real DB**
 
-Run: `cd backend && FLINQ_DATABASE_URL="postgresql+asyncpg://flinq:flinq@localhost:5433/flinq" uv run alembic upgrade head`
+Run: `cd backend && GLOSANO_DATABASE_URL="postgresql+asyncpg://glosano:glosano@localhost:5433/glosano" uv run alembic upgrade head`
 Expected: `Running upgrade 0006_reader_state -> 0007_vocabulary_card`.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/shibaev/Dev/github/Flinq
-git add backend/src/flinq/modules/vocabulary/models.py backend/migrations/versions/0007_vocabulary_card.py backend/tests/modules/test_vocabulary_service.py
+cd /Users/shibaev/Dev/github/Glosano
+git add backend/src/glosano/modules/vocabulary/models.py backend/migrations/versions/0007_vocabulary_card.py backend/tests/modules/test_vocabulary_service.py
 git commit -m "feat(FLQ-5): vocabulary annotation tables (translations/notes/tags)"
 ```
 
@@ -300,7 +300,7 @@ git commit -m "feat(FLQ-5): vocabulary annotation tables (translations/notes/tag
 ## Task 2: Backend service — item state machine + lookup
 
 **Files:**
-- Create: `backend/src/flinq/modules/vocabulary/service.py`
+- Create: `backend/src/glosano/modules/vocabulary/service.py`
 - Test: `backend/tests/modules/test_vocabulary_service.py` (extend)
 
 **Interfaces:**
@@ -315,7 +315,7 @@ git commit -m "feat(FLQ-5): vocabulary annotation tables (translations/notes/tag
 - [ ] **Step 1: Write failing tests** (append to `test_vocabulary_service.py`)
 
 ```python
-from flinq.modules.vocabulary import service
+from glosano.modules.vocabulary import service
 
 
 async def test_lookup_new_returns_new_status():
@@ -369,11 +369,11 @@ async def test_create_item_is_idempotent_on_unique():
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd backend && uv run pytest tests/modules/test_vocabulary_service.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'flinq.modules.vocabulary.service'`.
+Expected: FAIL — `ModuleNotFoundError: No module named 'glosano.modules.vocabulary.service'`.
 
 - [ ] **Step 3: Implement `service.py`**
 
-Create `backend/src/flinq/modules/vocabulary/service.py`:
+Create `backend/src/glosano/modules/vocabulary/service.py`:
 
 ```python
 """Vocabulary WordCard service (FLQ-5). Session-first module functions."""
@@ -386,8 +386,8 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.textnorm import normalize_token
-from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
+from glosano.core.textnorm import normalize_token
+from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
 class UnsupportedKind(Exception):
@@ -529,7 +529,7 @@ Expected: PASS (all 4 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_service.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_service.py
 git commit -m "feat(FLQ-5): vocabulary service — item state machine + lookup"
 ```
 
@@ -538,7 +538,7 @@ git commit -m "feat(FLQ-5): vocabulary service — item state machine + lookup"
 ## Task 3: Backend service — translations, notes, tags
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
 - Test: `backend/tests/modules/test_vocabulary_service.py` (extend)
 
 **Interfaces:**
@@ -618,7 +618,7 @@ async def test_add_and_remove_tag():
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd backend && uv run pytest tests/modules/test_vocabulary_service.py -k "translation or note or tag" -v`
-Expected: FAIL — `AttributeError: module 'flinq.modules.vocabulary.service' has no attribute 'add_translation'`.
+Expected: FAIL — `AttributeError: module 'glosano.modules.vocabulary.service' has no attribute 'add_translation'`.
 
 - [ ] **Step 3: Implement the functions** (append to `service.py`; add imports `from sqlalchemy import delete, update` and `from sqlalchemy.dialects.postgresql import insert as pg_insert`)
 
@@ -726,7 +726,7 @@ Expected: PASS (all tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_service.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_service.py
 git commit -m "feat(FLQ-5): vocabulary service — translations, notes, tags"
 ```
 
@@ -735,9 +735,9 @@ git commit -m "feat(FLQ-5): vocabulary service — translations, notes, tags"
 ## Task 4: Backend API — /api/vocabulary router
 
 **Files:**
-- Create: `backend/src/flinq/modules/vocabulary/schemas.py`
-- Create: `backend/src/flinq/api/vocabulary.py`
-- Modify: `backend/src/flinq/main.py`
+- Create: `backend/src/glosano/modules/vocabulary/schemas.py`
+- Create: `backend/src/glosano/api/vocabulary.py`
+- Modify: `backend/src/glosano/main.py`
 - Test: `backend/tests/api/test_vocabulary.py`
 
 **Interfaces:**
@@ -754,9 +754,9 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
 @pytest.fixture(autouse=True)
@@ -776,7 +776,7 @@ async def _register(c: AsyncClient) -> str:
         "display_name": "T", "email": f"{uuid.uuid4().hex}@t.io", "password": "abcdefghij",
     })
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     return csrf
 
@@ -843,7 +843,7 @@ Expected: FAIL — 404 on `/api/vocabulary/lookup` (router not registered).
 
 - [ ] **Step 3: Write `schemas.py`**
 
-Create `backend/src/flinq/modules/vocabulary/schemas.py`:
+Create `backend/src/glosano/modules/vocabulary/schemas.py`:
 
 ```python
 """Pydantic DTOs for the vocabulary WordCard API (FLQ-5)."""
@@ -937,7 +937,7 @@ class TagsResponse(BaseModel):
 
 - [ ] **Step 4: Write the router**
 
-Create `backend/src/flinq/api/vocabulary.py`:
+Create `backend/src/glosano/api/vocabulary.py`:
 
 ```python
 """Vocabulary WordCard API (FLQ-5)."""
@@ -950,9 +950,9 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import get_session
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.schemas import (
+from glosano.core.db import get_session
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.schemas import (
     AddTagRequest,
     AddTranslationRequest,
     CreateItemRequest,
@@ -1139,7 +1139,7 @@ Note: remove the unused `_map_service_errors` stub — it is illustrative only; 
 
 Add import next to the other router imports (`main.py:17-23`):
 ```python
-from flinq.api.vocabulary import router as vocabulary_router
+from glosano.api.vocabulary import router as vocabulary_router
 ```
 Add inside `create_app` after `app.include_router(dictionary_router)` (`main.py:68`):
 ```python
@@ -1153,13 +1153,13 @@ Expected: PASS (4 tests). If `test_lookup_requires_auth` returns 403 instead of 
 
 - [ ] **Step 7: Typecheck + full backend suite**
 
-Run: `cd backend && uv run pyright src/flinq/modules/vocabulary src/flinq/api/vocabulary.py && uv run pytest tests/modules/test_vocabulary_service.py tests/api/test_vocabulary.py -q`
+Run: `cd backend && uv run pyright src/glosano/modules/vocabulary src/glosano/api/vocabulary.py && uv run pytest tests/modules/test_vocabulary_service.py tests/api/test_vocabulary.py -q`
 Expected: no type errors; all pass.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/schemas.py backend/src/flinq/api/vocabulary.py backend/src/flinq/main.py backend/tests/api/test_vocabulary.py
+git add backend/src/glosano/modules/vocabulary/schemas.py backend/src/glosano/api/vocabulary.py backend/src/glosano/main.py backend/tests/api/test_vocabulary.py
 git commit -m "feat(FLQ-5): /api/vocabulary router (lookup/items/translations/notes/tags)"
 ```
 
@@ -1708,7 +1708,7 @@ git commit -m "feat(FLQ-5): WordCard core — translation input, confidence foot
 
 - [ ] **Step 1: Verify/create the AI api wrapper**
 
-Check whether `frontend/src/api/ai.ts` exists. If not, create it (contract from `backend/src/flinq/api/ai.py`):
+Check whether `frontend/src/api/ai.ts` exists. If not, create it (contract from `backend/src/glosano/api/ai.py`):
 
 ```ts
 import { api } from './client'
@@ -1973,7 +1973,7 @@ Then re-run `corepack pnpm exec tsc --noEmit` to confirm nothing imports it.
 
 - [ ] **Step 7: Manual end-to-end verify** (invoke the `verify` skill / drive the app)
 
-Ensure API (`uv run flinq serve`) + worker + Vite are running (DB on 5433; run `alembic upgrade head` first). In the browser at `http://localhost:5173`, open a ready lesson, switch to sentence mode:
+Ensure API (`uv run glosano serve`) + worker + Vite are running (DB on 5433; run `alembic upgrade head` first). In the browser at `http://localhost:5173`, open a ready lesson, switch to sentence mode:
 1. Click a blue (`new`) word → card opens.
 2. Type a translation, blur → word turns yellow only after choosing a level; at level 0 it stays blue. Click level `2` → word becomes yellow.
 3. Reopen → primary translation is pre-filled; pill `2` highlighted.

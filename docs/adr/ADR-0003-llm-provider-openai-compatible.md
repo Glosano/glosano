@@ -31,13 +31,13 @@
 **Конфигурация админом.** LLM-провайдер настраивается через environment variables Docker Compose:
 
 ```
-FLINQ_LLM_BASE_URL=https://api.openai.com/v1
-FLINQ_LLM_API_KEY=sk-...
-FLINQ_LLM_MODEL=gpt-4o-mini
-FLINQ_LLM_ENABLED=true
+GLOSANO_LLM_BASE_URL=https://api.openai.com/v1
+GLOSANO_LLM_API_KEY=sk-...
+GLOSANO_LLM_MODEL=gpt-4o-mini
+GLOSANO_LLM_ENABLED=true
 ```
 
-Флаг `FLINQ_LLM_ENABLED=false` — это реализация admin kill-switch из §10.3. При выключении AI reader должен продолжать работать: в карточках `new` слов пропадает AI-секция, остаётся только словарный перевод.
+Флаг `GLOSANO_LLM_ENABLED=false` — это реализация admin kill-switch из §10.3. При выключении AI reader должен продолжать работать: в карточках `new` слов пропадает AI-секция, остаётся только словарный перевод.
 
 **Rate limiting и ретраи.** В MVP — простой retry с экспоненциальной задержкой (до 3 попыток) на сетевые ошибки и 5xx. Rate limiting в MVP отсутствует (вне scope, open question из §11).
 
@@ -118,7 +118,7 @@ FLINQ_LLM_ENABLED=true
 - AI-кэш — TTL 7 дней по умолчанию;
 - администратор может ужесточить retention или полностью отключить аудит и кэш.
 
-**Kill-switch и privacy-first режим.** При `FLINQ_LLM_ENABLED=false`:
+**Kill-switch и privacy-first режим.** При `GLOSANO_LLM_ENABLED=false`:
 
 - внешние AI-вызовы полностью отключены;
 - новые записи в AI-кэш не создаются;

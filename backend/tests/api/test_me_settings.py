@@ -5,9 +5,9 @@ import uuid
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.identity.repo import UserRepo
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.identity.repo import UserRepo
 
 
 async def register(client: AsyncClient) -> tuple[str, str]:
@@ -21,7 +21,7 @@ async def register(client: AsyncClient) -> tuple[str, str]:
         },
     )
     assert response.status_code == 201
-    csrf = client.cookies.get("flinq_csrf")
+    csrf = client.cookies.get("glosano_csrf")
     assert csrf
     client.headers["X-CSRF-Token"] = csrf
     return response.json()["id"], email

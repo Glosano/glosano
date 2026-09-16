@@ -1,7 +1,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def _register(c: AsyncClient, *, email: str, password: str = "abcdefghij") -> None:
@@ -30,8 +30,8 @@ async def test_login_success() -> None:
         body = r.json()
         assert "id" in body
         assert body["needs_onboarding"] is True
-        assert c.cookies.get("flinq_session")
-        assert c.cookies.get("flinq_csrf")
+        assert c.cookies.get("glosano_session")
+        assert c.cookies.get("glosano_csrf")
 
 
 async def test_login_wrong_password_returns_401() -> None:
@@ -69,10 +69,10 @@ async def test_login_unknown_email_returns_401() -> None:
 
 async def test_login_rate_limit_after_n_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     """After login_max_attempts failures, next attempt returns 429."""
-    from flinq.core.config import get_settings
+    from glosano.core.config import get_settings
 
-    monkeypatch.setenv("FLINQ_LOGIN_MAX_ATTEMPTS", "3")
-    monkeypatch.setenv("FLINQ_LOGIN_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("GLOSANO_LOGIN_MAX_ATTEMPTS", "3")
+    monkeypatch.setenv("GLOSANO_LOGIN_WINDOW_SECONDS", "60")
     get_settings.cache_clear()
     try:
         transport = ASGITransport(app=create_app())
@@ -107,10 +107,10 @@ async def test_login_rate_limit_after_n_failures(monkeypatch: pytest.MonkeyPatch
 
 async def test_login_resets_rate_limit_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Successful login clears the rate-limit counter."""
-    from flinq.core.config import get_settings
+    from glosano.core.config import get_settings
 
-    monkeypatch.setenv("FLINQ_LOGIN_MAX_ATTEMPTS", "3")
-    monkeypatch.setenv("FLINQ_LOGIN_WINDOW_SECONDS", "60")
+    monkeypatch.setenv("GLOSANO_LOGIN_MAX_ATTEMPTS", "3")
+    monkeypatch.setenv("GLOSANO_LOGIN_WINDOW_SECONDS", "60")
     get_settings.cache_clear()
     try:
         transport = ASGITransport(app=create_app())

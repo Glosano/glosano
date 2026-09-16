@@ -54,7 +54,7 @@
 - `status == 'tracked'` → создать активный review_item (due=now), либо реактивировать неактивный (сброс SM-2 state, due=now);
 - `status in ('known','ignored')` или удаление item → `is_active = False`.
 
-Вызовы из всех write-путей vocabulary (`backend/src/flinq/modules/vocabulary/service.py`):
+Вызовы из всех write-путей vocabulary (`backend/src/glosano/modules/vocabulary/service.py`):
 - `create_item` — новые/upsert token (~186-193, 181-185, 204-208) и phrase (~148-156, 143-145, 170-172) ветки;
 - `patch_item` (~224-228) — статус/confidence из карточки и vocabulary;
 - `bulk_action` — `set_known`/`set_ignored` (~832-840), `delete` (~841-852).

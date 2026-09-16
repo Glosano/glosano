@@ -211,7 +211,7 @@ describe('LessonVocabularyPanel', () => {
     })
     useReaderStore.getState().setVocabularyPanelPinned(true)
 
-    const stored = JSON.parse(localStorage.getItem('flinq-reader-prefs') ?? '{}')
+    const stored = JSON.parse(localStorage.getItem('glosano-reader-prefs') ?? '{}')
     expect(stored.state).toEqual({
       vocabularyPanelPinned: true,
       font: { size: 2, lineHeight: 0, serif: true },
@@ -222,7 +222,7 @@ describe('LessonVocabularyPanel', () => {
       vocabularyPanelPinned: false,
       font: { size: 0, lineHeight: 2, serif: false },
     })
-    localStorage.setItem('flinq-reader-prefs', JSON.stringify(stored))
+    localStorage.setItem('glosano-reader-prefs', JSON.stringify(stored))
     await useReaderStore.persist.rehydrate()
 
     expect(useReaderStore.getState().vocabularyPanelPinned).toBe(true)

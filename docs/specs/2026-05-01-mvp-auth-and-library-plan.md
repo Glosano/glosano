@@ -32,7 +32,7 @@ backend/
 │   └── versions/
 │       ├── 0001_identity.py                       [new]
 │       └── 0002_lessons_minimal.py                [new]
-└── src/flinq/
+└── src/glosano/
     ├── core/
     │   ├── security.py                            [new — password, csrf, session token]
     │   └── rate_limit.py                          [new — Redis-based]
@@ -112,8 +112,8 @@ frontend/src/
 ### Task 1: Migration `0001_identity` + identity module skeleton
 
 **Files:**
-- Create: `backend/src/flinq/modules/identity/__init__.py`
-- Create: `backend/src/flinq/modules/identity/models.py`
+- Create: `backend/src/glosano/modules/identity/__init__.py`
+- Create: `backend/src/glosano/modules/identity/models.py`
 - Create: `backend/migrations/versions/0001_identity.py`
 - Modify: `backend/migrations/env.py:21-22` (uncomment identity import)
 
@@ -132,7 +132,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 
 UserRole = Literal["learner", "admin"]
@@ -240,13 +240,13 @@ class UserSession(Base):
 - [ ] **`__init__.py`:**
 
 ```python
-from flinq.modules.identity import models  # noqa: F401
+from glosano.modules.identity import models  # noqa: F401
 ```
 
 - [ ] **`migrations/env.py`** — раскомментировать import:
 
 ```python
-from flinq.modules.identity import models as _identity_models  # noqa: F401
+from glosano.modules.identity import models as _identity_models  # noqa: F401
 ```
 
 - [ ] **Generate migration:**
@@ -272,7 +272,7 @@ Expected: оба direction'а работают без ошибок.
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/modules/identity backend/migrations
+git add backend/src/glosano/modules/identity backend/migrations
 git commit -m "feat(identity): add SQLAlchemy models and 0001 migration"
 ```
 
@@ -281,13 +281,13 @@ git commit -m "feat(identity): add SQLAlchemy models and 0001 migration"
 ### Task 2: Password hashing (`core/security.py` part 1)
 
 **Files:**
-- Create: `backend/src/flinq/core/security.py`
+- Create: `backend/src/glosano/core/security.py`
 - Create: `backend/tests/core/test_security.py`
 
 - [ ] **Test** (`backend/tests/core/test_security.py`):
 
 ```python
-from flinq.core.security import hash_password, verify_password
+from glosano.core.security import hash_password, verify_password
 
 
 def test_hash_and_verify_round_trip() -> None:
@@ -369,7 +369,7 @@ Expected: 3 PASSED.
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/core/security.py backend/tests/core/test_security.py
+git add backend/src/glosano/core/security.py backend/tests/core/test_security.py
 git commit -m "feat(core): add argon2 password hashing and token generators"
 ```
 
@@ -378,7 +378,7 @@ git commit -m "feat(core): add argon2 password hashing and token generators"
 ### Task 3: Identity repo
 
 **Files:**
-- Create: `backend/src/flinq/modules/identity/repo.py`
+- Create: `backend/src/glosano/modules/identity/repo.py`
 - Create: `backend/tests/modules/identity/test_repo.py`
 - Create: `backend/tests/modules/identity/__init__.py` (empty)
 
@@ -390,7 +390,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo, SessionRepo
+from glosano.modules.identity.repo import UserRepo, SessionRepo
 
 
 @pytest.mark.asyncio
@@ -460,7 +460,7 @@ from datetime import datetime
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.models import (
+from glosano.modules.identity.models import (
     User, UserProfile, UserSettings, UserSession, UserLearningLanguage,
 )
 
@@ -550,8 +550,8 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.postgres import PostgresContainer
 
-from flinq.core.config import get_settings
-from flinq.core.db import Base, init_engine, dispose_engine, session_scope
+from glosano.core.config import get_settings
+from glosano.core.db import Base, init_engine, dispose_engine, session_scope
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -563,7 +563,7 @@ async def pg_container():
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def db_setup(pg_container, monkeypatch_session):
     url = pg_container.get_connection_url().replace("psycopg2", "asyncpg")
-    monkeypatch_session.setenv("FLINQ_DATABASE_URL", url)
+    monkeypatch_session.setenv("GLOSANO_DATABASE_URL", url)
     get_settings.cache_clear()
     settings = get_settings()
     engine = init_engine(settings)
@@ -598,7 +598,7 @@ Expected: 5 PASSED.
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/modules/identity/repo.py backend/tests
+git add backend/src/glosano/modules/identity/repo.py backend/tests
 git commit -m "feat(identity): add UserRepo and SessionRepo with tests"
 ```
 
@@ -607,14 +607,14 @@ git commit -m "feat(identity): add UserRepo and SessionRepo with tests"
 ### Task 4: Rate limit (Redis-based)
 
 **Files:**
-- Create: `backend/src/flinq/core/rate_limit.py`
+- Create: `backend/src/glosano/core/rate_limit.py`
 - Create: `backend/tests/core/test_rate_limit.py`
 
 - [ ] **Test:**
 
 ```python
 import pytest
-from flinq.core.rate_limit import RateLimiter
+from glosano.core.rate_limit import RateLimiter
 
 
 @pytest.mark.asyncio
@@ -678,7 +678,7 @@ class RateLimiter:
 
 ```bash
 uv run pytest tests/core/test_rate_limit.py -v
-git add backend/src/flinq/core/rate_limit.py backend/tests/core/test_rate_limit.py
+git add backend/src/glosano/core/rate_limit.py backend/tests/core/test_rate_limit.py
 git commit -m "feat(core): add Redis rate limiter"
 ```
 
@@ -687,7 +687,7 @@ git commit -m "feat(core): add Redis rate limiter"
 ### Task 5: Session middleware
 
 **Files:**
-- Create: `backend/src/flinq/modules/identity/middleware.py`
+- Create: `backend/src/glosano/modules/identity/middleware.py`
 - Create: `backend/tests/modules/identity/test_middleware.py`
 
 - [ ] **Implementation** (`middleware.py`):
@@ -696,7 +696,7 @@ git commit -m "feat(core): add Redis rate limiter"
 """Session and CSRF middleware (ADR-0008).
 
 Reads session cookie, hydrates `request.state.user_id` and `request.state.session_token`.
-For mutating methods, validates `X-CSRF-Token` header against `flinq_csrf` cookie.
+For mutating methods, validates `X-CSRF-Token` header against `glosano_csrf` cookie.
 """
 
 from __future__ import annotations
@@ -709,11 +709,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from flinq.core.db import session_scope
-from flinq.modules.identity.repo import SessionRepo
+from glosano.core.db import session_scope
+from glosano.modules.identity.repo import SessionRepo
 
-SESSION_COOKIE = "flinq_session"
-CSRF_COOKIE = "flinq_csrf"
+SESSION_COOKIE = "glosano_session"
+CSRF_COOKIE = "glosano_csrf"
 CSRF_HEADER = "X-CSRF-Token"
 SESSION_TTL = timedelta(days=30)
 TOUCH_INTERVAL = timedelta(minutes=5)
@@ -765,8 +765,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 - [ ] **Wire up in `main.py`:**
 
 ```python
-# backend/src/flinq/main.py
-from flinq.modules.identity.middleware import SessionMiddleware, CSRFMiddleware
+# backend/src/glosano/main.py
+from glosano.modules.identity.middleware import SessionMiddleware, CSRFMiddleware
 # ...
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(SessionMiddleware)
@@ -777,7 +777,7 @@ app.add_middleware(SessionMiddleware)
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/modules/identity/middleware.py backend/src/flinq/main.py backend/tests
+git add backend/src/glosano/modules/identity/middleware.py backend/src/glosano/main.py backend/tests
 git commit -m "feat(identity): add session and CSRF middleware"
 ```
 
@@ -786,7 +786,7 @@ git commit -m "feat(identity): add session and CSRF middleware"
 ### Task 6: Settings extension
 
 **Files:**
-- Modify: `backend/src/flinq/core/config.py`
+- Modify: `backend/src/glosano/core/config.py`
 
 - [ ] Добавить в `Settings`:
 
@@ -804,7 +804,7 @@ register_window_seconds: int = 3600
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/core/config.py
+git add backend/src/glosano/core/config.py
 git commit -m "feat(config): add auth-related settings"
 ```
 
@@ -813,7 +813,7 @@ git commit -m "feat(config): add auth-related settings"
 ### Task 7: Cleanup-expired-sessions worker job
 
 **Files:**
-- Create: `backend/src/flinq/worker/jobs/identity.py`
+- Create: `backend/src/glosano/worker/jobs/identity.py`
 
 - [ ] **Implementation:**
 
@@ -823,9 +823,9 @@ from datetime import timedelta
 from taskiq import TaskiqScheduler
 from taskiq.schedule_sources import LabelScheduleSource
 
-from flinq.core.db import session_scope
-from flinq.modules.identity.repo import SessionRepo
-from flinq.worker.broker import broker
+from glosano.core.db import session_scope
+from glosano.modules.identity.repo import SessionRepo
+from glosano.worker.broker import broker
 
 
 @broker.task(schedule=[{"cron": "0 3 * * *"}])  # daily 03:00
@@ -840,7 +840,7 @@ scheduler = TaskiqScheduler(broker=broker, sources=[LabelScheduleSource(broker)]
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/worker
+git add backend/src/glosano/worker
 git commit -m "feat(worker): add session cleanup job (daily)"
 ```
 
@@ -851,7 +851,7 @@ git commit -m "feat(worker): add session cleanup job (daily)"
 ### Task 8: Pydantic schemas
 
 **Files:**
-- Create: `backend/src/flinq/modules/identity/schemas.py`
+- Create: `backend/src/glosano/modules/identity/schemas.py`
 
 - [ ] **Implementation:**
 
@@ -910,7 +910,7 @@ class MeResponse(BaseModel):
 - [ ] **Commit:**
 
 ```bash
-git add backend/src/flinq/modules/identity/schemas.py
+git add backend/src/glosano/modules/identity/schemas.py
 git commit -m "feat(identity): add Pydantic schemas"
 ```
 
@@ -919,9 +919,9 @@ git commit -m "feat(identity): add Pydantic schemas"
 ### Task 9: `POST /auth/register`
 
 **Files:**
-- Create: `backend/src/flinq/modules/identity/service.py`
-- Create: `backend/src/flinq/api/auth.py`
-- Modify: `backend/src/flinq/main.py` (register router)
+- Create: `backend/src/glosano/modules/identity/service.py`
+- Create: `backend/src/glosano/api/auth.py`
+- Modify: `backend/src/glosano/main.py` (register router)
 
 - [ ] **Service** (`service.py`):
 
@@ -934,15 +934,15 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
-from flinq.core.config import get_settings
-from flinq.core.security import (
+from glosano.core.config import get_settings
+from glosano.core.security import (
     generate_csrf_token, generate_session_token, hash_password, verify_password,
 )
-from flinq.modules.identity.middleware import (
+from glosano.modules.identity.middleware import (
     CSRF_COOKIE, SESSION_COOKIE, SESSION_TTL,
 )
-from flinq.modules.identity.models import User
-from flinq.modules.identity.repo import SessionRepo, UserRepo
+from glosano.modules.identity.models import User
+from glosano.modules.identity.repo import SessionRepo, UserRepo
 
 
 def _hash_ip(ip: str | None) -> str | None:
@@ -1002,10 +1002,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from flinq.core.db import get_session
-from flinq.modules.identity import service
-from flinq.modules.identity.repo import SessionRepo, UserRepo
-from flinq.modules.identity.schemas import RegisterRequest
+from glosano.core.db import get_session
+from glosano.modules.identity import service
+from glosano.modules.identity.repo import SessionRepo, UserRepo
+from glosano.modules.identity.schemas import RegisterRequest
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -1031,7 +1031,7 @@ async def register(
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 @pytest.mark.asyncio
@@ -1041,8 +1041,8 @@ async def test_register_success() -> None:
             "display_name": "Alice", "email": "a@x.com", "password": "abcdefghij"
         })
         assert r.status_code == 201
-        assert r.cookies.get("flinq_session")
-        assert r.cookies.get("flinq_csrf")
+        assert r.cookies.get("glosano_session")
+        assert r.cookies.get("glosano_csrf")
 
 
 @pytest.mark.asyncio
@@ -1061,7 +1061,7 @@ async def test_register_duplicate_email_409() -> None:
 
 ```bash
 uv run pytest tests/api/test_auth_register.py -v
-git add backend/src/flinq/{api,modules,main}.py backend/tests
+git add backend/src/glosano/{api,modules,main}.py backend/tests
 git commit -m "feat(auth): POST /auth/register with auto-login session"
 ```
 
@@ -1070,8 +1070,8 @@ git commit -m "feat(auth): POST /auth/register with auto-login session"
 ### Task 10: `POST /auth/login` + rate limit
 
 **Files:**
-- Modify: `backend/src/flinq/modules/identity/service.py`
-- Modify: `backend/src/flinq/api/auth.py`
+- Modify: `backend/src/glosano/modules/identity/service.py`
+- Modify: `backend/src/glosano/api/auth.py`
 
 - [ ] **Service** (добавить):
 
@@ -1164,16 +1164,16 @@ async def logout(request: Request, response: Response, session=Depends(get_sessi
 ### Task 12: `GET /me`
 
 **Files:**
-- Create: `backend/src/flinq/api/me.py`
+- Create: `backend/src/glosano/api/me.py`
 
 - [ ] **Implementation:**
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from flinq.core.db import get_session
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.identity.schemas import MeResponse
+from glosano.core.db import get_session
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.identity.schemas import MeResponse
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -1276,8 +1276,8 @@ async def delete_me(
 ### Task 15: CLI bootstrap
 
 **Files:**
-- Create: `backend/src/flinq/cli/identity.py`
-- Modify: `backend/src/flinq/cli/main.py` (register subcommands)
+- Create: `backend/src/glosano/cli/identity.py`
+- Modify: `backend/src/glosano/cli/main.py` (register subcommands)
 
 - [ ] **CLI:**
 
@@ -1287,10 +1287,10 @@ import asyncio
 import secrets
 import typer
 
-from flinq.core.db import init_engine, dispose_engine, session_scope
-from flinq.core.config import get_settings
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
+from glosano.core.db import init_engine, dispose_engine, session_scope
+from glosano.core.config import get_settings
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
 
 app = typer.Typer(help="Identity management commands.")
 
@@ -1351,7 +1351,7 @@ def promote(email: str = typer.Argument(...)) -> None:
 - [ ] **Wire-up** (`cli/main.py`):
 
 ```python
-from flinq.cli.identity import app as identity_app
+from glosano.cli.identity import app as identity_app
 app.add_typer(identity_app, name="identity")
 ```
 
@@ -1360,7 +1360,7 @@ app.add_typer(identity_app, name="identity")
 ```bash
 docker compose up -d postgres
 uv run alembic upgrade head
-uv run flinq identity create-admin admin@example.com
+uv run glosano identity create-admin admin@example.com
 ```
 
 - [ ] **Commit:** `feat(cli): add identity commands (create-admin, reset-password, promote)`
@@ -1374,7 +1374,7 @@ uv run flinq identity create-admin admin@example.com
 ```python
 import pytest
 from httpx import ASGITransport, AsyncClient
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 @pytest.mark.asyncio
@@ -1385,7 +1385,7 @@ async def test_full_auth_onboarding_flow() -> None:
             "display_name": "X", "email": "x@x.com", "password": "abcdefghij",
         })
         assert r.status_code == 201
-        csrf = r.cookies["flinq_csrf"]
+        csrf = r.cookies["glosano_csrf"]
 
         # /me — needs_onboarding == True
         r = await c.get("/me")
@@ -1477,7 +1477,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (init.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(init.method)) {
-    const csrf = getCookie('flinq_csrf')
+    const csrf = getCookie('glosano_csrf')
     if (csrf) headers.set('X-CSRF-Token', csrf)
   }
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
@@ -1750,7 +1750,7 @@ export const indexRoute = createRoute({
 ### Task 23: Lessons migration + minimal model
 
 **Files:**
-- Create: `backend/src/flinq/modules/lesson_library/{models,repo,schemas,service}.py`
+- Create: `backend/src/glosano/modules/lesson_library/{models,repo,schemas,service}.py`
 - Create: `backend/migrations/versions/0002_lessons_minimal.py`
 - Modify: `backend/migrations/env.py`
 
@@ -1765,7 +1765,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 LessonStatus = Literal["draft", "processing", "ready", "failed", "archived"]
 LessonVisibility = Literal["private", "shared"]
@@ -1800,8 +1800,8 @@ class Lesson(Base):
 ### Task 24: `GET /api/lessons` (list)
 
 **Files:**
-- Create: `backend/src/flinq/api/lessons.py`
-- Create: `backend/src/flinq/modules/lesson_library/repo.py`
+- Create: `backend/src/glosano/api/lessons.py`
+- Create: `backend/src/glosano/modules/lesson_library/repo.py`
 
 - [ ] **Schemas:**
 
@@ -2055,7 +2055,7 @@ export function LibraryPage() {
 # Backend
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
 cd backend && uv sync && uv run alembic upgrade head
-FLINQ_INITIAL_ADMIN_EMAIL=admin@flinq.local uv run flinq serve
+GLOSANO_INITIAL_ADMIN_EMAIL=admin@glosano.local uv run glosano serve
 
 # Frontend (новый терминал)
 cd frontend && corepack pnpm install && corepack pnpm dev

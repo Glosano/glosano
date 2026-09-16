@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import SessionRepo, UserRepo
+from glosano.modules.identity.repo import SessionRepo, UserRepo
 
 
 async def test_create_user_with_profile_and_settings(db_session: AsyncSession) -> None:

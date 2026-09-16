@@ -11,20 +11,20 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.ai_translation.provider import LLMCompletion
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.exercises import (
+from glosano.core.config import get_settings
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.ai_translation.provider import LLMCompletion
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.exercises import (
     ExerciseParseError,
     generate_exercise,
     translation_feedback,
 )
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import ReviewItemNotFound
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import PersonalTranslation, TokenItem
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import ReviewItemNotFound
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import PersonalTranslation, TokenItem
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 
@@ -61,7 +61,7 @@ async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFuncti
 async def _setup_item(s: AsyncSession) -> tuple[uuid.UUID, uuid.UUID]:
     """Вернуть (user_id, review_item_id) для tracked-слова с переводом."""
     user_id = await _make_user(s)
-    from flinq.modules.identity.models import UserProfile
+    from glosano.modules.identity.models import UserProfile
 
     profile = await s.get(UserProfile, user_id)
     assert profile
@@ -151,7 +151,7 @@ async def test_two_bad_responses_raise_parse_error(monkeypatch: pytest.MonkeyPat
 
 
 async def test_ai_disabled_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    from flinq.modules.ai_translation.service import AIDisabled
+    from glosano.modules.ai_translation.service import AIDisabled
 
     monkeypatch.setattr(get_settings(), "llm_enabled", False)
     provider = FakeProvider([EXAMPLE_JSON])
@@ -204,9 +204,9 @@ async def test_writing_exercise_needs_items(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 async def test_ui_language_controls_feedback_and_saved_translation(monkeypatch: pytest.MonkeyPatch):
-    from flinq.modules.identity.models import UserProfile, UserSettings
-    from flinq.modules.review.exercises import _load_context
-    from flinq.modules.review.service import get_queue
+    from glosano.modules.identity.models import UserProfile, UserSettings
+    from glosano.modules.review.exercises import _load_context
+    from glosano.modules.review.service import get_queue
 
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
     provider = FakeProvider([json.dumps({"feedback": "Good"})])
@@ -266,7 +266,7 @@ async def test_ui_language_controls_feedback_and_saved_translation(monkeypatch: 
 
 
 def test_writing_instructions_and_feedback_follow_target_language():
-    from flinq.modules.review import exercise_prompts as prompts
+    from glosano.modules.review import exercise_prompts as prompts
 
     for code, language in [("en", "English"), ("ru", "Russian")]:
         writing = prompts.build_writing_prompt(

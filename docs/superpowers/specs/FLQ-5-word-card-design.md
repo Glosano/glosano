@@ -100,7 +100,7 @@ upsert через `PUT`.
   `{ item_id|null, status ('new'|'tracked'|'known'|'ignored'), confidence|null,
      translations: { primary|null, all: [...] }, note|null, tags: [...],
      dictionary: [ {text, sense?, source:'wiktionary'} ] }`.
-  `text` — уже нормализованный (`flinq.core.textnorm.normalize_token`), как ключ к
+  `text` — уже нормализованный (`glosano.core.textnorm.normalize_token`), как ключ к
   occurrences и словарю.
 - **AI НЕ входит в `/lookup`.** AI-подсказка для `new`-карточки берётся отдельным вызовом
   существующего `POST /api/ai/translate` (FLQ-3, с `lesson_id`/`segment_id`/`surface_text`
@@ -109,7 +109,7 @@ upsert через `PUT`.
 - Все ручки, создающие/меняющие состояние (`POST /items`, `translations`, `notes`, `tags`),
   применяют правило §2.1 (авто-создание item при отсутствии) через сервис.
 - Модуль `vocabulary`: добавить `repo.py`, `service.py`, `schemas.py`, `api` роутер.
-  Реюз `flinq.core.textnorm` и `dictionary` lookup (ADR-0004).
+  Реюз `glosano.core.textnorm` и `dictionary` lookup (ADR-0004).
 
 ### 3.3 Правки reader (FLQ-4) под confidence-зависимую подсветку
 

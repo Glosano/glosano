@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.tokenization import RegexSegmenter, Span
+from glosano.modules.lesson_library.tokenization import RegexSegmenter, Span
 
 
 def _texts(spans: list[Span]) -> list[str]:

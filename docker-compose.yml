@@ -1,8 +1,8 @@
-# Flinq production compose stack.
+# Glosano production compose stack.
 # For dev overrides (hot reload, bind mounts, frontend Vite server) use:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
-name: flinq
+name: glosano
 
 services:
   postgres:
@@ -43,23 +43,23 @@ services:
       redis:
         condition: service_healthy
     environment:
-      FLINQ_ENV: ${FLINQ_ENV:-prod}
-      FLINQ_LOG_LEVEL: ${FLINQ_LOG_LEVEL:-INFO}
-      FLINQ_SECRET_KEY: ${FLINQ_SECRET_KEY}
-      FLINQ_DATABASE_URL: ${FLINQ_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
-      FLINQ_REDIS_URL: ${FLINQ_REDIS_URL:-redis://redis:6379/0}
-      FLINQ_LLM_ENABLED: ${FLINQ_LLM_ENABLED:-false}
-      FLINQ_LLM_BASE_URL: ${FLINQ_LLM_BASE_URL:-}
-      FLINQ_LLM_API_KEY: ${FLINQ_LLM_API_KEY:-}
-      FLINQ_LLM_MODEL: ${FLINQ_LLM_MODEL:-}
-      FLINQ_OCR_ENABLED: ${FLINQ_OCR_ENABLED:-false}
-      FLINQ_OCR_BASE_URL: ${FLINQ_OCR_BASE_URL:-}
-      FLINQ_OCR_API_KEY: ${FLINQ_OCR_API_KEY:-}
+      GLOSANO_ENV: ${GLOSANO_ENV:-prod}
+      GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
+      GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY}
+      GLOSANO_DATABASE_URL: ${GLOSANO_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
+      GLOSANO_REDIS_URL: ${GLOSANO_REDIS_URL:-redis://redis:6379/0}
+      GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
+      GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
+      GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
+      GLOSANO_LLM_MODEL: ${GLOSANO_LLM_MODEL:-}
+      GLOSANO_OCR_ENABLED: ${GLOSANO_OCR_ENABLED:-false}
+      GLOSANO_OCR_BASE_URL: ${GLOSANO_OCR_BASE_URL:-}
+      GLOSANO_OCR_API_KEY: ${GLOSANO_OCR_API_KEY:-}
     volumes:
-      - app_data:/var/lib/flinq
+      - app_data:/var/lib/glosano
     ports:
       - "8000:8000"
-    command: ["uv", "run", "flinq", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uv", "run", "glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]
 
   app-worker:
     build:
@@ -73,21 +73,21 @@ services:
       redis:
         condition: service_healthy
     environment:
-      FLINQ_ENV: ${FLINQ_ENV:-prod}
-      FLINQ_LOG_LEVEL: ${FLINQ_LOG_LEVEL:-INFO}
-      FLINQ_SECRET_KEY: ${FLINQ_SECRET_KEY}
-      FLINQ_DATABASE_URL: ${FLINQ_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
-      FLINQ_REDIS_URL: ${FLINQ_REDIS_URL:-redis://redis:6379/0}
-      FLINQ_LLM_ENABLED: ${FLINQ_LLM_ENABLED:-false}
-      FLINQ_LLM_BASE_URL: ${FLINQ_LLM_BASE_URL:-}
-      FLINQ_LLM_API_KEY: ${FLINQ_LLM_API_KEY:-}
-      FLINQ_LLM_MODEL: ${FLINQ_LLM_MODEL:-}
-      FLINQ_OCR_ENABLED: ${FLINQ_OCR_ENABLED:-false}
-      FLINQ_OCR_BASE_URL: ${FLINQ_OCR_BASE_URL:-}
-      FLINQ_OCR_API_KEY: ${FLINQ_OCR_API_KEY:-}
+      GLOSANO_ENV: ${GLOSANO_ENV:-prod}
+      GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
+      GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY}
+      GLOSANO_DATABASE_URL: ${GLOSANO_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
+      GLOSANO_REDIS_URL: ${GLOSANO_REDIS_URL:-redis://redis:6379/0}
+      GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
+      GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
+      GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
+      GLOSANO_LLM_MODEL: ${GLOSANO_LLM_MODEL:-}
+      GLOSANO_OCR_ENABLED: ${GLOSANO_OCR_ENABLED:-false}
+      GLOSANO_OCR_BASE_URL: ${GLOSANO_OCR_BASE_URL:-}
+      GLOSANO_OCR_API_KEY: ${GLOSANO_OCR_API_KEY:-}
     volumes:
-      - app_data:/var/lib/flinq
-    command: ["uv", "run", "flinq", "worker"]
+      - app_data:/var/lib/glosano
+    command: ["uv", "run", "glosano", "worker"]
 
 volumes:
   postgres_data:

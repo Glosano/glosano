@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Multi-stage Dockerfile for Flinq backend.
+# Multi-stage Dockerfile for Glosano backend.
 # Stages:
 #   - builder       : installs Python deps via uv into a cached virtualenv
 #   - frontend-build: builds frontend static assets via pnpm
@@ -83,7 +83,7 @@ WORKDIR /app/backend
 EXPOSE 8000
 
 # Source is mounted via docker-compose.dev.yml
-CMD ["uv", "run", "uvicorn", "flinq.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "glosano.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 # ──────────────────────────────────────────────────────────
 # 4. Runtime (production)
@@ -94,23 +94,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH" \
-    FLINQ_STATIC_DIR=/app/frontend/dist
+    GLOSANO_STATIC_DIR=/app/frontend/dist
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --create-home --shell /bin/bash flinq \
-    && mkdir -p /var/lib/flinq \
-    && chown -R flinq:flinq /var/lib/flinq
+    && useradd --create-home --shell /bin/bash glosano \
+    && mkdir -p /var/lib/glosano \
+    && chown -R glosano:glosano /var/lib/glosano
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY --from=builder --chown=flinq:flinq /opt/venv /opt/venv
-COPY --from=builder --chown=flinq:flinq /app/backend /app/backend
-COPY --from=frontend-build --chown=flinq:flinq /app/frontend/dist /app/frontend/dist
+COPY --from=builder --chown=glosano:glosano /opt/venv /opt/venv
+COPY --from=builder --chown=glosano:glosano /app/backend /app/backend
+COPY --from=frontend-build --chown=glosano:glosano /app/frontend/dist /app/frontend/dist
 
-USER flinq
+USER glosano
 WORKDIR /app/backend
 
 EXPOSE 8000
 
-CMD ["uv", "run", "flinq", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]

@@ -8,23 +8,23 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.models import UserProfile, UserSettings
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import LessonNotFound, get_counts, get_queue
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
+from glosano.core.config import get_settings
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.models import UserProfile, UserSettings
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import LessonNotFound, get_counts, get_queue
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
     # UserRepo(s).create() already attaches a UserSettings row (see
-    # flinq/modules/identity/repo.py) — adding a second one here would
+    # glosano/modules/identity/repo.py) — adding a second one here would
     # violate the user_settings_pkey unique constraint.
     user = await UserRepo(s).create(
         email=f"{uuid.uuid4().hex}@t.io",
@@ -403,7 +403,7 @@ async def test_practice_mode_respects_lesson_scope():
 
 async def test_practice_mode_mixes_kinds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Слитый список перемешивается: phrase-элементы не вытесняются токенами."""
-    import flinq.modules.review.service as review_service
+    import glosano.modules.review.service as review_service
 
     # Детерминированность: «перемешивание» = reverse, phrase-строки (добавленные
     # вторыми) оказываются в голове списка.
@@ -438,7 +438,7 @@ async def test_practice_mode_mixes_kinds(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 async def test_counts_reports_due_new_practice(monkeypatch: pytest.MonkeyPatch) -> None:
-    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # локальный .env репозитория держит GLOSANO_LLM_ENABLED=true (dev/OpenRouter) —
     # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
     monkeypatch.setattr(get_settings(), "llm_enabled", False)
     async with session_scope() as s:

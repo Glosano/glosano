@@ -4,7 +4,7 @@
 
 **Goal:** The core reading experience: `/learn/$lang/lessons/$lessonId` with page/sentence modes, ADR-0005 token highlighting, per-page bulk-known with undo, position resume, and on-demand persisted sentence translation — plus the persistence layer it stands on (`token_items`, `reader_positions`, `bulk_actions`, `lesson_segment_translations`).
 
-**Architecture:** LingQ-shaped content API — the whole tokenized lesson in ONE user-independent response; a separate lightweight status map; client-side pagination. New backend module `flinq/modules/reader_state/` + `token_items` housed in `flinq/modules/vocabulary/` (FLQ-6's future home); sentence translation reuses the FLQ-3 gateway (same provider/kill-switch/audit) and persists per `(segment, target_lang)`. Frontend: `features/reader/` with Zustand store + TanStack Query.
+**Architecture:** LingQ-shaped content API — the whole tokenized lesson in ONE user-independent response; a separate lightweight status map; client-side pagination. New backend module `glosano/modules/reader_state/` + `token_items` housed in `glosano/modules/vocabulary/` (FLQ-6's future home); sentence translation reuses the FLQ-3 gateway (same provider/kill-switch/audit) and persists per `(segment, target_lang)`. Frontend: `features/reader/` with Zustand store + TanStack Query.
 
 **Tech Stack:** backend — FastAPI, SQLAlchemy 2 async, Alembic, pytest+testcontainers; frontend — React 19 + TS strict, TanStack Router/Query, Zustand, Tailwind v4, Vitest + @testing-library/react.
 
@@ -37,8 +37,8 @@ git checkout main && git pull --ff-only && git checkout -b feature/FLQ-4-reader-
 ### Task 1: Models + migration 0006
 
 **Files:**
-- Create: `backend/src/flinq/modules/vocabulary/__init__.py` (docstring `"""Vocabulary: per-user learning items (FLQ-4 ships token_items; FLQ-6 builds the rest)."""`), `backend/src/flinq/modules/vocabulary/models.py`
-- Create: `backend/src/flinq/modules/reader_state/__init__.py` (docstring `"""Reader state: positions, bulk actions, content assembly, segment translations (FLQ-4)."""`), `backend/src/flinq/modules/reader_state/models.py`
+- Create: `backend/src/glosano/modules/vocabulary/__init__.py` (docstring `"""Vocabulary: per-user learning items (FLQ-4 ships token_items; FLQ-6 builds the rest)."""`), `backend/src/glosano/modules/vocabulary/models.py`
+- Create: `backend/src/glosano/modules/reader_state/__init__.py` (docstring `"""Reader state: positions, bulk actions, content assembly, segment translations (FLQ-4)."""`), `backend/src/glosano/modules/reader_state/models.py`
 - Create: `backend/migrations/versions/0006_reader_state.py`
 - Test: `backend/tests/modules/reader_state/__init__.py` (empty), `backend/tests/modules/reader_state/test_models_schema.py`
 - Modify: `backend/tests/conftest.py` (`_init_schema`: add side-effect imports for `vocabulary.models` and `reader_state.models` next to the existing four)
@@ -62,9 +62,9 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.reader_state.models import ReaderPosition
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.reader_state.models import ReaderPosition
+from glosano.modules.vocabulary.models import TokenItem
 
 
 @pytest.fixture(autouse=True)
@@ -125,7 +125,7 @@ async def test_tracked_requires_confidence_and_known_forbids_it(db_session: Asyn
 
 async def test_reader_position_unique_per_user_lesson(db_session: AsyncSession) -> None:
     user_id = await _user(db_session)
-    from flinq.modules.lesson_library.repo import LessonRepo
+    from glosano.modules.lesson_library.repo import LessonRepo
 
     lesson = await LessonRepo(db_session).create_processing_lesson(
         owner_user_id=user_id, title="T", language_code="pt", raw_text="Olá.", visibility="private"
@@ -145,7 +145,7 @@ async def test_reader_position_unique_per_user_lesson(db_session: AsyncSession) 
 ```python
 """Per-user vocabulary items (domain model §8.2).
 
-`token_text` is stored ALREADY NORMALIZED (flinq.core.textnorm.normalize_token
+`token_text` is stored ALREADY NORMALIZED (glosano.core.textnorm.normalize_token
 output) — it is the join key to lesson occurrences and dictionary headwords.
 No FK to occurrences (§2.4): the link is computed by
 (user_id, lesson.language_code, normalized_text).
@@ -160,7 +160,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, St
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 
 class TokenItem(Base):
@@ -207,7 +207,7 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, fun
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 
 class ReaderPosition(Base):
@@ -265,8 +265,8 @@ class LessonSegmentTranslation(Base):
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/vocabulary backend/src/flinq/modules/reader_state backend/migrations/versions/0006_reader_state.py backend/tests/modules/reader_state backend/tests/conftest.py
-git commit -m "feat(FLQ-4.1): add token_items and reader state models with migration" -- backend/src/flinq/modules/vocabulary backend/src/flinq/modules/reader_state backend/migrations/versions/0006_reader_state.py backend/tests/modules/reader_state backend/tests/conftest.py
+git add backend/src/glosano/modules/vocabulary backend/src/glosano/modules/reader_state backend/migrations/versions/0006_reader_state.py backend/tests/modules/reader_state backend/tests/conftest.py
+git commit -m "feat(FLQ-4.1): add token_items and reader state models with migration" -- backend/src/glosano/modules/vocabulary backend/src/glosano/modules/reader_state backend/migrations/versions/0006_reader_state.py backend/tests/modules/reader_state backend/tests/conftest.py
 ```
 
 ---
@@ -274,12 +274,12 @@ git commit -m "feat(FLQ-4.1): add token_items and reader state models with migra
 ### Task 2: Content endpoint (`GET /api/lessons/{id}/content`)
 
 **Files:**
-- Create: `backend/src/flinq/modules/reader_state/content.py` (pure-ish assembly), `backend/src/flinq/modules/reader_state/schemas.py` (content part), `backend/src/flinq/api/reader.py` (router, content route first)
-- Modify: `backend/src/flinq/main.py` (register `reader_router` after `lessons_router`; add `GZipMiddleware`)
+- Create: `backend/src/glosano/modules/reader_state/content.py` (pure-ish assembly), `backend/src/glosano/modules/reader_state/schemas.py` (content part), `backend/src/glosano/api/reader.py` (router, content route first)
+- Modify: `backend/src/glosano/main.py` (register `reader_router` after `lessons_router`; add `GZipMiddleware`)
 - Test: `backend/tests/api/test_reader_content.py`
 
 **Interfaces:**
-- Produces: router `flinq.api.reader:router` (prefix `/api`); `_get_readable_lesson(session, lesson_id, user_id) -> Lesson` helper in `flinq/modules/reader_state/access.py` (create it here; raises `LessonNotFound` / `LessonForbidden` module exceptions mapped to 404/403 in the router) — Tasks 3–6 reuse it.
+- Produces: router `glosano.api.reader:router` (prefix `/api`); `_get_readable_lesson(session, lesson_id, user_id) -> Lesson` helper in `glosano/modules/reader_state/access.py` (create it here; raises `LessonNotFound` / `LessonForbidden` module exceptions mapped to 404/403 in the router) — Tasks 3–6 reuse it.
 - Response schema (short keys are the wire contract, spec §API-1):
 
 ```python
@@ -316,7 +316,7 @@ class LessonContentResponse(BaseModel):
 
 - [ ] **Step 1: Write the failing tests**
 
-`backend/tests/api/test_reader_content.py` — self-contained; copy the `_register_and_onboard` helper (as in `test_dictionary_lookup.py`), create a lesson via `POST /api/lessons` with enqueue stubbed to run import inline (pattern from `tests/api/test_lessons.py::test_create_and_list_lesson`: stub `flinq.api.lessons.enqueue_lesson_import` with a no-op, then call `flinq.modules.lesson_library.service.process_lesson_import(session, lesson_id)` directly via `session_scope`). Fixture text (genuine Portuguese/Cyrillic-free, two paragraphs):
+`backend/tests/api/test_reader_content.py` — self-contained; copy the `_register_and_onboard` helper (as in `test_dictionary_lookup.py`), create a lesson via `POST /api/lessons` with enqueue stubbed to run import inline (pattern from `tests/api/test_lessons.py::test_create_and_list_lesson`: stub `glosano.api.lessons.enqueue_lesson_import` with a no-op, then call `glosano.modules.lesson_library.service.process_lesson_import(session, lesson_id)` directly via `session_scope`). Fixture text (genuine Portuguese/Cyrillic-free, two paragraphs):
 
 ```python
 TEXT = "O edifício antigo fica na praça. Eu gosto dele.\n\nSegundo parágrafo aqui."
@@ -359,7 +359,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.lesson_library.models import Lesson
+from glosano.modules.lesson_library.models import Lesson
 
 
 class LessonNotFound(Exception): ...
@@ -399,8 +399,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.reader_state.schemas import (
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.reader_state.schemas import (
     LessonContentResponse,
     ParagraphOut,
     PunctToken,
@@ -494,14 +494,14 @@ async def lesson_content(...):
     return await build_lesson_content(session, lesson)
 ```
 
-`main.py`: `from fastapi.middleware.gzip import GZipMiddleware`; `app.add_middleware(GZipMiddleware, minimum_size=1024)` (add BEFORE the CSRF/Session middlewares in code order — Starlette wraps in reverse, gzip must be innermost of the three, i.e. added first); `from flinq.api.reader import router as reader_router`; `app.include_router(reader_router)` after lessons.
+`main.py`: `from fastapi.middleware.gzip import GZipMiddleware`; `app.add_middleware(GZipMiddleware, minimum_size=1024)` (add BEFORE the CSRF/Session middlewares in code order — Starlette wraps in reverse, gzip must be innermost of the three, i.e. added first); `from glosano.api.reader import router as reader_router`; `app.include_router(reader_router)` after lessons.
 
 - [ ] **Step 4: Run to verify pass, then full suite**
 - [ ] **Step 5: Gates + commit**
 
 ```bash
-git add backend/src/flinq/modules/reader_state/content.py backend/src/flinq/modules/reader_state/schemas.py backend/src/flinq/modules/reader_state/access.py backend/src/flinq/api/reader.py backend/src/flinq/main.py backend/tests/api/test_reader_content.py
-git commit -m "feat(FLQ-4.2): add tokenized lesson content endpoint with gzip" -- backend/src/flinq/modules/reader_state/content.py backend/src/flinq/modules/reader_state/schemas.py backend/src/flinq/modules/reader_state/access.py backend/src/flinq/api/reader.py backend/src/flinq/main.py backend/tests/api/test_reader_content.py
+git add backend/src/glosano/modules/reader_state/content.py backend/src/glosano/modules/reader_state/schemas.py backend/src/glosano/modules/reader_state/access.py backend/src/glosano/api/reader.py backend/src/glosano/main.py backend/tests/api/test_reader_content.py
+git commit -m "feat(FLQ-4.2): add tokenized lesson content endpoint with gzip" -- backend/src/glosano/modules/reader_state/content.py backend/src/glosano/modules/reader_state/schemas.py backend/src/glosano/modules/reader_state/access.py backend/src/glosano/api/reader.py backend/src/glosano/main.py backend/tests/api/test_reader_content.py
 ```
 
 ---
@@ -509,8 +509,8 @@ git commit -m "feat(FLQ-4.2): add tokenized lesson content endpoint with gzip" -
 ### Task 3: Token statuses endpoint
 
 **Files:**
-- Create: `backend/src/flinq/modules/reader_state/statuses.py`
-- Modify: `backend/src/flinq/modules/reader_state/schemas.py` (add), `backend/src/flinq/api/reader.py` (add route)
+- Create: `backend/src/glosano/modules/reader_state/statuses.py`
+- Modify: `backend/src/glosano/modules/reader_state/schemas.py` (add), `backend/src/glosano/api/reader.py` (add route)
 - Test: `backend/tests/api/test_reader_statuses.py`
 
 **Interfaces:**
@@ -526,8 +526,8 @@ git commit -m "feat(FLQ-4.2): add tokenized lesson content endpoint with gzip" -
 ### Task 4: Reader positions (PUT upsert + lesson GET extension)
 
 **Files:**
-- Create: `backend/src/flinq/modules/reader_state/positions.py`
-- Modify: `backend/src/flinq/modules/reader_state/schemas.py`, `backend/src/flinq/api/reader.py`, `backend/src/flinq/api/lessons.py` + `backend/src/flinq/modules/lesson_library/schemas.py` (extend `LessonStatusResponse` with `reader_position: ReaderPositionOut | None = None`)
+- Create: `backend/src/glosano/modules/reader_state/positions.py`
+- Modify: `backend/src/glosano/modules/reader_state/schemas.py`, `backend/src/glosano/api/reader.py`, `backend/src/glosano/api/lessons.py` + `backend/src/glosano/modules/lesson_library/schemas.py` (extend `LessonStatusResponse` with `reader_position: ReaderPositionOut | None = None`)
 - Test: `backend/tests/api/test_reader_positions.py`
 
 **Interfaces:**
@@ -544,8 +544,8 @@ git commit -m "feat(FLQ-4.2): add tokenized lesson content endpoint with gzip" -
 ### Task 5: Bulk-known + undo
 
 **Files:**
-- Create: `backend/src/flinq/modules/reader_state/bulk.py`
-- Modify: `backend/src/flinq/modules/reader_state/schemas.py`, `backend/src/flinq/api/reader.py`
+- Create: `backend/src/glosano/modules/reader_state/bulk.py`
+- Modify: `backend/src/glosano/modules/reader_state/schemas.py`, `backend/src/glosano/api/reader.py`
 - Test: `backend/tests/api/test_reader_bulk.py`
 
 **Interfaces:**
@@ -609,8 +609,8 @@ async def undo_bulk_action(session, *, user_id, action_id):
 ### Task 6: Sentence translation (persisted, via FLQ-3 gateway)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/ai_translation/prompts.py` (+`SENTENCE_SYSTEM_PROMPT`, `build_sentence_prompt`), `backend/src/flinq/modules/ai_translation/service.py` (+`translate_sentence`, extract shared audit helper), `backend/src/flinq/modules/reader_state/schemas.py`, `backend/src/flinq/api/reader.py`
-- Create: `backend/src/flinq/modules/reader_state/translations.py`
+- Modify: `backend/src/glosano/modules/ai_translation/prompts.py` (+`SENTENCE_SYSTEM_PROMPT`, `build_sentence_prompt`), `backend/src/glosano/modules/ai_translation/service.py` (+`translate_sentence`, extract shared audit helper), `backend/src/glosano/modules/reader_state/schemas.py`, `backend/src/glosano/api/reader.py`
+- Create: `backend/src/glosano/modules/reader_state/translations.py`
 - Test: `backend/tests/modules/ai_translation/test_sentence_prompt.py`, `backend/tests/api/test_segment_translation.py`
 
 **Interfaces:**
@@ -762,7 +762,7 @@ export const useReaderStore = create<ReaderState>()(
       setLastBulkActionId: (lastBulkActionId) => set({ lastBulkActionId }),
       setFont: (f) => set((s) => ({ font: { ...s.font, ...f } })),
     }),
-    { name: 'flinq-reader-prefs', partialize: (s) => ({ font: s.font }) as Partial<ReaderState> },
+    { name: 'glosano-reader-prefs', partialize: (s) => ({ font: s.font }) as Partial<ReaderState> },
   ),
 )
 ```

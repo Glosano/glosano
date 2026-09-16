@@ -7,11 +7,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from flinq.core.config import get_settings
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.core.config import get_settings
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.vocabulary.models import TokenItem
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +36,7 @@ async def _register(c: AsyncClient) -> str:
         },
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     return csrf
 
@@ -129,7 +129,7 @@ async def test_lesson_queue_unknown_lesson_404():
 
 
 async def test_counts_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
-    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # локальный .env репозитория держит GLOSANO_LLM_ENABLED=true (dev/OpenRouter) —
     # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
     monkeypatch.setattr(get_settings(), "llm_enabled", False)
     async with await _client() as c:
@@ -159,7 +159,7 @@ async def test_counts_with_unknown_lesson_returns_404():
 
 
 async def test_exercise_returns_503_when_ai_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # локальный .env репозитория держит GLOSANO_LLM_ENABLED=true (dev/OpenRouter) —
     # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
     monkeypatch.setattr(get_settings(), "llm_enabled", False)
     async with await _client() as c:
@@ -196,7 +196,7 @@ async def test_exercise_validation_422():
 
 
 async def test_feedback_returns_503_when_ai_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    # локальный .env репозитория держит FLINQ_LLM_ENABLED=true (dev/OpenRouter) —
+    # локальный .env репозитория держит GLOSANO_LLM_ENABLED=true (dev/OpenRouter) —
     # явно фиксируем False, чтобы тест не зависел от ambient-конфига окружения.
     monkeypatch.setattr(get_settings(), "llm_enabled", False)
     async with await _client() as c:

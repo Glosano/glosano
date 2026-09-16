@@ -8,10 +8,10 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonImportJob, LessonTokenOccurrence
-from flinq.modules.lesson_library.repo import LessonRepo
-from flinq.worker.tasks import run_lesson_import
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonImportJob, LessonTokenOccurrence
+from glosano.modules.lesson_library.repo import LessonRepo
+from glosano.worker.tasks import run_lesson_import
 
 
 async def _seed(session: AsyncSession, raw_text: str) -> tuple[uuid.UUID, uuid.UUID]:
@@ -64,7 +64,7 @@ async def test_job_failure_sets_failed_and_records_error(
     def _boom(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("segmentation exploded")
 
-    monkeypatch.setattr("flinq.worker.tasks.process_lesson_import", _boom)
+    monkeypatch.setattr("glosano.worker.tasks.process_lesson_import", _boom)
 
     await run_lesson_import(lesson_id, job_id)
 

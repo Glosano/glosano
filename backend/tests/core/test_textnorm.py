@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from flinq.core.textnorm import normalize_token
+from glosano.core.textnorm import normalize_token
 
 
 def test_lowercases_and_strips_outer_punctuation() -> None:
@@ -32,7 +32,7 @@ def test_keeps_diacritics_and_internal_hyphen() -> None:
 
 
 def test_tokenizer_uses_shared_function() -> None:
-    from flinq.modules.lesson_library.tokenization import tokenize
+    from glosano.modules.lesson_library.tokenization import tokenize
 
     [tok] = [t for t in tokenize("Straße.") if t.is_word_like]
     assert tok.normalized_text == "strasse"

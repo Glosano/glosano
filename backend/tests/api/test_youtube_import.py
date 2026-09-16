@@ -5,11 +5,11 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from flinq.core.db import session_scope
-from flinq.modules.lesson_library.models import LessonImportJob
-from flinq.modules.lesson_library.video_segments import Cue
-from flinq.modules.lesson_library.youtube import VideoResult
-from flinq.worker.tasks import run_lesson_import
+from glosano.core.db import session_scope
+from glosano.modules.lesson_library.models import LessonImportJob
+from glosano.modules.lesson_library.video_segments import Cue
+from glosano.modules.lesson_library.youtube import VideoResult
+from glosano.worker.tasks import run_lesson_import
 from tests.api._reader_helpers import register_and_onboard
 
 
@@ -32,9 +32,9 @@ async def test_video_import_edit_export_and_idempotency(
             [Cue("Hello world.", 0, 2000), Cue("Next lesson.", 4000, 6000)],
         )
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
     )
     payload = {
         "url": "https://youtu.be/M7lc1UVf-VE",
@@ -155,7 +155,7 @@ async def test_concurrent_bulk_request_returns_original_action(
 async def test_queue_failure_is_safe_and_retry_preserves_lesson(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from flinq.modules.lesson_library.youtube import VideoImportError
+    from glosano.modules.lesson_library.youtube import VideoImportError
 
     csrf = await register_and_onboard(client, "youtube-retry@example.com", lang="en")
     headers = {"X-CSRF-Token": csrf}
@@ -163,7 +163,7 @@ async def test_queue_failure_is_safe_and_retry_preserves_lesson(
     async def enqueue(*args: Any) -> None:
         raise RuntimeError("secret transport information")
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     body = {
         "url": "https://youtu.be/M7lc1UVf-VE",
         "language_code": "en",
@@ -181,7 +181,7 @@ async def test_queue_failure_is_safe_and_retry_preserves_lesson(
     async def queued(*args: Any) -> None:
         pass
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", queued)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", queued)
     retried = await client.post(f"/api/lessons/{lesson_id}/retry-import", headers=headers)
     assert retried.status_code == 202 and retried.json()["id"] == lesson_id
     assert (
@@ -200,7 +200,7 @@ async def test_queue_failure_is_safe_and_retry_preserves_lesson(
         raise VideoImportError("captions_language_unavailable")
 
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", unavailable
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", unavailable
     )
     await run_lesson_import(uuid.UUID(lesson_id), job_id)
     assert (

@@ -9,9 +9,9 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.dictionary import service
-from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
-from flinq.modules.dictionary.repo import DictionaryRepo
+from glosano.modules.dictionary import service
+from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.dictionary.repo import DictionaryRepo
 
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "dictionary"
 

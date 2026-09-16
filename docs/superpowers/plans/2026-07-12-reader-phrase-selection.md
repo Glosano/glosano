@@ -14,7 +14,7 @@
 
 - Языки: `en | ru | pt` (`LangCode` Literal во всех схемах).
 - Фраза: **2–8 слово-токенов**; пунктуация входит в display-текст, но не в лимит и не в матчинг.
-- `phrase_text` (join key) = нормализованные слово-токены через один пробел; нормализация ТОЛЬКО через `tokenize()` из `flinq/modules/lesson_library/tokenization.py` (гарантия совпадения с `n` токенов урока). `normalize_token`/`tokenize` — замороженный алгоритм, НЕ менять.
+- `phrase_text` (join key) = нормализованные слово-токены через один пробел; нормализация ТОЛЬКО через `tokenize()` из `glosano/modules/lesson_library/tokenization.py` (гарантия совпадения с `n` токенов урока). `normalize_token`/`tokenize` — замороженный алгоритм, НЕ менять.
 - Границы: фраза только внутри одного предложения (клампится на клиенте; бэкенд предложения не проверяет).
 - Выделение: только мышь (`pointerType === 'mouse'`, ЛКМ).
 - Матчинг вхождений: клиентский, только по слово-токенам, пересечения не поддерживаются (leftmost-longest). Подсвечиваются только `tracked`-фразы.
@@ -28,7 +28,7 @@
 ### Task 1: `normalize_phrase`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/lesson_library/tokenization.py` (после `tokenize`, ~строка 55)
+- Modify: `backend/src/glosano/modules/lesson_library/tokenization.py` (после `tokenize`, ~строка 55)
 - Test: `backend/tests/modules/lesson_library/test_normalize_phrase.py`
 
 **Interfaces:**
@@ -40,7 +40,7 @@
 ```python
 """normalize_phrase: join key фразы (ADR-0001) поверх канонического tokenize."""
 
-from flinq.modules.lesson_library.tokenization import normalize_phrase
+from glosano.modules.lesson_library.tokenization import normalize_phrase
 
 
 def test_joins_normalized_words_with_single_space():
@@ -92,7 +92,7 @@ Expected: PASS (5 tests)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/tokenization.py backend/tests/modules/lesson_library/test_normalize_phrase.py
+git add backend/src/glosano/modules/lesson_library/tokenization.py backend/tests/modules/lesson_library/test_normalize_phrase.py
 git commit -m "feat(vocab): normalize_phrase join key over canonical tokenizer"
 ```
 
@@ -101,7 +101,7 @@ git commit -m "feat(vocab): normalize_phrase join key over canonical tokenizer"
 ### Task 2: `PhraseItem` model + migration
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/models.py` (после класса `TokenItem`)
+- Modify: `backend/src/glosano/modules/vocabulary/models.py` (после класса `TokenItem`)
 - Create: `backend/migrations/versions/0010_phrase_items.py`
 - Test: `backend/tests/modules/test_phrase_item_model.py`
 
@@ -121,10 +121,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary.models import PhraseItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary.models import PhraseItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
@@ -327,7 +327,7 @@ Expected: миграция применяется; 4 теста PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/models.py backend/migrations/versions/0010_phrase_items.py backend/tests/modules/test_phrase_item_model.py
+git add backend/src/glosano/modules/vocabulary/models.py backend/migrations/versions/0010_phrase_items.py backend/tests/modules/test_phrase_item_model.py
 git commit -m "feat(vocab): phrase_items table + model (migration 0010)"
 ```
 
@@ -336,7 +336,7 @@ git commit -m "feat(vocab): phrase_items table + model (migration 0010)"
 ### Task 3: Генерализация сателлитов сервиса по `kind`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
 - Test: `backend/tests/modules/test_vocabulary_service_phrase.py`
 
 **Interfaces:**
@@ -355,11 +355,11 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import (
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,
@@ -489,7 +489,7 @@ Expected: FAIL — `UnsupportedKind: phrase`
 3a. Импорт модели и реестр kind→model (заменить существующие `_check_kind`, `_promote_to_user`, `_owned_item`):
 
 ```python
-from flinq.modules.vocabulary.models import (
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,
@@ -566,7 +566,7 @@ Expected: все PASS (регресс токенов не сломан)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_service_phrase.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_service_phrase.py
 git commit -m "refactor(vocab): thread item kind through satellite service ops"
 ```
 
@@ -575,9 +575,9 @@ git commit -m "refactor(vocab): thread item kind through satellite service ops"
 ### Task 4: create/patch/lookup для фразы + API
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py`
-- Modify: `backend/src/flinq/api/vocabulary.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py`
+- Modify: `backend/src/glosano/api/vocabulary.py`
 - Test: `backend/tests/api/test_vocabulary_phrase.py`
 
 **Interfaces:**
@@ -600,9 +600,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.vocabulary.models import (
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,
@@ -738,7 +738,7 @@ Expected: FAIL (422/400 на kind=phrase)
 3a. Импорт + исключение (рядом с остальными исключениями):
 
 ```python
-from flinq.modules.lesson_library.tokenization import normalize_phrase
+from glosano.modules.lesson_library.tokenization import normalize_phrase
 
 
 class InvalidPhrase(Exception):  # noqa: N818 -- matches sibling exception naming
@@ -908,7 +908,7 @@ Expected: все PASS, ruff чистый
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/src/flinq/modules/vocabulary/schemas.py backend/src/flinq/api/vocabulary.py backend/tests/api/test_vocabulary_phrase.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/src/glosano/modules/vocabulary/schemas.py backend/src/glosano/api/vocabulary.py backend/tests/api/test_vocabulary_phrase.py
 git commit -m "feat(vocab): phrase create/lookup/patch through the item card API"
 ```
 
@@ -917,9 +917,9 @@ git commit -m "feat(vocab): phrase create/lookup/patch through the item card API
 ### Task 5: `GET /api/vocabulary/phrases`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py`
-- Modify: `backend/src/flinq/api/vocabulary.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py`
+- Modify: `backend/src/glosano/api/vocabulary.py`
 - Test: `backend/tests/api/test_vocabulary_phrases_list.py`
 
 **Interfaces:**
@@ -937,9 +937,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.vocabulary.models import PhraseItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.vocabulary.models import PhraseItem
 
 
 @pytest.fixture(autouse=True)
@@ -1081,7 +1081,7 @@ Expected: PASS (3 tests)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/src/flinq/modules/vocabulary/schemas.py backend/src/flinq/api/vocabulary.py backend/tests/api/test_vocabulary_phrases_list.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/src/glosano/modules/vocabulary/schemas.py backend/src/glosano/api/vocabulary.py backend/tests/api/test_vocabulary_phrases_list.py
 git commit -m "feat(vocab): GET /api/vocabulary/phrases for reader-side matching"
 ```
 
@@ -1090,9 +1090,9 @@ git commit -m "feat(vocab): GET /api/vocabulary/phrases for reader-side matching
 ### Task 6: Фразы в общем списке Vocabulary (union)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py` (`list_items`)
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py` (`VocabListItemOut.kind`)
-- Modify: `backend/src/flinq/api/vocabulary.py` (`list_vocabulary`)
+- Modify: `backend/src/glosano/modules/vocabulary/service.py` (`list_items`)
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py` (`VocabListItemOut.kind`)
+- Modify: `backend/src/glosano/api/vocabulary.py` (`list_vocabulary`)
 - Test: `backend/tests/modules/test_vocabulary_list_phrase.py`
 
 **Interfaces:**
@@ -1111,11 +1111,11 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import (
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,
@@ -1422,7 +1422,7 @@ Expected: все PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/src/flinq/modules/vocabulary/schemas.py backend/src/flinq/api/vocabulary.py backend/tests/modules/test_vocabulary_list_phrase.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/src/glosano/modules/vocabulary/schemas.py backend/src/glosano/api/vocabulary.py backend/tests/modules/test_vocabulary_list_phrase.py
 git commit -m "feat(vocab): phrases in the vocabulary list (token+phrase union)"
 ```
 
@@ -1431,7 +1431,7 @@ git commit -m "feat(vocab): phrases in the vocabulary list (token+phrase union)"
 ### Task 7: bulk-операции по обоим kind
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py` (`bulk_action`)
+- Modify: `backend/src/glosano/modules/vocabulary/service.py` (`bulk_action`)
 - Test: `backend/tests/modules/test_vocabulary_bulk_phrase.py`
 
 **Interfaces:**
@@ -1449,11 +1449,11 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import (
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,
@@ -1629,7 +1629,7 @@ Expected: весь backend-набор PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_bulk_phrase.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/tests/modules/test_vocabulary_bulk_phrase.py
 git commit -m "feat(vocab): bulk actions over token and phrase items"
 ```
 

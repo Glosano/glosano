@@ -9,23 +9,23 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import (
+from glosano.core.db import session_scope
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import (
     Lesson,
     LessonImportJob,
     LessonMediaSource,
     LessonSegment,
 )
-from flinq.modules.lesson_library.service import delete_lesson
-from flinq.modules.lesson_library.video_import import (
+from glosano.modules.lesson_library.service import delete_lesson
+from glosano.modules.lesson_library.video_import import (
     create_video_import,
     expire_imports,
     retry_video_import,
     run_video_import,
 )
-from flinq.modules.lesson_library.video_segments import Cue
-from flinq.modules.lesson_library.youtube import VideoImportError, VideoResult
+from glosano.modules.lesson_library.video_segments import Cue
+from glosano.modules.lesson_library.youtube import VideoImportError, VideoResult
 
 
 async def make_import() -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
@@ -59,7 +59,7 @@ async def test_failed_retry_and_late_attempt_cannot_publish(
         return result()
 
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", blocked
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", blocked
     )
     task = asyncio.create_task(run_video_import(lesson_id, old_job))
     await started.wait()
@@ -99,7 +99,7 @@ async def test_delete_during_acquisition_is_noop(monkeypatch: pytest.MonkeyPatch
         return result()
 
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
     )
     await run_video_import(lesson_id, job_id)
     async with session_scope() as s:
@@ -125,9 +125,9 @@ async def test_publication_rollback_records_safe_failed_error(
         await session.flush()
 
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
     )
-    monkeypatch.setattr("flinq.modules.lesson_library.video_import.process_lesson_import", fail)
+    monkeypatch.setattr("glosano.modules.lesson_library.video_import.process_lesson_import", fail)
     await run_video_import(lesson_id, job_id)
     async with session_scope() as s:
         lesson = await s.get(Lesson, lesson_id)
@@ -148,7 +148,7 @@ async def test_provider_error_is_safe_and_retryable(monkeypatch: pytest.MonkeyPa
         raise VideoImportError("network_error", True)
 
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptProvider.acquire", acquire
     )
     await run_video_import(lesson_id, job_id)
     async with session_scope() as s:
@@ -157,7 +157,7 @@ async def test_provider_error_is_safe_and_retryable(monkeypatch: pytest.MonkeyPa
 
 
 async def test_worker_maintenance_expires_abandoned_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
-    from flinq.worker import broker as worker_broker
+    from glosano.worker import broker as worker_broker
 
     _, lesson_id, job_id = await make_import()
     async with session_scope() as s:
@@ -191,7 +191,7 @@ async def test_worker_maintenance_expires_abandoned_jobs(monkeypatch: pytest.Mon
 async def test_retry_and_cleanup_use_job_before_lesson_lock_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from flinq.modules.lesson_library.repo import LessonRepo
+    from glosano.modules.lesson_library.repo import LessonRepo
 
     owner, lesson_id, job_id = await make_import()
     async with session_scope() as s:
@@ -248,7 +248,7 @@ async def test_retry_and_cleanup_use_job_before_lesson_lock_order(
 async def test_expiration_rechecks_renewed_lease_after_waiting_for_job(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from flinq.modules.lesson_library.repo import LessonRepo
+    from glosano.modules.lesson_library.repo import LessonRepo
 
     _, lesson_id, job_id = await make_import()
     async with session_scope() as s:

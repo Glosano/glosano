@@ -6,7 +6,7 @@ register → /me → onboarding → /me → patch language → logout → /me.
 
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def test_full_auth_onboarding_flow() -> None:
@@ -23,9 +23,9 @@ async def test_full_auth_onboarding_flow() -> None:
         )
         assert r.status_code == 201
         assert r.json()["needs_onboarding"] is True
-        csrf = c.cookies.get("flinq_csrf")
+        csrf = c.cookies.get("glosano_csrf")
         assert csrf is not None
-        assert c.cookies.get("flinq_session") is not None
+        assert c.cookies.get("glosano_session") is not None
 
         # 2. /me before onboarding
         r = await c.get("/me")
@@ -90,7 +90,7 @@ async def test_login_existing_user_after_logout() -> None:
                 "password": "abcdefghij",
             },
         )
-        csrf = c.cookies.get("flinq_csrf")
+        csrf = c.cookies.get("glosano_csrf")
         assert csrf
         await c.post(
             "/me/onboarding",

@@ -8,10 +8,10 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary.models import PhraseItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary.models import PhraseItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:

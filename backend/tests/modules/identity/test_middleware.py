@@ -1,8 +1,8 @@
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.main import create_app
-from flinq.modules.identity.middleware import CSRF_COOKIE
+from glosano.main import create_app
+from glosano.modules.identity.middleware import CSRF_COOKIE
 
 
 async def test_no_cookie_state_is_none(db_session: AsyncSession) -> None:
@@ -25,7 +25,7 @@ async def test_csrf_blocks_post_without_header(db_session: AsyncSession) -> None
 
 
 async def test_csrf_allows_post_when_header_matches_cookie(db_session: AsyncSession) -> None:
-    """POST with matching X-CSRF-Token + flinq_csrf cookie passes CSRF check; route returns 404."""
+    """POST with matching X-CSRF-Token + glosano_csrf cookie passes CSRF; route returns 404."""
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         c.cookies.set(CSRF_COOKIE, "abc")

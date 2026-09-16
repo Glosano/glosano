@@ -14,7 +14,7 @@ dependencies:
   - FLQ-5
   - FLQ-6
 references:
-  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=83-2'
+  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=83-2'
 documentation:
   - docs/architecture/2026-04-11-mvp-domain-model.md
   - docs/superpowers/specs/2026-07-25-library-reading-progress-design.md

@@ -103,7 +103,7 @@ Owner: root. Files: lib/i18n.ts, lib/locales/common.ts, settings feature and rou
 
 - Docker recovered without an agent-initiated OrbStack restart. Full backend suite: 417 passed, 5 dependency deprecation warnings, 34.93s. Separate migration round-trip test also passed.
 - User reported HTTP 500 for sentence translation. API traceback confirmed UndefinedColumnError: lesson_segment_translations.user_id; live database was still at 0016_statistics.
-- Applied the tested Alembic upgrade to the local Flinq database; current revision is 0017_ui_language_translation (head). Read-only verification for the reported lesson confirmed material pt, profile UI en, preferred target en and the new cache user_id column.
+- Applied the tested Alembic upgrade to the local Glosano database; current revision is 0017_ui_language_translation (head). Read-only verification for the reported lesson confirmed material pt, profile UI en, preferred target en and the new cache user_id column.
 - No feature code changes were needed for this runtime error. A real OpenRouter retry for the private lesson was rejected by automatic approval review because it sends lesson text externally and saves a cache record. It was not retried indirectly; user approval is needed for that optional real-provider confirmation.
 
 ## Completion and integration

@@ -44,7 +44,7 @@ GradeBar 0..5 с подписями: 5 Идеально · 4 С заминкой
 
 ## 5. Генерация упражнений (`modules/review/exercises.py`)
 
-Переиспользует `ai_translation`: `OpenAICompatibleProvider`, `AIDisabled` (kill-switch `FLINQ_LLM_ENABLED`), audit `AIRequest` (сырой текст не в логи — ADR-0003). Промпты — обобщённые версии CLI-промптов: языки из настроек (изучаемый / `preferred_translation_language_code`), контекст — текст item, личный перевод, заметки. Ответ — JSON в промпте; парсинг `extract_json` (первая `{` … последняя `}`), при непарсибельном ответе один ретрай, затем ошибка.
+Переиспользует `ai_translation`: `OpenAICompatibleProvider`, `AIDisabled` (kill-switch `GLOSANO_LLM_ENABLED`), audit `AIRequest` (сырой текст не в логи — ADR-0003). Промпты — обобщённые версии CLI-промптов: языки из настроек (изучаемый / `preferred_translation_language_code`), контекст — текст item, личный перевод, заметки. Ответ — JSON в промпте; парсинг `extract_json` (первая `{` … последняя `}`), при непарсибельном ответе один ретрай, затем ошибка.
 
 Виды (`kind`):
 

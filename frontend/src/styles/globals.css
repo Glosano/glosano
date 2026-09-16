@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /*
- * Flinq design tokens.
+ * Glosano design tokens.
  *
  * Two-level model (see ADR-0009):
  *   1. `:root` — base values in oklch (shadcn semantic + app-specific).

@@ -19,7 +19,7 @@
 - [ADR-0005](../../adr/ADR-0005-word-status-model-lingq-levels.md): `new / tracked / known / ignored`, confidence `0..5`, bulk-known и undo.
 - [FLQ-5](FLQ-5-word-card-design.md): существующая карточка и ручной picker `1..4`; более позднее правило ADR-0005 задаёт начальный confidence `1`.
 - [FLQ-21](2026-07-25-lesson-scoped-review-provenance-design.md): первый урок взятия в изучение, без бэкфилла и без провенанса для bulk-known.
-- Figma: [Добавленные, 92:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=92-2), [Новые, 93:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=93-2), [Все, 94:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=94-2). Все три макета и design context просмотрены; приложенный CSS соответствует 92:2.
+- Figma: [Добавленные, 92:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=92-2), [Новые, 93:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=93-2), [Все, 94:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=94-2). Все три макета и design context просмотрены; приложенный CSS соответствует 92:2.
 
 ## 2. Границы изменения
 

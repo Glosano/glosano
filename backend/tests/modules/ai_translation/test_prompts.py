@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.ai_translation.prompts import (
+from glosano.modules.ai_translation.prompts import (
     build_hints_prompt,
     normalize_ai_text,
     parse_hints,

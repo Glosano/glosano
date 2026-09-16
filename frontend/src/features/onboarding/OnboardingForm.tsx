@@ -77,7 +77,7 @@ export function OnboardingForm() {
 
   return (
     <form noValidate onSubmit={onSubmit} className="w-full max-w-md space-y-6">
-      <h1 className="text-2xl font-semibold text-center">{t('Добро пожаловать в Flinq')}</h1>
+      <h1 className="text-2xl font-semibold text-center">{t('Добро пожаловать в Glosano')}</h1>
 
       <div className="space-y-2">
         <Label htmlFor="onboarding-ui-language">{t('Язык интерфейса')}</Label>

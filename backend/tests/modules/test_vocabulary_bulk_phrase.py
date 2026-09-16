@@ -7,11 +7,11 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import (
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,

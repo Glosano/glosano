@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.progress import ZERO_PROGRESS, read_percent
+from glosano.modules.lesson_library.progress import ZERO_PROGRESS, read_percent
 
 
 def test_no_position_means_not_started() -> None:

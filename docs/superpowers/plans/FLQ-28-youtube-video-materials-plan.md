@@ -28,7 +28,7 @@
 
 ## Task 1: Backend YouTube import, timed facts and reliable bulk transitions
 
-**Files:** Create `backend/src/flinq/modules/lesson_library/youtube.py`, `video_import.py`, `video_segments.py` and migration(s) after `0018`; modify lesson library models/service/schemas/repo, worker tasks, lessons API, reader content/schemas/bulk/API, identity export and dependency lock. Add provider, normalization, worker/API/edit/export/bulk integration tests in the corresponding backend test directories.
+**Files:** Create `backend/src/glosano/modules/lesson_library/youtube.py`, `video_import.py`, `video_segments.py` and migration(s) after `0018`; modify lesson library models/service/schemas/repo, worker tasks, lessons API, reader content/schemas/bulk/API, identity export and dependency lock. Add provider, normalization, worker/API/edit/export/bulk integration tests in the corresponding backend test directories.
 
 **Interfaces:** JSON contracts consumed by Tasks 2–4:
 

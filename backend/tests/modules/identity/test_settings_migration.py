@@ -10,9 +10,9 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson
-from flinq.modules.reader_state.models import LessonSegmentTranslation
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson
+from glosano.modules.reader_state.models import LessonSegmentTranslation
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
@@ -20,7 +20,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[3]
 async def test_translation_migration_preserves_legacy_and_refuses_unsafe_downgrade() -> None:
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as pg:
         url = pg.get_connection_url()
-        env = {**os.environ, "FLINQ_DATABASE_URL": url}
+        env = {**os.environ, "GLOSANO_DATABASE_URL": url}
 
         def migrate(target: str, *, downgrade: bool = False, succeeds: bool = True) -> None:
             result = subprocess.run(  # noqa: S603 -- fixed migration executable

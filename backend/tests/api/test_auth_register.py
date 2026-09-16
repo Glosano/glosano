@@ -1,7 +1,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def test_register_success() -> None:
@@ -20,8 +20,8 @@ async def test_register_success() -> None:
         assert "id" in body
         assert body["needs_onboarding"] is True
         # Both cookies set
-        assert c.cookies.get("flinq_session")
-        assert c.cookies.get("flinq_csrf")
+        assert c.cookies.get("glosano_session")
+        assert c.cookies.get("glosano_csrf")
 
 
 async def test_register_duplicate_email_409() -> None:
@@ -61,10 +61,10 @@ async def test_register_short_password_422() -> None:
 
 
 async def test_register_disabled_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When FLINQ_ALLOW_PUBLIC_REGISTRATION=false, /auth/register returns 403."""
-    from flinq.core.config import get_settings
+    """When GLOSANO_ALLOW_PUBLIC_REGISTRATION=false, /auth/register returns 403."""
+    from glosano.core.config import get_settings
 
-    monkeypatch.setenv("FLINQ_ALLOW_PUBLIC_REGISTRATION", "false")
+    monkeypatch.setenv("GLOSANO_ALLOW_PUBLIC_REGISTRATION", "false")
     get_settings.cache_clear()
     try:
         transport = ASGITransport(app=create_app())
@@ -84,12 +84,12 @@ async def test_register_disabled_returns_403(monkeypatch: pytest.MonkeyPatch) ->
 
 
 async def test_register_admin_role_when_email_matches_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When email matches FLINQ_INITIAL_ADMIN_EMAIL, role is admin."""
-    from flinq.core.config import get_settings
-    from flinq.core.db import session_scope
-    from flinq.modules.identity.repo import UserRepo
+    """When email matches GLOSANO_INITIAL_ADMIN_EMAIL, role is admin."""
+    from glosano.core.config import get_settings
+    from glosano.core.db import session_scope
+    from glosano.modules.identity.repo import UserRepo
 
-    monkeypatch.setenv("FLINQ_INITIAL_ADMIN_EMAIL", "admin-bootstrap@example.com")
+    monkeypatch.setenv("GLOSANO_INITIAL_ADMIN_EMAIL", "admin-bootstrap@example.com")
     get_settings.cache_clear()
     try:
         transport = ASGITransport(app=create_app())

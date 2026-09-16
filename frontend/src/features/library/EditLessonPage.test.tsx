@@ -40,7 +40,7 @@ it('loads a nonmodal editor, saves both fields with CSRF and invalidates reader 
     if (init.method === 'PATCH') requests.push(init)
     return new Response(JSON.stringify(material))
   })
-  document.cookie = 'flinq_csrf=edit-token'
+  document.cookie = 'glosano_csrf=edit-token'
   client.setQueryData(['reader-content', 'L1'], { old: true })
   const leave = setup()
   expect(await screen.findByLabelText('Title')).toHaveValue('Olá')

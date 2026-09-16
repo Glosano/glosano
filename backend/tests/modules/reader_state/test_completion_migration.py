@@ -13,7 +13,7 @@ from testcontainers.postgres import PostgresContainer  # pyright: ignore[reportM
 async def test_completion_migration_roundtrip() -> None:
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as pg:
         url = pg.get_connection_url()
-        env = {**os.environ, "FLINQ_DATABASE_URL": url}
+        env = {**os.environ, "GLOSANO_DATABASE_URL": url}
 
         def migrate(command: str, target: str) -> None:
             result = subprocess.run(  # noqa: S603 — fixed executable and migration targets

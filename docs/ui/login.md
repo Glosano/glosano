@@ -45,14 +45,14 @@
 | Password | да | non-empty |
 | Запомнить меня (checkbox) | — | по default `true`. См. §6 |
 
-> **Deviation от макета:** в `login.png` поле названо «Имя пользователя или электронная почта». В Flinq username отсутствует в domain model (`users.email` — единственный identifier). Меняем label на «Электронная почта».
+> **Deviation от макета:** в `login.png` поле названо «Имя пользователя или электронная почта». В Glosano username отсутствует в domain model (`users.email` — единственный identifier). Меняем label на «Электронная почта».
 
 ## 5. Действия
 
 - **Submit:** `POST /auth/login` с `{ email, password, remember_me }`.
 - **Кнопка показать/скрыть пароль** — иконка глаза в input'е.
 - **Линк «Зарегистрироваться»** → `/register`.
-- **Нет линка «Забыли пароль?»** в MVP — сброс делается админом через CLI (`flinq reset-password user@x.com`). Inline note в empty state error: «Забыли пароль? Обратитесь к администратору» — без отдельной страницы.
+- **Нет линка «Забыли пароль?»** в MVP — сброс делается админом через CLI (`glosano reset-password user@x.com`). Inline note в empty state error: «Забыли пароль? Обратитесь к администратору» — без отдельной страницы.
 
 ## 6. Запомнить меня
 

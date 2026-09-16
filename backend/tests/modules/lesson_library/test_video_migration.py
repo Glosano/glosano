@@ -19,7 +19,7 @@ async def test_video_migration_round_trip_preserves_text_facts() -> None:
             result = subprocess.run(  # noqa: S603 -- fixed Python and migration arguments
                 [sys.executable, "-m", "alembic", direction, revision],
                 cwd=Path(__file__).resolve().parents[3],
-                env={**os.environ, "FLINQ_DATABASE_URL": url},
+                env={**os.environ, "GLOSANO_DATABASE_URL": url},
                 capture_output=True,
                 text=True,
             )

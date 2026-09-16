@@ -99,7 +99,7 @@ Enter там — перенос строки); это фиксируется к�
 - Владелец проверяется как в остальных ручках (`_owned_item`); строка перевода
   должна принадлежать `(owner, item)`.
 - Сервис: `update_translation`, `delete_translation` в
-  `flinq/modules/vocabulary/service.py`; `add_translation` теряет параметр
+  `glosano/modules/vocabulary/service.py`; `add_translation` теряет параметр
   `is_primary` и получает дедуп по тексту.
 
 ### 2.5 Миграция `0008_translation_variants`
@@ -162,7 +162,7 @@ Enter там — перенос строки); это фиксируется к�
 - Общий хелпер `ensureItem`-then-mutate вместо 4 повторов в WordCard.tsx.
 - `lookup()` реюзает `_list_tags` вместо inline-запроса тегов (service.py).
 - Убрать неиспользуемый `item_id` из `_resolve(kind, item_id)`
-  (backend/src/flinq/api/vocabulary.py).
+  (backend/src/glosano/api/vocabulary.py).
 - Убрать каст `'token' as ItemKind` в useWordCard.ts.
 - Регрессионный тест ReaderPage: выбор слова рендерит настоящий WordCard.
 

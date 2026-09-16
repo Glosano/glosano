@@ -6,9 +6,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.main import create_app
-from flinq.modules.lesson_library.models import Lesson
-from flinq.modules.lesson_library.service import process_lesson_import
+from glosano.main import create_app
+from glosano.modules.lesson_library.models import Lesson
+from glosano.modules.lesson_library.service import process_lesson_import
 from tests.api._reader_helpers import register_and_onboard, seed_ready_lesson
 
 
@@ -376,7 +376,7 @@ async def test_vocabulary_missing_and_processing_lesson_access(
     async def noop(_lesson_id: object, _job_id: object) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", noop)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", noop)
     created = await client.post(
         "/api/lessons",
         json={

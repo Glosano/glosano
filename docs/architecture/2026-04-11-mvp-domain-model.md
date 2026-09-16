@@ -1,8 +1,8 @@
-# Flinq MVP Domain Model / ERD
+# Glosano MVP Domain Model / ERD
 
 - Статус: Draft v1.1
 - Дата: 2026-04-11; патч 2026-05-01 (identity module: `users.onboarded_at`, `user_settings.last_learning_language_code`, новая таблица `user_learning_languages`)
-- Основано на: [Architecture Overview](/Users/shibaev/Dev/github/Flinq/docs/architecture/2026-04-11-mvp-architecture-overview.md), [ADR-0001](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0001-unit-of-learning-token-level.md), [ADR-0003](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0003-llm-provider-openai-compatible.md), [ADR-0004](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0004-dictionary-wiktionary-provider.md), [ADR-0005](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0005-word-status-model-lingq-levels.md), [ADR-0007](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0007-url-and-routing.md), [ADR-0008](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0008-auth-model.md)
+- Основано на: [Architecture Overview](/Users/shibaev/Dev/github/Glosano/docs/architecture/2026-04-11-mvp-architecture-overview.md), [ADR-0001](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0001-unit-of-learning-token-level.md), [ADR-0003](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0003-llm-provider-openai-compatible.md), [ADR-0004](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0004-dictionary-wiktionary-provider.md), [ADR-0005](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0005-word-status-model-lingq-levels.md), [ADR-0007](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0007-url-and-routing.md), [ADR-0008](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0008-auth-model.md)
 
 ## 1. Назначение документа
 
@@ -22,7 +22,7 @@
 
 ### 2.1 Lesson facts и user knowledge разделены
 
-В модели Flinq надо жёстко разделять:
+В модели Glosano надо жёстко разделять:
 
 - факты урока;
 - пользовательское знание.
@@ -63,7 +63,7 @@
 
 ### 2.3 Lemma в MVP отсутствует
 
-По [ADR-0001](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0001-unit-of-learning-token-level.md) сущность `Lemma` не вводится.
+По [ADR-0001](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0001-unit-of-learning-token-level.md) сущность `Lemma` не вводится.
 
 Значит:
 
@@ -94,7 +94,7 @@
 
 ### 2.6 Immutable identity для learning items
 
-По [ADR-0001](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0001-unit-of-learning-token-level.md):
+По [ADR-0001](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0001-unit-of-learning-token-level.md):
 
 - текст token item после создания immutable;
 - phrase text после создания тоже должен рассматриваться как identity-defining;

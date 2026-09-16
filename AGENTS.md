@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Guidance for AI agents (Claude Code, Cursor, Copilot, etc.) working in the Flinq repository.
+Guidance for AI agents (Claude Code, Cursor, Copilot, etc.) working in the Glosano repository.
 
 ## Project state
 
-Flinq — self-hosted LingQ-like platform for content-driven language learning. Current phase: **pre-implementation**. The repository contains specifications and decision records only; no application code exists yet.
+Glosano — self-hosted LingQ-like platform for content-driven language learning. Current phase: **pre-implementation**. The repository contains specifications and decision records only; no application code exists yet.
 
 Before proposing or writing any code, read:
 
@@ -90,12 +90,12 @@ Reader must provide undo for the last bulk-known action.
 - **Provider:** a single adapter compatible with the OpenAI Chat Completions API. Covers OpenAI, OpenRouter, vLLM, LM Studio, LocalAI, and Ollama (which exposes an OpenAI-compatible endpoint).
 - **Configuration:** environment variables on the Docker Compose service:
   ```
-  FLINQ_LLM_BASE_URL=https://api.openai.com/v1
-  FLINQ_LLM_API_KEY=sk-...
-  FLINQ_LLM_MODEL=gpt-4o-mini
-  FLINQ_LLM_ENABLED=true
+  GLOSANO_LLM_BASE_URL=https://api.openai.com/v1
+  GLOSANO_LLM_API_KEY=sk-...
+  GLOSANO_LLM_MODEL=gpt-4o-mini
+  GLOSANO_LLM_ENABLED=true
   ```
-- `FLINQ_LLM_ENABLED=false` is the admin kill-switch — reader and dictionary keep working, AI sections disappear from cards.
+- `GLOSANO_LLM_ENABLED=false` is the admin kill-switch — reader and dictionary keep working, AI sections disappear from cards.
 - AI responses are always marked as AI-generated. The canonical translation of a card is whatever the user explicitly wrote; AI output is draft material.
 - AI response cache is **per-user**, keyed on `(user_id, model, prompt_hash)`. No sharing between users.
 - Retry: simple exponential backoff, max 3 attempts, on network errors and 5xx.
@@ -122,7 +122,7 @@ No streak. No reading time. No heatmaps. Keep room for meaningful metrics after 
 
 - JSON export of all user data (button in profile).
 - Hard-delete of user profile (shared library and dictionaries untouched).
-- Admin kill-switch for all external AI calls (see `FLINQ_LLM_ENABLED`).
+- Admin kill-switch for all external AI calls (see `GLOSANO_LLM_ENABLED`).
 - Provider secrets in MVP live in container env vars — no DB-level secret encryption in MVP.
 
 ## Non-goals (do not propose for MVP)
@@ -196,8 +196,8 @@ This section will be filled in with directory layout, data flow, and component r
 **TBD.** Commands will be filled in after the project is scaffolded. Expected shape:
 
 - `uv sync` — install backend deps
-- `uv run flinq serve` — start app-api in dev
-- `uv run flinq worker` — start Taskiq worker
+- `uv run glosano serve` — start app-api in dev
+- `uv run glosano worker` — start Taskiq worker
 - `uv run pytest` — backend tests
 - `uv run ruff check . && uv run ruff format .` — lint & format
 - `uv run pyright` — type check
@@ -243,7 +243,7 @@ Final schema will be recorded in an ADR before migrations are written.
    - Code, identifiers, API schemas, commit messages, PR titles: English.
    - Design docs, ADRs, decision logs: match the surrounding document (current docs are in Russian).
 5. **Tokenization and status semantics** are subtle — ADR-0001 and ADR-0005 are mandatory reading before touching anything vocabulary-related. Do not special-case morphology for Russian; LingQ model is deliberate.
-6. **When AI is disabled** (`FLINQ_LLM_ENABLED=false`), the product must still run and the reader must still render cards — just without the AI section. Every AI-touching code path needs this graceful degradation.
+6. **When AI is disabled** (`GLOSANO_LLM_ENABLED=false`), the product must still run and the reader must still render cards — just without the AI section. Every AI-touching code path needs this graceful degradation.
 7. **Never commit provider secrets.** API keys live only in environment variables or the developer's local `.env` (gitignored).
 8. **Do not introduce dependencies on morphological analyzers** (`pymorphy3`, `spaCy`, `stanza`) in core code without an ADR. ADR-0001 explicitly rejected this class of dependency for the learning pipeline.
 9. **CC-BY-SA attribution for dictionary data is not optional.** Any card rendering must include the Wiktionary attribution.

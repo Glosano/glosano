@@ -2,7 +2,7 @@
 
 - Статус: Draft v1
 - Дата: 2026-05-01
-- Макет-референс: Figma — [Flinq — Library](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq-%E2%80%94-Library?node-id=1-2), node `1:2` («Library — Desktop 1440»). Локальный экспорт: `docs/ui/library.png`.
+- Макет-референс: Figma — [Glosano — Library](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano-%E2%80%94-Library?node-id=1-2), node `1:2` («Library — Desktop 1440»). Локальный экспорт: `docs/ui/library.png`.
 - Связано с: ADR-0006 (tech stack), `docs/specs/2026-04-11-mvp-product-alignment-design.md` §3, §10 (форматы импорта, языки), `docs/architecture/2026-04-11-mvp-domain-model.md` §6 (Lesson library)
 
 ## 1. Назначение
@@ -29,7 +29,7 @@
 
 ```
 ┌─ TopBar — 64px ──────────────────────────────────────────────────────────┐
-│ Flinq    Библиотека    Словарь                  [👤 АШ ▾]                │
+│ Glosano    Библиотека    Словарь                  [👤 АШ ▾]                │
 └──────────────────────────────────────────────────────────────────────────┘
 ─── divider ───────────────────────────────────────────────────────────────
 ┌─ FilterRow — 78px ───────────────────────────────────────────────────────┐
@@ -52,7 +52,7 @@
 
 | Элемент Figma | MVP | Комментарий |
 |---|---|---|
-| Logo `Flinq` (40,16) | ✅ | Кликабельный → `/learn/:lang/library` (текущий язык) |
+| Logo `Glosano` (40,16) | ✅ | Кликабельный → `/learn/:lang/library` (текущий язык) |
 | **Language picker** (новый) | ✅ | Чип `🇵🇹 Português ▾` рядом с логотипом. Меняет первый сегмент path: `/learn/pt/...` → `/learn/ru/...`. Список — изучаемые языки пользователя из `user_settings`. |
 | `Tab/Library (active)` (169,17) | ✅ | Underline `2px`. Ведёт на `/learn/:lang/library` |
 | `Слова` tab (283,17) | ✅ | Ведёт на `/learn/:lang/vocabulary` |

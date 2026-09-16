@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import inspect
 
-from flinq.core.db import get_engine
+from glosano.core.db import get_engine
 
 
 async def test_pipeline_tables_exist() -> None:

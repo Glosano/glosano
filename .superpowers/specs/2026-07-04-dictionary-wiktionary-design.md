@@ -14,7 +14,7 @@ The Word Card (FLQ-5) must show translation suggestions when the user clicks a t
 ## Goals
 
 - Persist dictionary data: `dictionary_source_versions`, `dictionary_entries`, `dictionary_translations`, `dictionary_examples` (domain model §9).
-- One admin command per language pair: `flinq dictionary refresh --lang <src> --target <dst> [--file PATH]` — download (or read local file), stream-parse, bulk-load, atomically activate. Refresh never leaves the dictionary empty or serves a half-imported version.
+- One admin command per language pair: `glosano dictionary refresh --lang <src> --target <dst> [--file PATH]` — download (or read local file), stream-parse, bulk-load, atomically activate. Refresh never leaves the dictionary empty or serves a half-imported version.
 - `GET /api/dictionary/lookup` returning entries + translations + examples, CC-BY-SA attribution, and rendered external-dictionary links.
 - `DictionaryProvider` abstraction ready for Phase-2 providers (ADR-0004).
 - One shared normalization function for the token↔dictionary join key — closing the FLQ-1 follow-up (`casefold`, U+2019 apostrophe).
@@ -82,7 +82,7 @@ Every record with `word` and matching `lang_code` becomes one `dictionary_entrie
 
 ### 4. Shared normalization = the join key (closes the FLQ-1 follow-up)
 
-`normalize_token` moves from `modules/lesson_library/tokenization.py` to a shared location (e.g. `flinq/core/textnorm.py`, re-exported for backward compatibility) and gets the deferred fix: `.casefold()` instead of `.lower()`, and U+2019 (') treated like the ASCII apostrophe (normalized to `'`). `headword_normalized` is computed with this exact function at import time.
+`normalize_token` moves from `modules/lesson_library/tokenization.py` to a shared location (e.g. `glosano/core/textnorm.py`, re-exported for backward compatibility) and gets the deferred fix: `.casefold()` instead of `.lower()`, and U+2019 (') treated like the ASCII apostrophe (normalized to `'`). `headword_normalized` is computed with this exact function at import time.
 
 - **Why here**: FLQ-1 notes explicitly say the fix must land *before* a layer builds on the join key. The dictionary is that first layer. Doing it later would require re-importing dictionaries and re-normalizing occurrences.
 - **Impact on FLQ-1 data**: normalization of already-imported lesson occurrences changes only for strings affected by casefold/U+2019 differences. `ready` lessons are immutable (FLQ-1 Decision 1), so existing rows are *not* rewritten; dev databases can simply recreate lessons. No production data exists yet.
@@ -134,7 +134,7 @@ Defaults: Lingvo Live, WordReference, Google Translate, Wiktionary web, Urban Di
 
 ### 8. CLI
 
-`flinq dictionary refresh --lang pt --target ru [--file dump.jsonl]` on the existing CLI entry point. `--file` bypasses download (air-gapped installs, tests, fixtures). Command is safe to re-run and safe to interrupt (Decision 1). Unsupported pair → clear error listing supported pairs.
+`glosano dictionary refresh --lang pt --target ru [--file dump.jsonl]` on the existing CLI entry point. `--file` bypasses download (air-gapped installs, tests, fixtures). Command is safe to re-run and safe to interrupt (Decision 1). Unsupported pair → clear error listing supported pairs.
 
 ## Data model (migration 0004)
 
@@ -165,7 +165,7 @@ dictionary_examples
   INDEX (entry_id)
 ```
 
-Module layout: `flinq/modules/dictionary/` (models, repo, service, provider, schemas) + `flinq/cli` gains the `dictionary refresh` subcommand + `flinq/core/textnorm.py` (shared normalization).
+Module layout: `glosano/modules/dictionary/` (models, repo, service, provider, schemas) + `glosano/cli` gains the `dictionary refresh` subcommand + `glosano/core/textnorm.py` (shared normalization).
 
 ## Testing
 

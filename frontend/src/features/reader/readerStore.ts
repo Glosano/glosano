@@ -49,7 +49,7 @@ export const useReaderStore = create<ReaderState>()(
       setWordCardExpanded: (wordCardExpanded) => set({ wordCardExpanded }),
     }),
     {
-      name: 'flinq-reader-prefs',
+      name: 'glosano-reader-prefs',
       partialize: (s) =>
         ({
           font: s.font,

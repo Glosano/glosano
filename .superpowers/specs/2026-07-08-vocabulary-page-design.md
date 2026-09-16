@@ -95,7 +95,7 @@ Query-параметры:
   `(language_code, headword = token_text)`; первая entry. Пустой словарь →
   `null`, бейдж не рендерится.
 - `total` — count по тем же фильтрам.
-- Сервис в `flinq/modules/vocabulary/service.py` (`list_items`), роут в
+- Сервис в `glosano/modules/vocabulary/service.py` (`list_items`), роут в
   существующем роутере `/api/vocabulary`.
 
 ### 3.2 `POST /api/vocabulary/bulk`

@@ -10,9 +10,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.main import create_app
-from flinq.modules.dictionary import service
-from flinq.modules.dictionary.models import DictionarySourceVersion
+from glosano.main import create_app
+from glosano.modules.dictionary import service
+from glosano.modules.dictionary.models import DictionarySourceVersion
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "dictionary"
 
@@ -37,7 +37,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",

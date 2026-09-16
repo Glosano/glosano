@@ -14,12 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
-from flinq.core.config import get_settings
-from flinq.core.db import dispose_engine, init_engine, session_scope
+from glosano.core.config import get_settings
+from glosano.core.db import dispose_engine, init_engine, session_scope
 
 # Ensure settings are loaded in "test" mode before anything else is imported.
-os.environ.setdefault("FLINQ_ENV", "test")
-os.environ.setdefault("FLINQ_SECRET_KEY", "test-secret-key-for-pytest")
+os.environ.setdefault("GLOSANO_ENV", "test")
+os.environ.setdefault("GLOSANO_SECRET_KEY", "test-secret-key-for-pytest")
 
 
 @pytest.fixture(scope="session")
@@ -40,7 +40,7 @@ def _db_setup(  # pyright: ignore[reportUnusedFunction] — autouse fixture
     _pg_container: PostgresContainer, monkeypatch_session: pytest.MonkeyPatch
 ) -> None:
     url = _pg_container.get_connection_url()  # already asyncpg-formatted
-    monkeypatch_session.setenv("FLINQ_DATABASE_URL", url)
+    monkeypatch_session.setenv("GLOSANO_DATABASE_URL", url)
     get_settings.cache_clear()
 
 
@@ -50,7 +50,7 @@ def _redis_setup(  # pyright: ignore[reportUnusedFunction] — autouse fixture
 ) -> None:
     host = _redis_container.get_container_host_ip()
     port = int(_redis_container.get_exposed_port(6379))
-    monkeypatch_session.setenv("FLINQ_REDIS_URL", f"redis://{host}:{port}/0")
+    monkeypatch_session.setenv("GLOSANO_REDIS_URL", f"redis://{host}:{port}/0")
     get_settings.cache_clear()
 
 
@@ -58,29 +58,29 @@ def _redis_setup(  # pyright: ignore[reportUnusedFunction] — autouse fixture
 async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fixture
     _db_setup: None, _redis_setup: None
 ) -> AsyncIterator[None]:
-    from flinq.core.db import Base
+    from glosano.core.db import Base
 
     # Side-effect imports: register ORM models on Base.metadata before create_all.
-    from flinq.modules.ai_translation import (
+    from glosano.modules.ai_translation import (
         models as _ai_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    from flinq.modules.dictionary import (
+    from glosano.modules.dictionary import (
         models as _dictionary_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    from flinq.modules.identity import (
+    from glosano.modules.identity import (
         models as _identity_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    from flinq.modules.lesson_library import (
+    from glosano.modules.lesson_library import (
         models as _lesson_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    from flinq.modules.reader_state import (
+    from glosano.modules.reader_state import (
         models as _reader_state_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    from flinq.modules.review import (
+    from glosano.modules.review import (
         models as _review_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
-    from flinq.modules.statistics.models import StatisticsTracking
-    from flinq.modules.vocabulary import (
+    from glosano.modules.statistics.models import StatisticsTracking
+    from glosano.modules.vocabulary import (
         models as _vocabulary_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
 
@@ -91,7 +91,7 @@ async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fix
         await conn.execute(insert(StatisticsTracking).values(id=1))
     yield
     await dispose_engine()
-    from flinq.core.redis import dispose_redis
+    from glosano.core.redis import dispose_redis
 
     await dispose_redis()
 
@@ -110,7 +110,7 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     """HTTP client bound to the FastAPI app via ASGI transport (no network)."""
-    from flinq.main import create_app
+    from glosano.main import create_app
 
     app = create_app()
     transport = ASGITransport(app=app)

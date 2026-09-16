@@ -7,7 +7,7 @@ export type UiLanguage = 'en' | 'ru'
 export type TranslationParams = Record<string, string | number>
 export type Translator = (key: string, params?: TranslationParams) => string
 
-const STORAGE_KEY = 'flinq.ui-language'
+const STORAGE_KEY = 'glosano.ui-language'
 const catalogs = import.meta.glob<Record<string, Record<string, string>>>('./locales/*.ts', {
   eager: true,
 })

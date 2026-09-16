@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- `flinq.core.textnorm.normalize_token` FROZEN; `token_items.token_text` is stored normalized and is the join key to `lesson_token_occurrences.normalized_text` and `dictionary_entries.headword_normalized`.
+- `glosano.core.textnorm.normalize_token` FROZEN; `token_items.token_text` is stored normalized and is the join key to `lesson_token_occurrences.normalized_text` and `dictionary_entries.headword_normalized`.
 - Commits: conventional, English imperative ≤72 chars, body says why, NO Co-Authored-By, scoped `git commit -m "..." -- <paths>` (git add new files first — pathspec commit does not stage untracked files).
 - Before every backend commit: `uv run ruff format <changed files>`, `uv run ruff check .`, `uv run pyright` (0 errors; 21 pre-existing warnings OK). CI also runs `ruff format --check`.
 - Backend tests: `uv run pytest` (Docker/testcontainers). No per-test rollback — file-local autouse cleanup fixtures.
@@ -26,7 +26,7 @@
 ### Task 1: Backend service — `list_items`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
 - Test: `backend/tests/modules/test_vocabulary_list.py` (new file)
 
 **Interfaces:**
@@ -81,13 +81,13 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
@@ -361,8 +361,8 @@ from datetime import datetime
 
 from sqlalchemy import and_, delete, exists, func, or_, select, update
 
-from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 ```
 
 (`dataclass, field` and `delete/select/update` are already imported — merge, don't duplicate.)
@@ -584,10 +584,10 @@ Expected: PASS (new file 8 tests + existing suite untouched).
 - [ ] **Step 5: Format, lint, commit**
 
 ```bash
-uv run ruff format src/flinq/modules/vocabulary/service.py tests/modules/test_vocabulary_list.py
+uv run ruff format src/glosano/modules/vocabulary/service.py tests/modules/test_vocabulary_list.py
 uv run ruff check . && uv run pyright
 git add tests/modules/test_vocabulary_list.py
-git commit -m "feat(FLQ-6): vocabulary list service with filters and enrichment" -- src/flinq/modules/vocabulary/service.py tests/modules/test_vocabulary_list.py
+git commit -m "feat(FLQ-6): vocabulary list service with filters and enrichment" -- src/glosano/modules/vocabulary/service.py tests/modules/test_vocabulary_list.py
 ```
 
 ---
@@ -595,7 +595,7 @@ git commit -m "feat(FLQ-6): vocabulary list service with filters and enrichment"
 ### Task 2: Backend service — `bulk_action`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
 - Test: `backend/tests/modules/test_vocabulary_bulk.py` (new file)
 
 **Interfaces:**
@@ -626,11 +626,11 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
@@ -823,10 +823,10 @@ Expected: PASS.
 - [ ] **Step 5: Format, lint, commit**
 
 ```bash
-uv run ruff format src/flinq/modules/vocabulary/service.py tests/modules/test_vocabulary_bulk.py
+uv run ruff format src/glosano/modules/vocabulary/service.py tests/modules/test_vocabulary_bulk.py
 uv run ruff check . && uv run pyright
 git add tests/modules/test_vocabulary_bulk.py
-git commit -m "feat(FLQ-6): vocabulary bulk action service" -- src/flinq/modules/vocabulary/service.py tests/modules/test_vocabulary_bulk.py
+git commit -m "feat(FLQ-6): vocabulary bulk action service" -- src/glosano/modules/vocabulary/service.py tests/modules/test_vocabulary_bulk.py
 ```
 
 ---
@@ -834,8 +834,8 @@ git commit -m "feat(FLQ-6): vocabulary bulk action service" -- src/flinq/modules
 ### Task 3: API — `GET /api/vocabulary` + `POST /api/vocabulary/bulk`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py`
-- Modify: `backend/src/flinq/api/vocabulary.py`
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py`
+- Modify: `backend/src/glosano/api/vocabulary.py`
 - Test: `backend/tests/api/test_vocabulary_page.py` (new file)
 
 **Interfaces:**
@@ -904,9 +904,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
 @pytest.fixture(autouse=True)
@@ -931,7 +931,7 @@ async def _register(c: AsyncClient) -> str:
         },
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     return csrf
 
@@ -1134,10 +1134,10 @@ Expected: PASS.
 - [ ] **Step 6: Format, lint, commit**
 
 ```bash
-uv run ruff format src/flinq/api/vocabulary.py src/flinq/modules/vocabulary/schemas.py tests/api/test_vocabulary_page.py
+uv run ruff format src/glosano/api/vocabulary.py src/glosano/modules/vocabulary/schemas.py tests/api/test_vocabulary_page.py
 uv run ruff check . && uv run pyright
 git add tests/api/test_vocabulary_page.py
-git commit -m "feat(FLQ-6): vocabulary list and bulk endpoints" -- src/flinq/api/vocabulary.py src/flinq/modules/vocabulary/schemas.py tests/api/test_vocabulary_page.py
+git commit -m "feat(FLQ-6): vocabulary list and bulk endpoints" -- src/glosano/api/vocabulary.py src/glosano/modules/vocabulary/schemas.py tests/api/test_vocabulary_page.py
 ```
 
 ---
@@ -1586,5 +1586,5 @@ git commit -m "docs(FLQ-6): revise vocabulary ui spec to match shipped picker" -
 
 - [ ] **Step 3: Frontend gates.** From `frontend/`: `corepack pnpm test && corepack pnpm lint && corepack pnpm build` — all green.
 
-- [ ] **Step 4: Manual smoke (controller, dev stack).** postgres:5433 + redis up, `uv run flinq serve`, `uv run flinq worker`, `corepack pnpm dev`. Then: «Словарь» link in the top bar → page opens with items saved during earlier sessions; search by term and by translation; filter to known-only; inline picker level change reflects in the reader highlight after revisit; select two items → bulk «Отметить known»; bulk delete one with confirm; term click opens WordCard (no lesson context, AI info-note); mobile viewport (resize to 375px) shows card list.
+- [ ] **Step 4: Manual smoke (controller, dev stack).** postgres:5433 + redis up, `uv run glosano serve`, `uv run glosano worker`, `corepack pnpm dev`. Then: «Словарь» link in the top bar → page opens with items saved during earlier sessions; search by term and by translation; filter to known-only; inline picker level change reflects in the reader highlight after revisit; select two items → bulk «Отметить known»; bulk delete one with confirm; term click opens WordCard (no lesson context, AI info-note); mobile viewport (resize to 375px) shows card list.
 Expected: behaviours match spec §2–§5.

@@ -6,13 +6,13 @@ from datetime import UTC, datetime
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from flinq.core.db import Base, session_scope
-from flinq.core.security import hash_password
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
-from flinq.modules.identity.models import User, UserSession
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import (
+from glosano.core.db import Base, session_scope
+from glosano.core.security import hash_password
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.identity.models import User, UserSession
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import (
     Lesson,
     LessonImportJob,
     LessonMediaSource,
@@ -20,14 +20,14 @@ from flinq.modules.lesson_library.models import (
     LessonSource,
     LessonTokenOccurrence,
 )
-from flinq.modules.reader_state.models import BulkAction, LessonSegmentTranslation, ReaderPosition
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.statistics.models import (
+from glosano.modules.reader_state.models import BulkAction, LessonSegmentTranslation, ReaderPosition
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.statistics.models import (
     DailyReadOccurrence,
     DailyUserLanguageStats,
     DailyUserStats,
 )
-from flinq.modules.vocabulary.models import (
+from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
     PersonalTranslation,
@@ -192,8 +192,8 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
 
 async def test_export_is_complete_and_isolated(client: AsyncClient):
     user_id, email = await register(client)
-    csrf = client.cookies.get("flinq_csrf")
-    session_token = client.cookies.get("flinq_session")
+    csrf = client.cookies.get("glosano_csrf")
+    session_token = client.cookies.get("glosano_session")
     assert csrf and session_token
     await client.post("/me/onboarding", json={"ui_language": "en", "learning_languages": ["pt"]})
     ids = await seed_data(uuid.UUID(user_id))

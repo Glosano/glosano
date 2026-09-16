@@ -7,13 +7,13 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonSource
-from flinq.modules.reader_state.models import BulkAction, ReaderPosition
-from flinq.modules.review.models import ReviewItem
-from flinq.modules.statistics.models import DailyReadOccurrence, DailyUserStats
-from flinq.modules.vocabulary.models import PhraseItem, TokenItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonSource
+from glosano.modules.reader_state.models import BulkAction, ReaderPosition
+from glosano.modules.review.models import ReviewItem
+from glosano.modules.statistics.models import DailyReadOccurrence, DailyUserStats
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 from ._reader_helpers import register_and_onboard, seed_ready_lesson
 
@@ -267,7 +267,7 @@ async def test_old_reader_cannot_apply_ordinals_to_replacement_text(client: Asyn
 async def test_failed_processing_rolls_back_the_entire_edit(
     client: AsyncClient, material, monkeypatch
 ):
-    from flinq.modules.lesson_library import service
+    from glosano.modules.lesson_library import service
 
     lesson_id, headers = material
 
@@ -289,8 +289,8 @@ async def test_failed_processing_rolls_back_the_entire_edit(
 
 
 async def test_delete_during_pending_import_is_safe_for_late_worker(client: AsyncClient, material):
-    from flinq.modules.lesson_library.models import LessonImportJob
-    from flinq.worker.tasks import run_lesson_import
+    from glosano.modules.lesson_library.models import LessonImportJob
+    from glosano.worker.tasks import run_lesson_import
 
     lesson_id, headers = material
     async with session_scope() as s:

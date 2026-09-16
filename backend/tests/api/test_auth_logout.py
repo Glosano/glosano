@@ -1,6 +1,6 @@
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def test_logout_clears_cookies_and_invalidates_session() -> None:
@@ -16,9 +16,9 @@ async def test_logout_clears_cookies_and_invalidates_session() -> None:
             },
         )
         assert r.status_code == 201
-        csrf = c.cookies.get("flinq_csrf")
+        csrf = c.cookies.get("glosano_csrf")
         assert csrf is not None
-        assert c.cookies.get("flinq_session") is not None
+        assert c.cookies.get("glosano_session") is not None
 
         # Logout (CSRF required for non-public path)
         r = await c.post("/auth/logout", headers={"X-CSRF-Token": csrf})
@@ -40,8 +40,8 @@ async def test_logout_without_session_returns_403_csrf() -> None:
 
 async def test_logout_invalidates_session_in_db() -> None:
     """After logout the session row's expires_at is in the past, so get_active returns None."""
-    from flinq.core.db import session_scope
-    from flinq.modules.identity.repo import SessionRepo
+    from glosano.core.db import session_scope
+    from glosano.modules.identity.repo import SessionRepo
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -53,8 +53,8 @@ async def test_logout_invalidates_session_in_db() -> None:
                 "password": "abcdefghij",
             },
         )
-        token = c.cookies.get("flinq_session")
-        csrf = c.cookies.get("flinq_csrf")
+        token = c.cookies.get("glosano_session")
+        csrf = c.cookies.get("glosano_csrf")
         assert token and csrf
 
         # Pre-logout: session is active

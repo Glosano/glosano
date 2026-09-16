@@ -31,7 +31,7 @@ export function DataSettings() {
       )
       const link = document.createElement('a')
       link.href = url
-      link.download = `flinq-export-${new Date().toISOString().slice(0, 10)}.json`
+      link.download = `glosano-export-${new Date().toISOString().slice(0, 10)}.json`
       document.body.append(link)
       link.click()
       link.remove()

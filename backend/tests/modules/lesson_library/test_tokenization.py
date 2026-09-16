@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.tokenization import (
+from glosano.modules.lesson_library.tokenization import (
     Token,
     is_word_like,
     normalize_token,

@@ -27,7 +27,7 @@
 Чистая функция без БД. Отдельной задачей, потому что вырожденные случаи (урок без слов, урок из одного слова, позиция за пределами текста) — единственное место, где легко разойтись с ридером, и проверяются они юнит-тестами за миллисекунды.
 
 **Files:**
-- Create: `backend/src/flinq/modules/lesson_library/progress.py`
+- Create: `backend/src/glosano/modules/lesson_library/progress.py`
 - Test: `backend/tests/modules/lesson_library/test_progress.py`
 
 **Interfaces:**
@@ -43,7 +43,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.progress import ZERO_PROGRESS, read_percent
+from glosano.modules.lesson_library.progress import ZERO_PROGRESS, read_percent
 
 
 def test_no_position_means_not_started() -> None:
@@ -90,11 +90,11 @@ def test_zero_progress_constant_is_all_zeroes() -> None:
 - [ ] **Step 2: Убедиться, что тест падает**
 
 Run: `cd backend && uv run pytest tests/modules/lesson_library/test_progress.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'flinq.modules.lesson_library.progress'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'glosano.modules.lesson_library.progress'`
 
 - [ ] **Step 3: Написать минимальную реализацию**
 
-Создать `backend/src/flinq/modules/lesson_library/progress.py`:
+Создать `backend/src/glosano/modules/lesson_library/progress.py`:
 
 ```python
 """Прогресс чтения урока для карточки библиотеки (FLQ-8a).
@@ -141,14 +141,14 @@ Expected: PASS, 9 passed
 
 - [ ] **Step 5: Линт и типы**
 
-Run: `cd backend && uv run ruff check src/flinq/modules/lesson_library/progress.py tests/modules/lesson_library/test_progress.py && uv run pyright src/flinq/modules/lesson_library/progress.py`
+Run: `cd backend && uv run ruff check src/glosano/modules/lesson_library/progress.py tests/modules/lesson_library/test_progress.py && uv run pyright src/glosano/modules/lesson_library/progress.py`
 Expected: обе команды без ошибок
 
 - [ ] **Step 6: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/progress.py backend/tests/modules/lesson_library/test_progress.py
-git commit -m "feat(library): reading-percent formula mirroring the reader bar" -- backend/src/flinq/modules/lesson_library/progress.py backend/tests/modules/lesson_library/test_progress.py
+git add backend/src/glosano/modules/lesson_library/progress.py backend/tests/modules/lesson_library/test_progress.py
+git commit -m "feat(library): reading-percent formula mirroring the reader bar" -- backend/src/glosano/modules/lesson_library/progress.py backend/tests/modules/lesson_library/test_progress.py
 ```
 
 ---
@@ -158,9 +158,9 @@ git commit -m "feat(library): reading-percent formula mirroring the reader bar" 
 Запрос, два новых поля DTO и склейка в роутере. Тестируется через API целиком: seeding уроков, позиций и словаря уже есть в хелперах, дублировать его ради отдельного теста запроса незачем.
 
 **Files:**
-- Modify: `backend/src/flinq/modules/lesson_library/progress.py` (дописать запрос к созданному в Task 1)
-- Modify: `backend/src/flinq/modules/lesson_library/schemas.py:29-38` (`LessonSummary`)
-- Modify: `backend/src/flinq/api/lessons.py:35-61` (`list_lessons`)
+- Modify: `backend/src/glosano/modules/lesson_library/progress.py` (дописать запрос к созданному в Task 1)
+- Modify: `backend/src/glosano/modules/lesson_library/schemas.py:29-38` (`LessonSummary`)
+- Modify: `backend/src/glosano/api/lessons.py:35-61` (`list_lessons`)
 - Test: `backend/tests/api/test_lessons_progress.py`
 
 **Interfaces:**
@@ -182,7 +182,7 @@ from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 from ._reader_helpers import register_and_onboard, seed_ready_lesson
 
@@ -438,9 +438,9 @@ from collections.abc import Sequence
 from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.lesson_library.models import LessonTokenOccurrence
-from flinq.modules.reader_state.models import ReaderPosition
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.modules.lesson_library.models import LessonTokenOccurrence
+from glosano.modules.reader_state.models import ReaderPosition
+from glosano.modules.vocabulary.models import TokenItem
 ```
 
 Добавить функцию в конец файла:
@@ -509,7 +509,7 @@ async def progress_for_lessons(
 
 - [ ] **Step 4: Добавить поля в DTO**
 
-В `backend/src/flinq/modules/lesson_library/schemas.py`, в класс `LessonSummary`, после `created_at`:
+В `backend/src/glosano/modules/lesson_library/schemas.py`, в класс `LessonSummary`, после `created_at`:
 
 ```python
     # Считаются на лету в progress.py; у ORM-модели Lesson таких атрибутов нет,
@@ -520,10 +520,10 @@ async def progress_for_lessons(
 
 - [ ] **Step 5: Склеить в роутере**
 
-В `backend/src/flinq/api/lessons.py` добавить импорт:
+В `backend/src/glosano/api/lessons.py` добавить импорт:
 
 ```python
-from flinq.modules.lesson_library.progress import ZERO_PROGRESS, progress_for_lessons
+from glosano.modules.lesson_library.progress import ZERO_PROGRESS, progress_for_lessons
 ```
 
 Заменить тело `return LessonListResponse(...)` в `list_lessons` на:
@@ -563,8 +563,8 @@ Expected: всё зелёное. Если pyright ругается на расп
 - [ ] **Step 8: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/progress.py backend/src/flinq/modules/lesson_library/schemas.py backend/src/flinq/api/lessons.py backend/tests/api/test_lessons_progress.py
-git commit -m "feat(library): serve reading percent and remaining new words in lesson list" -- backend/src/flinq/modules/lesson_library/progress.py backend/src/flinq/modules/lesson_library/schemas.py backend/src/flinq/api/lessons.py backend/tests/api/test_lessons_progress.py
+git add backend/src/glosano/modules/lesson_library/progress.py backend/src/glosano/modules/lesson_library/schemas.py backend/src/glosano/api/lessons.py backend/tests/api/test_lessons_progress.py
+git commit -m "feat(library): serve reading percent and remaining new words in lesson list" -- backend/src/glosano/modules/lesson_library/progress.py backend/src/glosano/modules/lesson_library/schemas.py backend/src/glosano/api/lessons.py backend/tests/api/test_lessons_progress.py
 ```
 
 ---
@@ -736,7 +736,7 @@ git commit -m "docs(library): progress bar is reading position, not coverage" --
 
 После Task 3 — поднять стек и убедиться глазами, что баг закрыт (`/verify` описывает процедуру для этого проекта):
 
-1. `docker compose -f docker-compose.dev.yml up -d`, `cd backend && uv run flinq serve`, `cd frontend && pnpm dev`.
+1. `docker compose -f docker-compose.dev.yml up -d`, `cd backend && uv run glosano serve`, `cd frontend && pnpm dev`.
 2. Открыть библиотеку: у непрочитанного урока `0% · N слов · M новых`, причём `M > 0`.
 3. Открыть урок, пролистать несколько страниц, вернуться в библиотеку — процент вырос, число новых слов упало.
 4. Пометить несколько слов известными в одном уроке — в карточке другого урока с теми же словами счётчик новых уменьшился.

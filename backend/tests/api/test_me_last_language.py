@@ -1,6 +1,6 @@
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def _register_and_onboard(c: AsyncClient, email: str, langs: list[str]) -> str:
@@ -9,7 +9,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, langs: list[str]) ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",

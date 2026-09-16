@@ -9,11 +9,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.modules.ai_translation import service
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.ai_translation.provider import LLMCompletion, ProviderUnavailable
-from flinq.modules.identity.repo import UserRepo
+from glosano.core.config import get_settings
+from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.ai_translation.provider import LLMCompletion, ProviderUnavailable
+from glosano.modules.identity.repo import UserRepo
 
 SURFACE = "later"
 CONTEXT = "See you later!"
@@ -47,7 +47,7 @@ async def _reset_audit_before_module() -> None:  # pyright: ignore[reportUnusedF
     """
     from sqlalchemy import delete
 
-    from flinq.core.db import session_scope
+    from glosano.core.db import session_scope
 
     async with session_scope() as session:
         await session.execute(delete(AIRequest))

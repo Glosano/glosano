@@ -10,13 +10,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.main import create_app
-from flinq.modules.ai_translation import service
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.ai_translation.provider import LLMCompletion
-from flinq.modules.lesson_library.models import LessonSegment
-from flinq.modules.reader_state.models import LessonSegmentTranslation
+from glosano.core.config import get_settings
+from glosano.main import create_app
+from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.ai_translation.provider import LLMCompletion
+from glosano.modules.lesson_library.models import LessonSegment
+from glosano.modules.reader_state.models import LessonSegmentTranslation
 from tests.api._reader_helpers import register_and_onboard as _register_and_onboard
 from tests.api._reader_helpers import seed_ready_lesson as _seed_ready_lesson
 
@@ -195,8 +195,8 @@ async def test_unauthenticated_post_requires_csrf() -> None:
 async def test_cache_isolated_by_user_and_ui_language(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ):
-    from flinq.core.db import session_scope
-    from flinq.modules.lesson_library.models import Lesson
+    from glosano.core.db import session_scope
+    from glosano.modules.lesson_library.models import Lesson
 
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
     fake = _GoodProvider("Personal response")

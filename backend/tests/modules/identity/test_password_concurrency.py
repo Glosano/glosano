@@ -7,12 +7,12 @@ from fastapi import Request, Response
 from redis.asyncio import Redis
 from sqlalchemy import text
 
-from flinq.core.db import session_scope
-from flinq.core.rate_limit import RateLimiter
-from flinq.core.security import hash_password
-from flinq.modules.identity.middleware import SESSION_TTL
-from flinq.modules.identity.repo import SessionRepo, UserRepo
-from flinq.modules.identity.service import change_password, login_user
+from glosano.core.db import session_scope
+from glosano.core.rate_limit import RateLimiter
+from glosano.core.security import hash_password
+from glosano.modules.identity.middleware import SESSION_TTL
+from glosano.modules.identity.repo import SessionRepo, UserRepo
+from glosano.modules.identity.service import change_password, login_user
 
 
 async def test_password_change_revokes_login_already_using_old_password(redis_client: Redis):

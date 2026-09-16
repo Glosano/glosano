@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 from ._reader_helpers import register_and_onboard, seed_ready_lesson
 

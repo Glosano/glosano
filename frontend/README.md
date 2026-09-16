@@ -1,4 +1,4 @@
-# flinq (frontend)
+# glosano (frontend)
 
 React 19 + TypeScript + Vite + Tailwind CSS v4 + TanStack Router + TanStack Query.
 

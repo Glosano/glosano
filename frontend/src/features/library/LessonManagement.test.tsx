@@ -66,7 +66,7 @@ it('cancels without a request, then removes the card only after confirmed deleti
     }
     return new Response(JSON.stringify({ items: deleted ? [] : [lesson], total: deleted ? 0 : 1 }))
   })
-  document.cookie = 'flinq_csrf=delete-token'
+  document.cookie = 'glosano_csrf=delete-token'
   render(
     <QueryClientProvider client={client}>
       <Library />

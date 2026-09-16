@@ -76,7 +76,7 @@ describe('OnboardingForm localization', () => {
     selector.focus()
     await user.keyboard('{ArrowDown}')
     await user.click(await screen.findByRole('option', { name: 'English' }))
-    expect(screen.getByRole('heading', { name: 'Welcome to Flinq' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Welcome to Glosano' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Interface language' })).toBeInTheDocument()
     await user.click(screen.getByRole('checkbox', { name: 'Portuguese' }))
     await user.click(screen.getByRole('button', { name: 'Done' }))

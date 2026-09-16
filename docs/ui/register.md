@@ -13,7 +13,7 @@
 
 - Путь: `/register`
 - Доступ: гость. Авторизованный — редирект на `/library`.
-- Если `FLINQ_ALLOW_PUBLIC_REGISTRATION=false` — страница рендерит «Регистрация закрыта администратором» и линк на `/login`.
+- Если `GLOSANO_ALLOW_PUBLIC_REGISTRATION=false` — страница рендерит «Регистрация закрыта администратором» и линк на `/login`.
 
 ## 3. Layout
 
@@ -49,14 +49,14 @@
 Live-валидация на blur. Email uniqueness проверяется только при submit (не делаем `GET /auth/check-email` чтобы избежать enumeration).
 
 > **Deviation от макета:**
-> - В `register.png` показаны поля «Я хочу изучать», «Мой уровень», «Имя пользователя». В Flinq:
+> - В `register.png` показаны поля «Я хочу изучать», «Мой уровень», «Имя пользователя». В Glosano:
 >   - язык изучения и UI язык собираются на отдельном `/onboarding` (см. `docs/ui/onboarding.md`);
 >   - «Уровень» вырезан из MVP вместе со slider'ом библиотеки;
 >   - username нет — `users.email` единственный identifier.
 
 ## 5. Первый admin
 
-При первой регистрации с email = `FLINQ_INITIAL_ADMIN_EMAIL` (env var инсталляции) пользователь получает `users.role = admin` автоматически. Для остальных — `role = learner`. UI отличий нет.
+При первой регистрации с email = `GLOSANO_INITIAL_ADMIN_EMAIL` (env var инсталляции) пользователь получает `users.role = admin` автоматически. Для остальных — `role = learner`. UI отличий нет.
 
 ## 6. Действия
 

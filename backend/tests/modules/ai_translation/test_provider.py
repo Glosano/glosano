@@ -7,9 +7,9 @@ import json
 import httpx
 import pytest
 
-from flinq.core.config import Settings
-from flinq.modules.ai_translation import provider as provider_mod
-from flinq.modules.ai_translation.provider import (
+from glosano.core.config import Settings
+from glosano.modules.ai_translation import provider as provider_mod
+from glosano.modules.ai_translation.provider import (
     OpenAICompatibleProvider,
     ProviderRejected,
     ProviderUnavailable,

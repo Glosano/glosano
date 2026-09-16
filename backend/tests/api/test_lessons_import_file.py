@@ -9,10 +9,10 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from flinq.core.db import session_scope
-from flinq.modules.lesson_library.models import LessonSource
-from flinq.modules.lesson_library.repo import LessonRepo
-from flinq.worker.tasks import run_lesson_import
+from glosano.core.db import session_scope
+from glosano.modules.lesson_library.models import LessonSource
+from glosano.modules.lesson_library.repo import LessonRepo
+from glosano.worker.tasks import run_lesson_import
 from tests.api.test_lessons_import import (
     _register_and_onboard,  # pyright: ignore[reportPrivateUsage]
 )
@@ -39,7 +39,7 @@ async def test_file_import_round_trip(
     async def enqueue(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
         jobs.append((lesson_id, job_id))
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com")
     data = {"language_code": "pt"}
     if title is not None:
@@ -136,7 +136,7 @@ async def test_file_enqueue_failure_is_not_stranded(
     async def fail(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
         raise RuntimeError("queue unavailable")
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", fail)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", fail)
     csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com")
     response = await client.post(
         "/api/lessons/import-file",
@@ -156,7 +156,7 @@ async def test_file_at_size_limit_is_accepted(
     async def enqueue(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com")
     response = await client.post(
         "/api/lessons/import-file",
@@ -208,7 +208,7 @@ async def test_anonymous_upload_does_not_read_body(client: AsyncClient) -> None:
             b'Content-Disposition: form-data; name="language_code"\r\n\r\npt\r\n--boundary--\r\n'
         )
 
-    client.cookies.set("flinq_csrf", "matching-csrf")
+    client.cookies.set("glosano_csrf", "matching-csrf")
     response = await client.post(
         "/api/lessons/import-file",
         content=body(),
@@ -228,7 +228,7 @@ async def test_file_name_is_basename_in_source(
     async def enqueue(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com")
     response = await client.post(
         "/api/lessons/import-file",
@@ -255,7 +255,7 @@ async def test_manual_import_keeps_manual_source(
     async def enqueue(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com")
     response = await client.post(
         "/api/lessons",

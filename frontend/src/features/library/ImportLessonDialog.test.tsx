@@ -47,7 +47,7 @@ it('uploads a dropped file with edited title and CSRF, then polls until ready', 
       )
     }),
   )
-  document.cookie = 'flinq_csrf=test-token'
+  document.cookie = 'glosano_csrf=test-token'
   const close = setup()
   const user = userEvent.setup()
   await user.click(screen.getByRole('tab', { name: 'File' }))

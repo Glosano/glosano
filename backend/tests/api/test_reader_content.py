@@ -9,8 +9,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.main import create_app
-from flinq.modules.lesson_library.models import Lesson, LessonTokenOccurrence
+from glosano.main import create_app
+from glosano.modules.lesson_library.models import Lesson, LessonTokenOccurrence
 from tests.api._reader_helpers import TEXT
 from tests.api._reader_helpers import register_and_onboard as _register_and_onboard
 from tests.api._reader_helpers import seed_ready_lesson as _seed_ready_lesson
@@ -115,7 +115,7 @@ async def test_content_processing_lesson_409(
     async def _noop(lesson_id: object, job_id: object) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", _noop)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", _noop)
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:

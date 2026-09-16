@@ -19,7 +19,7 @@
 - Коммиты — точными путями (`git add <paths>`), **без** трейлера `Co-Authored-By`: `backend/uv.lock` лежит staged-но-незакоммиченным и иначе попадёт в коммит.
 - Бэкенд-проверки: `cd backend && uv run pytest <path> -v`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run pyright`. Тесты поднимают реальный Postgres через testcontainers — первый запуск дольше.
 - Фронтенд-проверки: `cd frontend && pnpm vitest run <path>`, `pnpm tsc --noEmit`, `pnpm lint`.
-- Тестовые футганы репозитория: локальный `.env` включает `FLINQ_LLM_ENABLED=true` — тесты, зависящие от `ai_enabled`, обязаны `monkeypatch.setattr(get_settings(), "llm_enabled", False)`; тесты с фиксированным `NOW` обязаны явно выставлять `due_at` (иначе после полудня UTC ловят флейк).
+- Тестовые футганы репозитория: локальный `.env` включает `GLOSANO_LLM_ENABLED=true` — тесты, зависящие от `ai_enabled`, обязаны `monkeypatch.setattr(get_settings(), "llm_enabled", False)`; тесты с фиксированным `NOW` обязаны явно выставлять `due_at` (иначе после полудня UTC ловят флейк).
 - Не форматировать файлы вне задачи: `ruff format` без пути правит соседние модули — прогонять с явным путём.
 
 ---
@@ -27,9 +27,9 @@
 ### Task 1: Колонки провенанса и контекст из сегмента
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/models.py:33-62` (TokenItem), `:66-95` (PhraseItem)
+- Modify: `backend/src/glosano/modules/vocabulary/models.py:33-62` (TokenItem), `:66-95` (PhraseItem)
 - Create: `backend/migrations/versions/0014_vocab_lesson_provenance.py`
-- Modify: `backend/src/flinq/modules/review/service.py:195-225` (`_build_queue_items`)
+- Modify: `backend/src/glosano/modules/review/service.py:195-225` (`_build_queue_items`)
 - Test: `backend/tests/modules/review/test_review_queue.py`
 
 **Interfaces:**
@@ -160,7 +160,7 @@ def downgrade() -> None:
 
 - [ ] **Step 5: Перевести контекст очереди на сегмент**
 
-В `backend/src/flinq/modules/review/service.py` заменить блок «Контекст токенов» на:
+В `backend/src/glosano/modules/review/service.py` заменить блок «Контекст токенов» на:
 
 ```python
     # Контекст: created_from_segment_id -> lesson_segments.text (слова и фразы)
@@ -195,7 +195,7 @@ Expected: всё зелёное. Если pyright ругается на `item.cr
 - [ ] **Step 8: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/models.py backend/src/flinq/modules/review/service.py backend/migrations/versions/0014_vocab_lesson_provenance.py backend/tests/modules/review/test_review_queue.py
+git add backend/src/glosano/modules/vocabulary/models.py backend/src/glosano/modules/review/service.py backend/migrations/versions/0014_vocab_lesson_provenance.py backend/tests/modules/review/test_review_queue.py
 git commit -m "feat(vocab): lesson/segment provenance columns, review context from segment"
 ```
 
@@ -204,9 +204,9 @@ git commit -m "feat(vocab): lesson/segment provenance columns, review context fr
 ### Task 2: Провенанс в `create_item` (POST /api/vocabulary/items)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py:36-54` (исключения), `:124-262` (`create_item`)
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py:37-49` (`CreateItemRequest`)
-- Modify: `backend/src/flinq/api/vocabulary.py:92-113`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py:36-54` (исключения), `:124-262` (`create_item`)
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py:37-49` (`CreateItemRequest`)
+- Modify: `backend/src/glosano/api/vocabulary.py:92-113`
 - Test: `backend/tests/modules/test_vocabulary_lesson_provenance.py` (создать), `backend/tests/api/test_vocabulary.py`
 
 **Interfaces:**
@@ -227,13 +227,13 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import PhraseItem, TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
@@ -377,7 +377,7 @@ Expected: FAIL — `TypeError: create_item() got an unexpected keyword argument 
 
 - [ ] **Step 3: Добавить исключения и хелперы в сервис**
 
-В `backend/src/flinq/modules/vocabulary/service.py` после `InvalidPhrase`:
+В `backend/src/glosano/modules/vocabulary/service.py` после `InvalidPhrase`:
 
 ```python
 class LessonNotFound(Exception):  # noqa: N818 -- matches sibling exception naming
@@ -436,7 +436,7 @@ def _apply_provenance(
 Импорт моделей урока (рядом с существующими импортами модуля):
 
 ```python
-from flinq.modules.lesson_library.models import Lesson, LessonSegment
+from glosano.modules.lesson_library.models import Lesson, LessonSegment
 ```
 
 - [ ] **Step 4: Прокинуть провенанс через `create_item`**
@@ -541,7 +541,7 @@ Expected: PASS
 - [ ] **Step 9: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/src/flinq/modules/vocabulary/schemas.py backend/src/flinq/api/vocabulary.py backend/tests/modules/test_vocabulary_lesson_provenance.py backend/tests/api/test_vocabulary.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/src/glosano/modules/vocabulary/schemas.py backend/src/glosano/api/vocabulary.py backend/tests/modules/test_vocabulary_lesson_provenance.py backend/tests/api/test_vocabulary.py
 git commit -m "feat(vocab): record lesson provenance on item create"
 ```
 
@@ -550,9 +550,9 @@ git commit -m "feat(vocab): record lesson provenance on item create"
 ### Task 3: Провенанс в `patch_item` (PATCH /api/vocabulary/items/{kind}/{id})
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py:264-287` (`patch_item`)
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py:51-60` (`PatchItemRequest`)
-- Modify: `backend/src/flinq/api/vocabulary.py:116-136`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py:264-287` (`patch_item`)
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py:51-60` (`PatchItemRequest`)
+- Modify: `backend/src/glosano/api/vocabulary.py:116-136`
 - Test: `backend/tests/modules/test_vocabulary_lesson_provenance.py`
 
 **Interfaces:**
@@ -679,7 +679,7 @@ Expected: PASS (8 тестов)
 - [ ] **Step 5: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/src/flinq/modules/vocabulary/schemas.py backend/src/flinq/api/vocabulary.py backend/tests/modules/test_vocabulary_lesson_provenance.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/src/glosano/modules/vocabulary/schemas.py backend/src/glosano/api/vocabulary.py backend/tests/modules/test_vocabulary_lesson_provenance.py
 git commit -m "feat(vocab): record lesson provenance on item patch"
 ```
 
@@ -688,7 +688,7 @@ git commit -m "feat(vocab): record lesson provenance on item patch"
 ### Task 4: Провенанс в `bulk_mark_known`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/reader_state/bulk.py:48-68`
+- Modify: `backend/src/glosano/modules/reader_state/bulk.py:48-68`
 - Test: `backend/tests/modules/test_vocabulary_provenance.py`
 
 **Interfaces:**
@@ -731,7 +731,7 @@ Expected: PASS
 - [ ] **Step 5: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/reader_state/bulk.py backend/tests/modules/test_vocabulary_provenance.py
+git add backend/src/glosano/modules/reader_state/bulk.py backend/tests/modules/test_vocabulary_provenance.py
 git commit -m "feat(reader): record lesson provenance for bulk-known items"
 ```
 
@@ -740,7 +740,7 @@ git commit -m "feat(reader): record lesson provenance for bulk-known items"
 ### Task 5: Очередь урока — фильтр по провенансу
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/service.py:243-270` (lesson-ветка `get_queue`)
+- Modify: `backend/src/glosano/modules/review/service.py:243-270` (lesson-ветка `get_queue`)
 - Test: `backend/tests/modules/review/test_review_queue.py:168-185`
 
 **Interfaces:**
@@ -855,7 +855,7 @@ Expected: FAIL — `test_lesson_queue_excludes_word_added_in_another_lesson` и 
         return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 ```
 
-Язык теперь не фильтруется отдельно: провенанс уже привязан к уроку, а урок — к языку. Удалить из импортов файла `LessonTokenOccurrence`, если он больше нигде не используется (`grep -n LessonTokenOccurrence backend/src/flinq/modules/review/service.py`).
+Язык теперь не фильтруется отдельно: провенанс уже привязан к уроку, а урок — к языку. Удалить из импортов файла `LessonTokenOccurrence`, если он больше нигде не используется (`grep -n LessonTokenOccurrence backend/src/glosano/modules/review/service.py`).
 
 - [ ] **Step 4: Прогнать тесты**
 
@@ -865,7 +865,7 @@ Expected: PASS
 - [ ] **Step 5: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/tests/modules/review/test_review_queue.py
+git add backend/src/glosano/modules/review/service.py backend/tests/modules/review/test_review_queue.py
 git commit -m "feat(review): scope lesson queue by vocabulary provenance"
 ```
 
@@ -874,8 +874,8 @@ git commit -m "feat(review): scope lesson queue by vocabulary provenance"
 ### Task 6: `lesson_id` × `mode` и счётчики урока
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/service.py` (`get_queue` — валидация урока и `_mode_stmt`; `get_counts`)
-- Modify: `backend/src/flinq/api/review.py:40-56` (queue), `:99-107` (counts)
+- Modify: `backend/src/glosano/modules/review/service.py` (`get_queue` — валидация урока и `_mode_stmt`; `get_counts`)
+- Modify: `backend/src/glosano/api/review.py:40-56` (queue), `:99-107` (counts)
 - Test: `backend/tests/modules/review/test_review_queue.py`, `backend/tests/api/test_review.py`
 
 **Interfaces:**
@@ -967,7 +967,7 @@ Expected: FAIL — `TypeError: get_counts() got an unexpected keyword argument '
 
 - [ ] **Step 4: Прокинуть параметр в API**
 
-В `backend/src/flinq/api/review.py` в эндпоинт `counts` добавить `lesson_id: uuid.UUID | None = None`, передать в `service.get_counts` и обернуть вызов тем же `try/except service.LessonNotFound → 404`, что в `queue`.
+В `backend/src/glosano/api/review.py` в эндпоинт `counts` добавить `lesson_id: uuid.UUID | None = None`, передать в `service.get_counts` и обернуть вызов тем же `try/except service.LessonNotFound → 404`, что в `queue`.
 
 - [ ] **Step 5: Написать тест API**
 
@@ -991,7 +991,7 @@ Expected: PASS
 - [ ] **Step 7: Коммит**
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/src/flinq/api/review.py backend/tests/modules/review/test_review_queue.py backend/tests/api/test_review.py
+git add backend/src/glosano/modules/review/service.py backend/src/glosano/api/review.py backend/tests/modules/review/test_review_queue.py backend/tests/api/test_review.py
 git commit -m "feat(review): lesson scope for new/practice modes and counts"
 ```
 
@@ -1301,7 +1301,7 @@ Expected: всё зелёное. Ожидаемое число тестов не
 ```bash
 cd backend && uv run alembic upgrade head
 cd ../frontend && pnpm build
-cd ../backend && FLINQ_STATIC_DIR=$PWD/../frontend/dist uv run uvicorn flinq.main:app --port 8001
+cd ../backend && GLOSANO_STATIC_DIR=$PWD/../frontend/dist uv run uvicorn glosano.main:app --port 8001
 ```
 
 Сценарий в браузере: открыть урок → добавить слово и фразу → «Повторить лексику» → убедиться, что экран выбора режима показывает «Слова урока» и счётчики равны добавленному, карточка показывает контекстное предложение, а слово из другого урока в очереди не появляется. Затем открыть урок, где ничего не добавлено, — должен быть пустой экран со ссылкой на весь словарь.

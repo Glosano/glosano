@@ -1,4 +1,4 @@
-# Flinq
+# Glosano
 
 Self-hosted content-driven language learning platform — a LingQ-style reader, personal vocabulary, SRS and AI-assisted translation, designed for personal and small-team installations.
 
@@ -18,7 +18,7 @@ Agent guidance: [`AGENTS.md`](AGENTS.md) (English) / [`AGENTS_RU.md`](AGENTS_RU.
 ## Repository layout
 
 ```
-Flinq/
+Glosano/
 ├── backend/          # Python 3.13 + FastAPI + SQLAlchemy + Taskiq
 ├── frontend/         # React 19 + TypeScript + Vite + Tailwind v4
 ├── docs/             # Product and architecture docs
@@ -67,8 +67,8 @@ This builds and runs `app-api` and `app-worker` containers, both serving the fro
 ```bash
 cd backend
 uv sync                          # install deps
-uv run flinq serve               # run API locally (http://localhost:8000)
-uv run flinq worker              # run Taskiq worker
+uv run glosano serve               # run API locally (http://localhost:8000)
+uv run glosano worker              # run Taskiq worker
 uv run pytest                    # run tests
 uv run ruff check .              # lint
 uv run ruff format .             # format
@@ -93,4 +93,4 @@ pnpm format                      # Prettier
 
 MIT — see [LICENSE](LICENSE).
 
-Note: Flinq uses Wiktionary-derived dictionary data under CC-BY-SA 4.0. Attribution is shown in the UI wherever dictionary data is displayed. See [ADR-0004](docs/adr/ADR-0004-dictionary-wiktionary-provider.md).
+Note: Glosano uses Wiktionary-derived dictionary data under CC-BY-SA 4.0. Attribution is shown in the UI wherever dictionary data is displayed. See [ADR-0004](docs/adr/ADR-0004-dictionary-wiktionary-provider.md).

@@ -1,7 +1,7 @@
 /**
  * API client with cookie-based session + CSRF (ADR-0008).
  *
- * The backend issues `flinq_session` (HttpOnly) and `flinq_csrf` (readable JS)
+ * The backend issues `glosano_session` (HttpOnly) and `glosano_csrf` (readable JS)
  * cookies. For mutating requests we read the CSRF cookie and echo it in the
  * `X-CSRF-Token` header (double-submit pattern).
  */
@@ -59,7 +59,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase()
 
   if (MUTATING_METHODS.has(method)) {
-    const csrf = getCookie('flinq_csrf')
+    const csrf = getCookie('glosano_csrf')
     if (csrf) headers.set('X-CSRF-Token', csrf)
   }
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {

@@ -1,6 +1,6 @@
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def test_get_me_unauthorized_when_no_session() -> None:
@@ -49,7 +49,7 @@ async def test_get_me_after_logout_returns_401() -> None:
                 "password": "abcdefghij",
             },
         )
-        csrf = c.cookies.get("flinq_csrf")
+        csrf = c.cookies.get("glosano_csrf")
         assert csrf
         await c.post("/auth/logout", headers={"X-CSRF-Token": csrf})
 

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 from requests.adapters import HTTPAdapter
 
-from flinq.modules.lesson_library.video_segments import Cue, prepare_fragments
-from flinq.modules.lesson_library.youtube import VideoImportError, parse_youtube_url, select_track
+from glosano.modules.lesson_library.video_segments import Cue, prepare_fragments
+from glosano.modules.lesson_library.youtube import VideoImportError, parse_youtube_url, select_track
 
 
 @pytest.mark.parametrize(
@@ -101,7 +101,7 @@ def test_grouping_respects_abbreviations_soft_limits_and_cue_boundaries():
 def test_restricted_session_blocks_redirect_targets_before_network() -> None:
     import requests
 
-    from flinq.modules.lesson_library.youtube import RestrictedSession
+    from glosano.modules.lesson_library.youtube import RestrictedSession
 
     with RestrictedSession() as session:
         request = requests.Request("GET", "https://127.0.0.1/private").prepare()
@@ -131,7 +131,7 @@ def test_provider_http_status_policy(
     import requests
     from youtube_transcript_api import YouTubeRequestFailed
 
-    from flinq.modules.lesson_library.youtube import YouTubeTranscriptProvider
+    from glosano.modules.lesson_library.youtube import YouTubeTranscriptProvider
 
     calls = []
 
@@ -145,13 +145,13 @@ def test_provider_http_status_policy(
             raise YouTubeRequestFailed("M7lc1UVf-VE", error) from error
 
     monkeypatch.setattr(
-        "flinq.modules.lesson_library.youtube.YouTubeTranscriptApi.list", unavailable
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptApi.list", unavailable
     )
 
     def no_sleep(_: float) -> None:
         pass
 
-    monkeypatch.setattr("flinq.modules.lesson_library.youtube.time.sleep", no_sleep)
+    monkeypatch.setattr("glosano.modules.lesson_library.youtube.time.sleep", no_sleep)
     with pytest.raises(VideoImportError, match=code):
         YouTubeTranscriptProvider()._acquire("M7lc1UVf-VE", "en")
     assert len(calls) == retries
@@ -163,7 +163,7 @@ def test_redirect_cannot_fetch_external_host(monkeypatch: pytest.MonkeyPatch) ->
 
     import requests
 
-    from flinq.modules.lesson_library.youtube import RestrictedSession
+    from glosano.modules.lesson_library.youtube import RestrictedSession
 
     urls: list[str] = []
 
@@ -190,7 +190,7 @@ def test_oversized_redirect_body_is_bounded_before_following(
 
     import requests
 
-    from flinq.modules.lesson_library.youtube import RestrictedSession
+    from glosano.modules.lesson_library.youtube import RestrictedSession
 
     class StreamingBody:
         consumed = 0
@@ -230,7 +230,7 @@ async def test_acquisition_terminates_underlying_slow_transfer(
     import sys
     from typing import Any
 
-    from flinq.modules.lesson_library import youtube
+    from glosano.modules.lesson_library import youtube
 
     processes: list[asyncio.subprocess.Process] = []
     spawn = asyncio.create_subprocess_exec
@@ -260,15 +260,15 @@ async def test_provider_subprocess_returns_typed_snapshot(monkeypatch: pytest.Mo
     import asyncio
     from typing import Any
 
-    from flinq.modules.lesson_library.youtube import YouTubeTranscriptProvider
+    from glosano.modules.lesson_library.youtube import YouTubeTranscriptProvider
 
     spawn = asyncio.create_subprocess_exec
 
     async def fixture_child(*args: Any, **kwargs: Any) -> asyncio.subprocess.Process:
         script = (
-            "from flinq.modules.lesson_library.youtube import "
+            "from glosano.modules.lesson_library.youtube import "
             "YouTubeTranscriptProvider,VideoResult,acquire_main;"
-            "from flinq.modules.lesson_library.video_segments import Cue;"
+            "from glosano.modules.lesson_library.video_segments import Cue;"
             "YouTubeTranscriptProvider._acquire=lambda *args: "
             'VideoResult("M7lc1UVf-VE","Title",None,"en-US",True,[Cue("Hello.",0,1000)]);'
             "acquire_main()"
@@ -286,7 +286,7 @@ async def test_cancelled_acquisition_reaps_child(monkeypatch: pytest.MonkeyPatch
     import sys
     from typing import Any
 
-    from flinq.modules.lesson_library.youtube import YouTubeTranscriptProvider
+    from glosano.modules.lesson_library.youtube import YouTubeTranscriptProvider
 
     spawn = asyncio.create_subprocess_exec
     started = asyncio.Event()

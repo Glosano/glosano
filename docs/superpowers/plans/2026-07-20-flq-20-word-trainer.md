@@ -28,7 +28,7 @@
 ### Task 1: Миграция 0013 — `review_events.quality`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/models.py` (класс ReviewEvent, ~строки 60-85)
+- Modify: `backend/src/glosano/modules/review/models.py` (класс ReviewEvent, ~строки 60-85)
 - Create: `backend/migrations/versions/0013_review_quality.py`
 - Test: Modify `backend/tests/modules/review/test_models.py` (добавить тесты)
 
@@ -148,13 +148,13 @@ def downgrade() -> None:
 
 - [ ] **Step 5: Прогнать тесты, линт/типы**
 
-Run: `cd backend && uv run pytest tests/modules/review/test_models.py -v && uv run ruff check . && uv run ruff format src/flinq/modules/review/models.py migrations/versions/0013_review_quality.py tests/modules/review/test_models.py && uv run pyright`
+Run: `cd backend && uv run pytest tests/modules/review/test_models.py -v && uv run ruff check . && uv run ruff format src/glosano/modules/review/models.py migrations/versions/0013_review_quality.py tests/modules/review/test_models.py && uv run pyright`
 Expected: все PASS, чисто
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/review/models.py backend/migrations/versions/0013_review_quality.py backend/tests/modules/review/test_models.py
+git add backend/src/glosano/modules/review/models.py backend/migrations/versions/0013_review_quality.py backend/tests/modules/review/test_models.py
 git commit -m "feat(review): review_events.quality column, migration 0013"
 ```
 
@@ -163,8 +163,8 @@ git commit -m "feat(review): review_events.quality column, migration 0013"
 ### Task 2: SM-2 — полная шкала качества
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/sm2.py` (весь файл)
-- Modify: `backend/src/flinq/modules/review/service.py` (одна строка вызова в `answer()`, ~324-326)
+- Modify: `backend/src/glosano/modules/review/sm2.py` (весь файл)
+- Modify: `backend/src/glosano/modules/review/service.py` (одна строка вызова в `answer()`, ~324-326)
 - Test: Modify `backend/tests/modules/review/test_sm2.py` (переписать под quality)
 
 **Interfaces:**
@@ -181,7 +181,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from flinq.modules.review.sm2 import (
+from glosano.modules.review.sm2 import (
     INITIAL_STATE,
     Sm2State,
     apply_answer,
@@ -264,7 +264,7 @@ Expected: FAIL — `TypeError: apply_answer() got an unexpected keyword argument
 - [ ] **Step 3: Реализация sm2.py** (файл целиком):
 
 ```python
-# backend/src/flinq/modules/review/sm2.py
+# backend/src/glosano/modules/review/sm2.py
 """SM-2 (FLQ-20): полная шкала качества 0..5.
 
 EF' = EF + (0.1 - (5-q)*(0.08+(5-q)*0.02)), floor 1.3, округление до 2 знаков.
@@ -344,13 +344,13 @@ def state_from_json(data: dict) -> Sm2State:  # type: ignore[type-arg]
 
 - [ ] **Step 5: Прогнать модуль + регресс**
 
-Run: `cd backend && uv run pytest tests/modules/review/ tests/api/test_review.py -v && uv run ruff check . && uv run ruff format src/flinq/modules/review/sm2.py src/flinq/modules/review/service.py tests/modules/review/test_sm2.py && uv run pyright`
+Run: `cd backend && uv run pytest tests/modules/review/ tests/api/test_review.py -v && uv run ruff check . && uv run ruff format src/glosano/modules/review/sm2.py src/glosano/modules/review/service.py tests/modules/review/test_sm2.py && uv run pyright`
 Expected: все PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/review/sm2.py backend/src/flinq/modules/review/service.py backend/tests/modules/review/test_sm2.py
+git add backend/src/glosano/modules/review/sm2.py backend/src/glosano/modules/review/service.py backend/tests/modules/review/test_sm2.py
 git commit -m "feat(review): SM-2 full 0..5 quality scale (binary call sites shimmed)"
 ```
 
@@ -359,9 +359,9 @@ git commit -m "feat(review): SM-2 full 0..5 quality scale (binary call sites shi
 ### Task 3: `answer(quality)` — сервис и API
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/service.py` (`answer()`, ~304-363)
-- Modify: `backend/src/flinq/modules/review/schemas.py` (`AnswerRequest`, `AnswerResponse`)
-- Modify: `backend/src/flinq/api/review.py` (эндпоинт `answer`)
+- Modify: `backend/src/glosano/modules/review/service.py` (`answer()`, ~304-363)
+- Modify: `backend/src/glosano/modules/review/schemas.py` (`AnswerRequest`, `AnswerResponse`)
+- Modify: `backend/src/glosano/api/review.py` (эндпоинт `answer`)
 - Test: Modify `backend/tests/modules/review/test_review_answer.py`, `backend/tests/api/test_review.py`
 
 **Interfaces:**
@@ -543,13 +543,13 @@ class AnswerRequest(BaseModel):
 
 - [ ] **Step 6: Прогнать backend-регресс**
 
-Run: `cd backend && uv run pytest && uv run ruff check . && uv run ruff format src/flinq/modules/review/service.py src/flinq/modules/review/schemas.py src/flinq/api/review.py tests/modules/review/test_review_answer.py tests/api/test_review.py && uv run pyright`
+Run: `cd backend && uv run pytest && uv run ruff check . && uv run ruff format src/glosano/modules/review/service.py src/glosano/modules/review/schemas.py src/glosano/api/review.py tests/modules/review/test_review_answer.py tests/api/test_review.py && uv run pyright`
 Expected: все PASS. Примечание: фронтенд теперь временно несовместим с API (мигрирует в Task 8-9) — vitest это не ломает (моки).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/src/flinq/modules/review/schemas.py backend/src/flinq/api/review.py backend/tests/modules/review/test_review_answer.py backend/tests/api/test_review.py
+git add backend/src/glosano/modules/review/service.py backend/src/glosano/modules/review/schemas.py backend/src/glosano/api/review.py backend/tests/modules/review/test_review_answer.py backend/tests/api/test_review.py
 git commit -m "feat(review): answer accepts quality 0..5, confidence mapping + graduation per spec"
 ```
 
@@ -558,9 +558,9 @@ git commit -m "feat(review): answer accepts quality 0..5, confidence mapping + g
 ### Task 4: Режимы очереди + `/counts`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/service.py` (`get_queue` + новые функции)
-- Modify: `backend/src/flinq/modules/review/schemas.py` (+ `CountsResponse`)
-- Modify: `backend/src/flinq/api/review.py` (queue: параметр mode; + GET /counts)
+- Modify: `backend/src/glosano/modules/review/service.py` (`get_queue` + новые функции)
+- Modify: `backend/src/glosano/modules/review/schemas.py` (+ `CountsResponse`)
+- Modify: `backend/src/glosano/api/review.py` (queue: параметр mode; + GET /counts)
 - Test: Modify `backend/tests/modules/review/test_review_queue.py`, `backend/tests/api/test_review.py`
 
 **Interfaces:**
@@ -574,7 +574,7 @@ git commit -m "feat(review): answer accepts quality 0..5, confidence mapping + g
 - [ ] **Step 1: Написать падающие тесты** — добавить в `test_review_queue.py`:
 
 ```python
-from flinq.modules.review.service import get_counts
+from glosano.modules.review.service import get_counts
 
 
 async def test_new_mode_returns_unreviewed_newest_first():
@@ -682,7 +682,7 @@ class CountsInfo:
     ai_enabled: bool
 ```
 
-Импорт: `from flinq.core.config import get_settings`.
+Импорт: `from glosano.core.config import get_settings`.
 
 В `get_queue` добавить параметр `mode: str = "due"` (после `language_code`) и перед блоком `if daily.limit_reached:` вставить ветки (lesson-ветка выше остаётся первой и не меняется):
 
@@ -801,13 +801,13 @@ async def counts(
 
 - [ ] **Step 5: Прогнать регресс, линт/типы**
 
-Run: `cd backend && uv run pytest tests/modules/review/ tests/api/test_review.py -v && uv run ruff check . && uv run ruff format src/flinq/modules/review/service.py src/flinq/modules/review/schemas.py src/flinq/api/review.py tests/modules/review/test_review_queue.py tests/api/test_review.py && uv run pyright`
+Run: `cd backend && uv run pytest tests/modules/review/ tests/api/test_review.py -v && uv run ruff check . && uv run ruff format src/glosano/modules/review/service.py src/glosano/modules/review/schemas.py src/glosano/api/review.py tests/modules/review/test_review_queue.py tests/api/test_review.py && uv run pyright`
 Expected: все PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/src/flinq/modules/review/schemas.py backend/src/flinq/api/review.py backend/tests/modules/review/test_review_queue.py backend/tests/api/test_review.py
+git add backend/src/glosano/modules/review/service.py backend/src/glosano/modules/review/schemas.py backend/src/glosano/api/review.py backend/tests/modules/review/test_review_queue.py backend/tests/api/test_review.py
 git commit -m "feat(review): queue modes new/practice and counts endpoint"
 ```
 
@@ -816,18 +816,18 @@ git commit -m "feat(review): queue modes new/practice and counts endpoint"
 ### Task 5: Гейтвей — `max_tokens` у провайдера + публичный `write_audit`
 
 **Files:**
-- Modify: `backend/src/flinq/modules/ai_translation/provider.py` (Protocol + OpenAICompatibleProvider.complete, ~38-57)
-- Modify: `backend/src/flinq/modules/ai_translation/service.py` (переименовать `_write_audit` → `write_audit`, обновить внутренние вызовы)
+- Modify: `backend/src/glosano/modules/ai_translation/provider.py` (Protocol + OpenAICompatibleProvider.complete, ~38-57)
+- Modify: `backend/src/glosano/modules/ai_translation/service.py` (переименовать `_write_audit` → `write_audit`, обновить внутренние вызовы)
 - Test: Modify существующий тест провайдера (`backend/tests/modules/ai_translation/` — найти файл теста провайдера; если параметр нигде не тестируется, добавить тест в него)
 
 **Interfaces:**
 - Produces:
   - `LLMProvider.complete(self, *, system: str, user: str, max_tokens: int = 100) -> LLMCompletion` — дефолт 100 сохраняет поведение translate-путей байт-в-байт.
-  - `flinq.modules.ai_translation.service.write_audit(...)` — публичное имя прежнего `_write_audit` (сигнатура не меняется); потребитель — exercises (Task 6).
+  - `glosano.modules.ai_translation.service.write_audit(...)` — публичное имя прежнего `_write_audit` (сигнатура не меняется); потребитель — exercises (Task 6).
 
 - [ ] **Step 1: Найти тесты провайдера**
 
-Run: `cd backend && grep -rln "OpenAICompatibleProvider\|_write_audit" tests/ src/flinq/`
+Run: `cd backend && grep -rln "OpenAICompatibleProvider\|_write_audit" tests/ src/glosano/`
 Ожидание: список файлов; во всех местах `_write_audit` — только внутри `ai_translation/service.py`.
 
 - [ ] **Step 2: Написать падающий тест** — в файл тестов провайдера (по факту из Step 1) добавить:
@@ -860,13 +860,13 @@ class LLMProvider(Protocol):
 
 - [ ] **Step 4: Прогнать AI-модуль + полный регресс**
 
-Run: `cd backend && uv run pytest tests/ -k "ai" -v && uv run pytest && uv run ruff check . && uv run ruff format src/flinq/modules/ai_translation/provider.py src/flinq/modules/ai_translation/service.py && uv run pyright`
+Run: `cd backend && uv run pytest tests/ -k "ai" -v && uv run pytest && uv run ruff check . && uv run ruff format src/glosano/modules/ai_translation/provider.py src/glosano/modules/ai_translation/service.py && uv run pyright`
 Expected: все PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/ai_translation/provider.py backend/src/flinq/modules/ai_translation/service.py backend/tests/modules/ai_translation
+git add backend/src/glosano/modules/ai_translation/provider.py backend/src/glosano/modules/ai_translation/service.py backend/tests/modules/ai_translation
 git commit -m "refactor(ai): provider max_tokens param, public write_audit for reuse"
 ```
 
@@ -875,13 +875,13 @@ git commit -m "refactor(ai): provider max_tokens param, public write_audit for r
 ### Task 6: Сервис упражнений (`exercises.py` + промпты)
 
 **Files:**
-- Create: `backend/src/flinq/modules/review/exercise_prompts.py`
-- Create: `backend/src/flinq/modules/review/exercises.py`
+- Create: `backend/src/glosano/modules/review/exercise_prompts.py`
+- Create: `backend/src/glosano/modules/review/exercises.py`
 - Test: `backend/tests/modules/review/test_exercises.py`
 
 **Interfaces:**
 - Consumes: `LLMProvider` (+max_tokens), `write_audit`, `AIDisabled` (ai_translation); `ReviewItem`, `_VOCAB_MODEL_BY_KIND`, `PersonalTranslation`, `PersonalNote`, `UserSettings`.
-- Produces (в `flinq.modules.review.exercises`):
+- Produces (в `glosano.modules.review.exercises`):
 
 ```python
 class ExerciseParseError(Exception): ...   # непарсибельный/невалидный JSON после ретрая
@@ -923,19 +923,19 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.ai_translation.provider import LLMCompletion
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.exercises import (
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.ai_translation.provider import LLMCompletion
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.exercises import (
     ExerciseParseError,
     generate_exercise,
     translation_feedback,
 )
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import ReviewItemNotFound
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import PersonalTranslation, TokenItem
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import ReviewItemNotFound
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import PersonalTranslation, TokenItem
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 
@@ -1011,8 +1011,8 @@ CLOZE_JSON = json.dumps(
 
 
 async def test_example_exercise_happy_path(monkeypatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "true")
-    from flinq.core.config import get_settings
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "true")
+    from glosano.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -1031,8 +1031,8 @@ async def test_example_exercise_happy_path(monkeypatch):
 
 
 async def test_cloze_validates_options_and_retries_once(monkeypatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "true")
-    from flinq.core.config import get_settings
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "true")
+    from glosano.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -1050,8 +1050,8 @@ async def test_cloze_validates_options_and_retries_once(monkeypatch):
 
 
 async def test_two_bad_responses_raise_parse_error(monkeypatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "true")
-    from flinq.core.config import get_settings
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "true")
+    from glosano.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -1067,20 +1067,20 @@ async def test_two_bad_responses_raise_parse_error(monkeypatch):
 
 
 async def test_ai_disabled_raises():
-    from flinq.modules.ai_translation.service import AIDisabled
+    from glosano.modules.ai_translation.service import AIDisabled
 
     provider = FakeProvider([EXAMPLE_JSON])
     async with session_scope() as s:
         user_id, ri_id = await _setup_item(s)
-        with pytest.raises(AIDisabled):  # FLINQ_LLM_ENABLED=false в тестовом окружении
+        with pytest.raises(AIDisabled):  # GLOSANO_LLM_ENABLED=false в тестовом окружении
             await generate_exercise(
                 s, user_id=user_id, kind="example", review_item_id=ri_id, provider=provider
             )
 
 
 async def test_foreign_item_raises(monkeypatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "true")
-    from flinq.core.config import get_settings
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "true")
+    from glosano.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -1097,8 +1097,8 @@ async def test_foreign_item_raises(monkeypatch):
 
 
 async def test_feedback_happy_path(monkeypatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "true")
-    from flinq.core.config import get_settings
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "true")
+    from glosano.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -1117,8 +1117,8 @@ async def test_feedback_happy_path(monkeypatch):
 
 
 async def test_writing_exercise_needs_items(monkeypatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "true")
-    from flinq.core.config import get_settings
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "true")
+    from glosano.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -1137,12 +1137,12 @@ async def test_writing_exercise_needs_items(monkeypatch):
 - [ ] **Step 2: Запустить — падают**
 
 Run: `cd backend && uv run pytest tests/modules/review/test_exercises.py -v`
-Expected: FAIL — `ModuleNotFoundError: flinq.modules.review.exercises`
+Expected: FAIL — `ModuleNotFoundError: glosano.modules.review.exercises`
 
 - [ ] **Step 3: Реализация — exercise_prompts.py**
 
 ```python
-# backend/src/flinq/modules/review/exercise_prompts.py
+# backend/src/glosano/modules/review/exercise_prompts.py
 """Промпты и парсинг AI-упражнений (FLQ-20). Чистые функции, без I/O.
 
 Обобщение промптов личного CLI-тренажёра: языки берутся из настроек
@@ -1154,7 +1154,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from flinq.modules.ai_translation.prompts import LANGUAGE_NAMES
+from glosano.modules.ai_translation.prompts import LANGUAGE_NAMES
 
 SYSTEM_PROMPT = (
     "You are a language tutor inside a vocabulary trainer. "
@@ -1311,7 +1311,7 @@ def validate_payload(kind: str, payload: dict[str, Any]) -> None:
 - [ ] **Step 4: Реализация — exercises.py**
 
 ```python
-# backend/src/flinq/modules/review/exercises.py
+# backend/src/glosano/modules/review/exercises.py
 """AI-генерация упражнений тренажёра (FLQ-20). Session-first module functions.
 
 Паттерн FLQ-3: kill-switch AIDisabled -> провайдер -> extract_json (+1 ретрай)
@@ -1331,14 +1331,14 @@ from loguru import logger
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.modules.ai_translation.provider import LLMProvider, OpenAICompatibleProvider
-from flinq.modules.ai_translation.service import AIDisabled, write_audit
-from flinq.modules.identity.models import UserSettings
-from flinq.modules.review import exercise_prompts as ep
-from flinq.modules.review.models import ReviewItem
-from flinq.modules.review.service import _VOCAB_MODEL_BY_KIND, ReviewItemNotFound
-from flinq.modules.vocabulary.models import PersonalNote, PersonalTranslation
+from glosano.core.config import get_settings
+from glosano.modules.ai_translation.provider import LLMProvider, OpenAICompatibleProvider
+from glosano.modules.ai_translation.service import AIDisabled, write_audit
+from glosano.modules.identity.models import UserSettings
+from glosano.modules.review import exercise_prompts as ep
+from glosano.modules.review.models import ReviewItem
+from glosano.modules.review.service import _VOCAB_MODEL_BY_KIND, ReviewItemNotFound
+from glosano.modules.vocabulary.models import PersonalNote, PersonalTranslation
 
 
 class ExerciseParseError(Exception):  # noqa: N818 -- matches ai_translation naming
@@ -1571,13 +1571,13 @@ async def translation_feedback(
 
 - [ ] **Step 5: Прогнать тесты**
 
-Run: `cd backend && uv run pytest tests/modules/review/test_exercises.py -v && uv run ruff check . && uv run ruff format src/flinq/modules/review/exercises.py src/flinq/modules/review/exercise_prompts.py tests/modules/review/test_exercises.py && uv run pyright`
+Run: `cd backend && uv run pytest tests/modules/review/test_exercises.py -v && uv run ruff check . && uv run ruff format src/glosano/modules/review/exercises.py src/glosano/modules/review/exercise_prompts.py tests/modules/review/test_exercises.py && uv run pyright`
 Expected: 8 PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/review/exercises.py backend/src/flinq/modules/review/exercise_prompts.py backend/tests/modules/review/test_exercises.py
+git add backend/src/glosano/modules/review/exercises.py backend/src/glosano/modules/review/exercise_prompts.py backend/tests/modules/review/test_exercises.py
 git commit -m "feat(review): AI exercise generation service (example/cloze/reverse/translation/writing/feedback)"
 ```
 
@@ -1586,8 +1586,8 @@ git commit -m "feat(review): AI exercise generation service (example/cloze/rever
 ### Task 7: API упражнений
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/schemas.py` (+ Exercise/Feedback схемы)
-- Modify: `backend/src/flinq/api/review.py` (+ 2 эндпоинта)
+- Modify: `backend/src/glosano/modules/review/schemas.py` (+ Exercise/Feedback схемы)
+- Modify: `backend/src/glosano/api/review.py` (+ 2 эндпоинта)
 - Test: Modify `backend/tests/api/test_review.py`
 
 **Interfaces:**
@@ -1696,10 +1696,10 @@ class FeedbackResponse(BaseModel):
 - [ ] **Step 4: Реализация — api/review.py**
 
 ```python
-from flinq.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
-from flinq.modules.ai_translation.service import AIDisabled
-from flinq.modules.review import exercises
-from flinq.modules.review.schemas import (
+from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
+from glosano.modules.ai_translation.service import AIDisabled
+from glosano.modules.review import exercises
+from glosano.modules.review.schemas import (
     ExerciseRequest,
     ExerciseResponse,
     FeedbackRequest,
@@ -1761,10 +1761,10 @@ async def exercise_feedback(
 
 - [ ] **Step 5: Полный backend-регресс + коммит**
 
-Run: `cd backend && uv run pytest && uv run ruff check . && uv run ruff format src/flinq/modules/review/schemas.py src/flinq/api/review.py tests/api/test_review.py && uv run pyright`
+Run: `cd backend && uv run pytest && uv run ruff check . && uv run ruff format src/glosano/modules/review/schemas.py src/glosano/api/review.py tests/api/test_review.py && uv run pyright`
 
 ```bash
-git add backend/src/flinq/modules/review/schemas.py backend/src/flinq/api/review.py backend/tests/api/test_review.py
+git add backend/src/glosano/modules/review/schemas.py backend/src/glosano/api/review.py backend/tests/api/test_review.py
 git commit -m "feat(review): exercise + feedback endpoints"
 ```
 
@@ -2784,4 +2784,4 @@ git commit -m "feat(review-ui): translation practice mode, writing exercise on q
 | #7 ошибки генерации: ретрай/пропуск; 503 деградация | Task 6 (ретрай/parse error), Task 7 (503/502), Tasks 10-12 (UI) |
 | #8 quality в событиях, старая аналитика жива | Task 1 (nullable) + Task 3 (производный answer_value) |
 
-Финальный шаг: живая проверка по рецепту `.claude/skills/verify/SKILL.md` — с реальным LLM (FLINQ_LLM_ENABLED=true + ключ из backend/.env, если настроен; иначе проверить 503-деградацию: плитки disabled, карточки работают). После — backlog finalization FLQ-20.
+Финальный шаг: живая проверка по рецепту `.claude/skills/verify/SKILL.md` — с реальным LLM (GLOSANO_LLM_ENABLED=true + ключ из backend/.env, если настроен; иначе проверить 503-деградацию: плитки disabled, карточки работают). После — backlog finalization FLQ-20.

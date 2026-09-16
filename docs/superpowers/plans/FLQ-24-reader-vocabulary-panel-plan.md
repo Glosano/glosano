@@ -40,10 +40,10 @@
 
 | Файл | Ответственность |
 |---|---|
-| `backend/src/flinq/modules/reader_state/vocabulary.py` (новый) | Snapshot и поиск первого текущего вхождения сохранённых фраз. |
-| `backend/src/flinq/modules/reader_state/schemas.py` | DTO списка и контекста. |
-| `backend/src/flinq/api/reader.py` | Новый GET, текущие правила доступа и ready. |
-| `backend/src/flinq/modules/vocabulary/service.py` | Только согласование разрешённого shared-источника в `_validate_provenance`; правила записи не менять. |
+| `backend/src/glosano/modules/reader_state/vocabulary.py` (новый) | Snapshot и поиск первого текущего вхождения сохранённых фраз. |
+| `backend/src/glosano/modules/reader_state/schemas.py` | DTO списка и контекста. |
+| `backend/src/glosano/api/reader.py` | Новый GET, текущие правила доступа и ready. |
+| `backend/src/glosano/modules/vocabulary/service.py` | Только согласование разрешённого shared-источника в `_validate_provenance`; правила записи не менять. |
 | `backend/tests/api/test_reader_vocabulary.py` (новый) | Реальные HTTP/БД сценарии списка. |
 | `backend/tests/modules/reader_state/test_vocabulary.py` (новый) | Сервис, phrase matching, отсутствие записей/внешних вызовов и пакетное чтение. |
 | `backend/tests/modules/test_vocabulary_lesson_provenance.py` | Регрессии источника, shared/private и сегмента. |

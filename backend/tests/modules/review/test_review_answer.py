@@ -8,13 +8,13 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import ReviewItemNotFound, answer
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import ReviewItemNotFound, answer
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import TokenItem
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 

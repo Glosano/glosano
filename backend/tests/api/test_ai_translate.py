@@ -8,10 +8,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.main import create_app
-from flinq.modules.ai_translation import service
-from flinq.modules.ai_translation.provider import (
+from glosano.core.config import get_settings
+from glosano.main import create_app
+from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.provider import (
     LLMCompletion,
     ProviderRejected,
     ProviderUnavailable,
@@ -26,7 +26,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "en") ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",
@@ -71,7 +71,7 @@ async def _clean_audit(  # pyright: ignore[reportUnusedFunction] — autouse fix
 
     from sqlalchemy import delete
 
-    from flinq.modules.ai_translation.models import AIRequest
+    from glosano.modules.ai_translation.models import AIRequest
 
     await db_session.execute(delete(AIRequest))
     await db_session.commit()
@@ -157,8 +157,8 @@ async def test_target_comes_from_ui_language_and_prompt_hash_changes(
 
     from sqlalchemy import select
 
-    from flinq.core.db import session_scope
-    from flinq.modules.ai_translation.models import AIRequest
+    from glosano.core.db import session_scope
+    from glosano.modules.ai_translation.models import AIRequest
 
     prompts: list[str] = []
 

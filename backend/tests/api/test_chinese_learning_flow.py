@@ -5,20 +5,20 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
-from flinq.core.config import get_settings
-from flinq.worker.tasks import run_lesson_import
+from glosano.core.config import get_settings
+from glosano.worker.tasks import run_lesson_import
 from tests.api.test_me_settings import register
 
 
 async def test_chinese_learning_flow(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("FLINQ_LLM_ENABLED", "false")
+    monkeypatch.setenv("GLOSANO_LLM_ENABLED", "false")
     get_settings.cache_clear()
     jobs: list[tuple[uuid.UUID, uuid.UUID]] = []
 
     async def enqueue(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
         jobs.append((lesson_id, job_id))
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", enqueue)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", enqueue)
     await register(client)
     response = await client.post(
         "/me/onboarding",

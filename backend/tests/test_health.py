@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from httpx import AsyncClient
 
-from flinq import __version__
+from glosano import __version__
 
 
 async def test_health_endpoint_returns_ok(client: AsyncClient) -> None:

@@ -10,11 +10,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.reader_state.models import BulkAction
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.reader_state.models import BulkAction
+from glosano.modules.vocabulary.models import TokenItem
 from tests.api._reader_helpers import register_and_onboard as _register_and_onboard
 from tests.api._reader_helpers import seed_ready_lesson as _seed_ready_lesson
 

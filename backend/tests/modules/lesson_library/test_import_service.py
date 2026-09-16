@@ -8,14 +8,14 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library import service
-from flinq.modules.lesson_library.models import (
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library import service
+from glosano.modules.lesson_library.models import (
     Lesson,
     LessonSegment,
     LessonTokenOccurrence,
 )
-from flinq.modules.lesson_library.repo import LessonRepo
+from glosano.modules.lesson_library.repo import LessonRepo
 
 TEXT = "Olá mundo. Como vai você?\n\nTudo bem aqui."
 

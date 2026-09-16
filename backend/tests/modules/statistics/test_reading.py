@@ -10,11 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.api._reader_helpers import register_and_onboard, seed_ready_lesson
 
-from flinq.core.db import session_scope
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson
-from flinq.modules.statistics.models import DailyUserStats
-from flinq.modules.statistics.service import get_overview, record_reading
+from glosano.core.db import session_scope
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson
+from glosano.modules.statistics.models import DailyUserStats
+from glosano.modules.statistics.service import get_overview, record_reading
 
 
 async def test_concurrent_overlap_and_next_day(

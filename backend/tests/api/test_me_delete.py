@@ -1,6 +1,6 @@
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def _register(c: AsyncClient, email: str) -> str:
@@ -9,12 +9,12 @@ async def _register(c: AsyncClient, email: str) -> str:
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    return c.cookies.get("flinq_csrf")  # type: ignore[return-value]
+    return c.cookies.get("glosano_csrf")  # type: ignore[return-value]
 
 
 async def test_delete_me_with_correct_password() -> None:
-    from flinq.core.db import session_scope
-    from flinq.modules.identity.repo import UserRepo
+    from glosano.core.db import session_scope
+    from glosano.modules.identity.repo import UserRepo
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:

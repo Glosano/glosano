@@ -1,0 +1,53 @@
+"""Typer CLI commands.
+
+Usage examples:
+    glosano serve
+    glosano serve --host 0.0.0.0 --port 8000
+    glosano worker
+"""
+
+from __future__ import annotations
+
+import typer
+
+from glosano.cli.dictionary import app as dictionary_app
+from glosano.cli.identity import app as identity_app
+
+app = typer.Typer(help="Glosano administration and dev CLI.", no_args_is_help=True)
+
+app.add_typer(identity_app, name="identity")
+app.add_typer(dictionary_app, name="dictionary")
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Host to bind."),
+    port: int = typer.Option(8000, help="Port to bind."),
+    reload: bool = typer.Option(False, help="Enable auto-reload (dev only)."),
+) -> None:
+    """Run the FastAPI application via uvicorn."""
+    import uvicorn
+
+    uvicorn.run(
+        "glosano.main:app",
+        host=host,
+        port=port,
+        reload=reload,
+    )
+
+
+@app.command()
+def worker() -> None:
+    """Run the Taskiq worker.
+
+    This command execs into `taskiq worker glosano.worker.broker:broker` so the
+    Taskiq CLI owns the process (lifecycle, signal handling, graceful shutdown).
+    """
+    import os
+
+    args = ["taskiq", "worker", "glosano.worker.broker:broker", "glosano.worker.tasks"]
+    os.execvp(args[0], args)  # noqa: S606
+
+
+if __name__ == "__main__":
+    app()

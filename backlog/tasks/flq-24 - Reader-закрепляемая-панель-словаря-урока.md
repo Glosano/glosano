@@ -9,9 +9,9 @@ updated_date: '2026-09-10 14:18'
 labels: []
 dependencies: []
 references:
-  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=92-2'
-  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=93-2'
-  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=94-2'
+  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=92-2'
+  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=93-2'
+  - 'https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=94-2'
 documentation:
   - docs/superpowers/specs/FLQ-24-reader-vocabulary-panel-design.md
   - docs/superpowers/plans/FLQ-24-reader-vocabulary-panel-plan.md

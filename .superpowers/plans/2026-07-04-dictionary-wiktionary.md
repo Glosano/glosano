@@ -4,7 +4,7 @@
 
 **Goal:** Built-in offline dictionary: Kaikki/Wiktionary dumps imported into Postgres via a CLI command, exposed through `GET /api/dictionary/lookup` with CC-BY-SA attribution and external-dictionary link-outs.
 
-**Architecture:** New `flinq/modules/dictionary/` module (models, kaikki parser, repo, import service, provider, links) + `flinq dictionary refresh` CLI + one API router. Import is stream-parse → COPY into a *new* `dictionary_source_versions` row, then atomic activation (readers never see partial data). The token↔dictionary join key is one shared normalization function (`flinq/core/textnorm.py`), which also lands the deferred FLQ-1 `casefold`/U+2019 fix.
+**Architecture:** New `glosano/modules/dictionary/` module (models, kaikki parser, repo, import service, provider, links) + `glosano dictionary refresh` CLI + one API router. Import is stream-parse → COPY into a *new* `dictionary_source_versions` row, then atomic activation (readers never see partial data). The token↔dictionary join key is one shared normalization function (`glosano/core/textnorm.py`), which also lands the deferred FLQ-1 `casefold`/U+2019 fix.
 
 **Tech Stack:** Python 3.13, SQLAlchemy 2 async + asyncpg (COPY via `copy_records_to_table`), Alembic, FastAPI, Pydantic v2, typer, httpx, loguru, pytest + testcontainers.
 
@@ -17,7 +17,7 @@
 - Commits (AGENTS.md «Git конвенции»): conventional commits with the task in the scope — `feat(FLQ-2.<task#>): <english imperative subject, ≤72 chars>`; body answers "why", not "what"; always scoped paths — `git commit -m "..." -- <exact paths>`; NO `Co-Authored-By` trailers.
 - Do NOT edit `README.md`, `docs/adr/*`, `.github/workflows/*`, `backend/Dockerfile` — they carry uncommitted user WIP. The spec records the ADR-0004 deviation; no ADR edit in this change.
 - Languages: `en`, `ru`, `pt`. Covered pairs: en→ru, en→pt, ru→en, pt→en (English edition dumps), pt→ru (Russian edition dump).
-- Normalization everywhere = `flinq.core.textnorm.normalize_token` (NFC → U+2019→`'` → casefold → strip outer punctuation).
+- Normalization everywhere = `glosano.core.textnorm.normalize_token` (NFC → U+2019→`'` → casefold → strip outer punctuation).
 - All new code: `from __future__ import annotations`, `Mapped[...]` ORM style, loguru for logging, full type annotations (pyright runs repo-wide).
 
 ---
@@ -35,13 +35,13 @@ git checkout main && git pull && git checkout -b feat/flq-2-dictionary-wiktionar
 ### Task 1: Shared normalization (`textnorm`) — closes the FLQ-1 follow-up
 
 **Files:**
-- Create: `backend/src/flinq/core/textnorm.py`
+- Create: `backend/src/glosano/core/textnorm.py`
 - Create: `backend/tests/core/__init__.py` (empty)
 - Test: `backend/tests/core/test_textnorm.py`
-- Modify: `backend/src/flinq/modules/lesson_library/tokenization.py` (delete local `normalize_token`, import from core)
+- Modify: `backend/src/glosano/modules/lesson_library/tokenization.py` (delete local `normalize_token`, import from core)
 
 **Interfaces:**
-- Produces: `normalize_token(surface: str) -> str` in `flinq.core.textnorm` — used by every later task and re-exported from `tokenization` for existing callers.
+- Produces: `normalize_token(surface: str) -> str` in `glosano.core.textnorm` — used by every later task and re-exported from `tokenization` for existing callers.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -52,7 +52,7 @@ git checkout main && git pull && git checkout -b feat/flq-2-dictionary-wiktionar
 
 from __future__ import annotations
 
-from flinq.core.textnorm import normalize_token
+from glosano.core.textnorm import normalize_token
 
 
 def test_lowercases_and_strips_outer_punctuation() -> None:
@@ -74,7 +74,7 @@ def test_keeps_diacritics_and_internal_hyphen() -> None:
 
 
 def test_tokenizer_uses_shared_function() -> None:
-    from flinq.modules.lesson_library.tokenization import tokenize
+    from glosano.modules.lesson_library.tokenization import tokenize
 
     [tok] = [t for t in tokenize("Straße.") if t.is_word_like]
     assert tok.normalized_text == "strasse"
@@ -83,9 +83,9 @@ def test_tokenizer_uses_shared_function() -> None:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd backend && uv run pytest tests/core/test_textnorm.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'flinq.core.textnorm'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'glosano.core.textnorm'`
 
-- [ ] **Step 3: Implement `flinq/core/textnorm.py`**
+- [ ] **Step 3: Implement `glosano/core/textnorm.py`**
 
 ```python
 """Canonical text normalization (ADR-0001).
@@ -112,8 +112,8 @@ def normalize_token(surface: str) -> str:
 
 - [ ] **Step 4: Switch `tokenization.py` to the shared function**
 
-In `backend/src/flinq/modules/lesson_library/tokenization.py`:
-- add `from flinq.core.textnorm import normalize_token` to the imports;
+In `backend/src/glosano/modules/lesson_library/tokenization.py`:
+- add `from glosano.core.textnorm import normalize_token` to the imports;
 - delete the local `def normalize_token(...)` (lines ~30–34) and the now-unused `_OUTER_PUNCT_RE` constant;
 - keep everything else (the name stays importable from `tokenization` — existing callers and tests keep working).
 
@@ -126,8 +126,8 @@ Expected: PASS (existing tokenization tests only assert lowercase-compatible cas
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright
-git add backend/src/flinq/core/textnorm.py backend/tests/core backend/src/flinq/modules/lesson_library/tokenization.py
-git commit -m "feat(FLQ-2.1): add shared normalize_token with casefold and U+2019" -- backend/src/flinq/core/textnorm.py backend/tests/core backend/src/flinq/modules/lesson_library/tokenization.py
+git add backend/src/glosano/core/textnorm.py backend/tests/core backend/src/glosano/modules/lesson_library/tokenization.py
+git commit -m "feat(FLQ-2.1): add shared normalize_token with casefold and U+2019" -- backend/src/glosano/core/textnorm.py backend/tests/core backend/src/glosano/modules/lesson_library/tokenization.py
 ```
 
 ---
@@ -135,15 +135,15 @@ git commit -m "feat(FLQ-2.1): add shared normalize_token with casefold and U+201
 ### Task 2: Dictionary models + migration 0004
 
 **Files:**
-- Create: `backend/src/flinq/modules/dictionary/__init__.py` (module docstring only)
-- Create: `backend/src/flinq/modules/dictionary/models.py`
+- Create: `backend/src/glosano/modules/dictionary/__init__.py` (module docstring only)
+- Create: `backend/src/glosano/modules/dictionary/models.py`
 - Create: `backend/migrations/versions/0004_dictionary.py`
 - Create: `backend/tests/modules/dictionary/__init__.py` (empty)
 - Test: `backend/tests/modules/dictionary/test_models_schema.py`
 - Modify: `backend/tests/conftest.py` (`_init_schema` — add dictionary models side-effect import next to the existing two)
 
 **Interfaces:**
-- Produces ORM classes in `flinq.modules.dictionary.models`: `DictionarySourceVersion`, `DictionaryEntry`, `DictionaryTranslation`, `DictionaryExample` (fields exactly as in the DDL below).
+- Produces ORM classes in `glosano.modules.dictionary.models`: `DictionarySourceVersion`, `DictionaryEntry`, `DictionaryTranslation`, `DictionaryExample` (fields exactly as in the DDL below).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -161,7 +161,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.dictionary.models import (
+from glosano.modules.dictionary.models import (
     DictionaryEntry,
     DictionarySourceVersion,
     DictionaryTranslation,
@@ -225,7 +225,7 @@ async def test_delete_version_cascades_to_entries_and_translations(
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd backend && uv run pytest tests/modules/dictionary/test_models_schema.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'flinq.modules.dictionary'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'glosano.modules.dictionary'`
 
 - [ ] **Step 3: Implement `models.py`**
 
@@ -248,7 +248,7 @@ from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, Uniqu
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 
 class DictionarySourceVersion(Base):
@@ -331,7 +331,7 @@ class DictionaryExample(Base):
 In `backend/tests/conftest.py`, inside `_init_schema` next to the two existing side-effect imports, add:
 
 ```python
-    from flinq.modules.dictionary import (
+    from glosano.modules.dictionary import (
         models as _dictionary_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
 ```
@@ -364,8 +364,8 @@ Expected: PASS (it walks `upgrade head` / `downgrade base` over all revisions, n
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/dictionary backend/migrations/versions/0004_dictionary.py backend/tests/modules/dictionary backend/tests/conftest.py
-git commit -m "feat(FLQ-2.2): add dictionary models and migration" -- backend/src/flinq/modules/dictionary backend/migrations/versions/0004_dictionary.py backend/tests/modules/dictionary backend/tests/conftest.py
+git add backend/src/glosano/modules/dictionary backend/migrations/versions/0004_dictionary.py backend/tests/modules/dictionary backend/tests/conftest.py
+git commit -m "feat(FLQ-2.2): add dictionary models and migration" -- backend/src/glosano/modules/dictionary backend/migrations/versions/0004_dictionary.py backend/tests/modules/dictionary backend/tests/conftest.py
 ```
 
 ---
@@ -373,7 +373,7 @@ git commit -m "feat(FLQ-2.2): add dictionary models and migration" -- backend/sr
 ### Task 3: Kaikki record parser (pure functions)
 
 **Files:**
-- Create: `backend/src/flinq/modules/dictionary/kaikki.py`
+- Create: `backend/src/glosano/modules/dictionary/kaikki.py`
 - Test: `backend/tests/modules/dictionary/test_kaikki.py`
 
 **Interfaces:**
@@ -395,7 +395,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from flinq.modules.dictionary.kaikki import parse_record
+from glosano.modules.dictionary.kaikki import parse_record
 
 EN_BUILDING: dict[str, Any] = {
     "word": "building",
@@ -628,8 +628,8 @@ Expected: PASS (6 tests)
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright
-git add backend/src/flinq/modules/dictionary/kaikki.py backend/tests/modules/dictionary/test_kaikki.py
-git commit -m "feat(FLQ-2.3): add Kaikki JSONL record parser" -- backend/src/flinq/modules/dictionary/kaikki.py backend/tests/modules/dictionary/test_kaikki.py
+git add backend/src/glosano/modules/dictionary/kaikki.py backend/tests/modules/dictionary/test_kaikki.py
+git commit -m "feat(FLQ-2.3): add Kaikki JSONL record parser" -- backend/src/glosano/modules/dictionary/kaikki.py backend/tests/modules/dictionary/test_kaikki.py
 ```
 
 ---
@@ -637,11 +637,11 @@ git commit -m "feat(FLQ-2.3): add Kaikki JSONL record parser" -- backend/src/fli
 ### Task 4: Dump registry + downloader
 
 **Files:**
-- Create: `backend/src/flinq/modules/dictionary/sources.py`
-- Create: `backend/src/flinq/modules/dictionary/download.py`
+- Create: `backend/src/glosano/modules/dictionary/sources.py`
+- Create: `backend/src/glosano/modules/dictionary/download.py`
 - Test: `backend/tests/modules/dictionary/test_download.py`
-- Modify: `backend/src/flinq/core/config.py` (add `data_dir` setting)
-- Modify: `.env.example` (add `FLINQ_DATA_DIR` with a comment)
+- Modify: `backend/src/glosano/core/config.py` (add `data_dir` setting)
+- Modify: `.env.example` (add `GLOSANO_DATA_DIR` with a comment)
 
 **Interfaces:**
 - Produces:
@@ -674,8 +674,8 @@ from pathlib import Path
 
 import httpx
 
-from flinq.modules.dictionary.download import download_dump, iter_dump_lines
-from flinq.modules.dictionary.sources import DUMP_SOURCES
+from glosano.modules.dictionary.download import download_dump, iter_dump_lines
+from glosano.modules.dictionary.sources import DUMP_SOURCES
 
 
 def test_registry_covers_the_five_pairs() -> None:
@@ -803,7 +803,7 @@ def iter_dump_lines(path: Path) -> Iterator[str]:
 
 ```
 # Local data directory (dictionary dump cache). Defaults to <repo>/data.
-#FLINQ_DATA_DIR=
+#GLOSANO_DATA_DIR=
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -815,8 +815,8 @@ Expected: PASS (3 tests)
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright
-git add backend/src/flinq/modules/dictionary/sources.py backend/src/flinq/modules/dictionary/download.py backend/tests/modules/dictionary/test_download.py backend/src/flinq/core/config.py .env.example
-git commit -m "feat(FLQ-2.4): add dump source registry and streaming downloader" -- backend/src/flinq/modules/dictionary/sources.py backend/src/flinq/modules/dictionary/download.py backend/tests/modules/dictionary/test_download.py backend/src/flinq/core/config.py .env.example
+git add backend/src/glosano/modules/dictionary/sources.py backend/src/glosano/modules/dictionary/download.py backend/tests/modules/dictionary/test_download.py backend/src/glosano/core/config.py .env.example
+git commit -m "feat(FLQ-2.4): add dump source registry and streaming downloader" -- backend/src/glosano/modules/dictionary/sources.py backend/src/glosano/modules/dictionary/download.py backend/tests/modules/dictionary/test_download.py backend/src/glosano/core/config.py .env.example
 ```
 
 ---
@@ -824,8 +824,8 @@ git commit -m "feat(FLQ-2.4): add dump source registry and streaming downloader"
 ### Task 5: Repo + import service (COPY, version lifecycle)
 
 **Files:**
-- Create: `backend/src/flinq/modules/dictionary/repo.py`
-- Create: `backend/src/flinq/modules/dictionary/service.py`
+- Create: `backend/src/glosano/modules/dictionary/repo.py`
+- Create: `backend/src/glosano/modules/dictionary/service.py`
 - Create: `backend/tests/fixtures/dictionary/en_english.jsonl`, `en_russian.jsonl`, `ru_portuguese.jsonl`
 - Test: `backend/tests/modules/dictionary/test_import_service.py`
 
@@ -876,9 +876,9 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.dictionary import service
-from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
-from flinq.modules.dictionary.repo import DictionaryRepo
+from glosano.modules.dictionary import service
+from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.dictionary.repo import DictionaryRepo
 
 FIXTURES = Path(__file__).parents[2] / "fixtures" / "dictionary"
 
@@ -1001,7 +1001,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from flinq.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
 
 
 class DictionaryRepo:
@@ -1086,10 +1086,10 @@ from typing import Any
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.textnorm import normalize_token
-from flinq.modules.dictionary.download import iter_dump_lines
-from flinq.modules.dictionary.kaikki import parse_record
-from flinq.modules.dictionary.repo import DictionaryRepo
+from glosano.core.textnorm import normalize_token
+from glosano.modules.dictionary.download import iter_dump_lines
+from glosano.modules.dictionary.kaikki import parse_record
+from glosano.modules.dictionary.repo import DictionaryRepo
 
 BATCH_SIZE = 5000
 _PROGRESS_EVERY_LINES = 100_000
@@ -1219,22 +1219,22 @@ Expected: PASS (5 tests). If `raw.driver_connection` typing upsets pyright, cast
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/dictionary/repo.py backend/src/flinq/modules/dictionary/service.py backend/src/flinq/modules/dictionary/models.py backend/tests/modules/dictionary/test_import_service.py backend/tests/fixtures/dictionary
-git commit -m "feat(FLQ-2.5): add COPY-based import with atomic version swap" -- backend/src/flinq/modules/dictionary/repo.py backend/src/flinq/modules/dictionary/service.py backend/src/flinq/modules/dictionary/models.py backend/tests/modules/dictionary/test_import_service.py backend/tests/fixtures/dictionary
+git add backend/src/glosano/modules/dictionary/repo.py backend/src/glosano/modules/dictionary/service.py backend/src/glosano/modules/dictionary/models.py backend/tests/modules/dictionary/test_import_service.py backend/tests/fixtures/dictionary
+git commit -m "feat(FLQ-2.5): add COPY-based import with atomic version swap" -- backend/src/glosano/modules/dictionary/repo.py backend/src/glosano/modules/dictionary/service.py backend/src/glosano/modules/dictionary/models.py backend/tests/modules/dictionary/test_import_service.py backend/tests/fixtures/dictionary
 ```
 
 ---
 
-### Task 6: CLI `flinq dictionary refresh`
+### Task 6: CLI `glosano dictionary refresh`
 
 **Files:**
-- Create: `backend/src/flinq/cli/dictionary.py`
-- Modify: `backend/src/flinq/cli/main.py` (register sub-app)
+- Create: `backend/src/glosano/cli/dictionary.py`
+- Modify: `backend/src/glosano/cli/main.py` (register sub-app)
 - Test: `backend/tests/cli/__init__.py` (empty), `backend/tests/cli/test_dictionary_cli.py`
 
 **Interfaces:**
-- Consumes: `DUMP_SOURCES`, `download_dump`, `import_dump`, `get_settings`, `init_engine`/`dispose_engine`/`session_scope` from `flinq.core.db`.
-- Produces: `flinq dictionary refresh --lang <src> --target <dst> [--file PATH]`.
+- Consumes: `DUMP_SOURCES`, `download_dump`, `import_dump`, `get_settings`, `init_engine`/`dispose_engine`/`session_scope` from `glosano.core.db`.
+- Produces: `glosano dictionary refresh --lang <src> --target <dst> [--file PATH]`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1251,8 +1251,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from typer.testing import CliRunner
 
-from flinq.cli.main import app
-from flinq.modules.dictionary.repo import DictionaryRepo
+from glosano.cli.main import app
+from glosano.modules.dictionary.repo import DictionaryRepo
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "dictionary"
 
@@ -1266,11 +1266,11 @@ def test_unsupported_pair_without_file_errors() -> None:
 async def test_refresh_with_file_imports(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from flinq.cli import dictionary as cli_dictionary
+    from glosano.cli import dictionary as cli_dictionary
 
     # Reuse the test engine/session instead of the CLI building its own.
     async def _run(source_lang: str, target_lang: str, dump_path: Path, tag: str) -> None:
-        from flinq.modules.dictionary.service import import_dump
+        from glosano.modules.dictionary.service import import_dump
 
         await import_dump(
             db_session,
@@ -1291,12 +1291,12 @@ async def test_refresh_with_file_imports(
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `cd backend && uv run pytest tests/cli/test_dictionary_cli.py -v`
-Expected: FAIL — no `flinq.cli.dictionary` / no `dictionary` command registered.
+Expected: FAIL — no `glosano.cli.dictionary` / no `dictionary` command registered.
 
 - [ ] **Step 3: Implement `cli/dictionary.py`**
 
 ```python
-"""`flinq dictionary` commands (ADR-0004: manual admin refresh)."""
+"""`glosano dictionary` commands (ADR-0004: manual admin refresh)."""
 
 from __future__ import annotations
 
@@ -1311,9 +1311,9 @@ app = typer.Typer(help="Built-in dictionary data management.")
 
 
 async def _run_refresh(source_lang: str, target_lang: str, dump_path: Path, tag: str) -> None:
-    from flinq.core.config import get_settings
-    from flinq.core.db import dispose_engine, init_engine, session_scope
-    from flinq.modules.dictionary.service import import_dump
+    from glosano.core.config import get_settings
+    from glosano.core.db import dispose_engine, init_engine, session_scope
+    from glosano.modules.dictionary.service import import_dump
 
     init_engine(get_settings())
     try:
@@ -1337,9 +1337,9 @@ def refresh(
     file: Path | None = typer.Option(None, exists=True, dir_okay=False, help="Local JSONL[.gz] dump instead of downloading."),
 ) -> None:
     """Download (or read --file) a Kaikki dump and load it into Postgres."""
-    from flinq.core.config import get_settings
-    from flinq.modules.dictionary.download import download_dump
-    from flinq.modules.dictionary.sources import DUMP_SOURCES
+    from glosano.core.config import get_settings
+    from glosano.modules.dictionary.download import download_dump
+    from glosano.modules.dictionary.sources import DUMP_SOURCES
 
     source = DUMP_SOURCES.get((lang, target))
     if source is None and file is None:
@@ -1363,7 +1363,7 @@ def refresh(
 In `cli/main.py`, next to the identity sub-app:
 
 ```python
-from flinq.cli.dictionary import app as dictionary_app
+from glosano.cli.dictionary import app as dictionary_app
 app.add_typer(dictionary_app, name="dictionary")
 ```
 
@@ -1376,8 +1376,8 @@ Expected: PASS (2 tests)
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright
-git add backend/src/flinq/cli/dictionary.py backend/src/flinq/cli/main.py backend/tests/cli
-git commit -m "feat(FLQ-2.6): add flinq dictionary refresh CLI command" -- backend/src/flinq/cli/dictionary.py backend/src/flinq/cli/main.py backend/tests/cli
+git add backend/src/glosano/cli/dictionary.py backend/src/glosano/cli/main.py backend/tests/cli
+git commit -m "feat(FLQ-2.6): add glosano dictionary refresh CLI command" -- backend/src/glosano/cli/dictionary.py backend/src/glosano/cli/main.py backend/tests/cli
 ```
 
 ---
@@ -1385,7 +1385,7 @@ git commit -m "feat(FLQ-2.6): add flinq dictionary refresh CLI command" -- backe
 ### Task 7: External dictionary links
 
 **Files:**
-- Create: `backend/src/flinq/modules/dictionary/links.py`
+- Create: `backend/src/glosano/modules/dictionary/links.py`
 - Test: `backend/tests/modules/dictionary/test_links.py`
 
 **Interfaces:**
@@ -1400,7 +1400,7 @@ git commit -m "feat(FLQ-2.6): add flinq dictionary refresh CLI command" -- backe
 
 from __future__ import annotations
 
-from flinq.modules.dictionary.links import render_external_links
+from glosano.modules.dictionary.links import render_external_links
 
 
 def _names(links: list[object]) -> set[str]:
@@ -1500,8 +1500,8 @@ Run: `cd backend && uv run pytest tests/modules/dictionary/test_links.py -v` →
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright
-git add backend/src/flinq/modules/dictionary/links.py backend/tests/modules/dictionary/test_links.py
-git commit -m "feat(FLQ-2.7): add external dictionary link templates" -- backend/src/flinq/modules/dictionary/links.py backend/tests/modules/dictionary/test_links.py
+git add backend/src/glosano/modules/dictionary/links.py backend/tests/modules/dictionary/test_links.py
+git commit -m "feat(FLQ-2.7): add external dictionary link templates" -- backend/src/glosano/modules/dictionary/links.py backend/tests/modules/dictionary/test_links.py
 ```
 
 ---
@@ -1509,10 +1509,10 @@ git commit -m "feat(FLQ-2.7): add external dictionary link templates" -- backend
 ### Task 8: Provider, schemas, lookup endpoint
 
 **Files:**
-- Create: `backend/src/flinq/modules/dictionary/schemas.py`
-- Create: `backend/src/flinq/modules/dictionary/provider.py`
-- Create: `backend/src/flinq/api/dictionary.py`
-- Modify: `backend/src/flinq/main.py` (import + `app.include_router(dictionary_router)` after `lessons_router`)
+- Create: `backend/src/glosano/modules/dictionary/schemas.py`
+- Create: `backend/src/glosano/modules/dictionary/provider.py`
+- Create: `backend/src/glosano/api/dictionary.py`
+- Modify: `backend/src/glosano/main.py` (import + `app.include_router(dictionary_router)` after `lessons_router`)
 - Test: `backend/tests/api/test_dictionary_lookup.py`
 
 **Interfaces:**
@@ -1533,8 +1533,8 @@ from pathlib import Path
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.main import create_app
-from flinq.modules.dictionary import service
+from glosano.main import create_app
+from glosano.modules.dictionary import service
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "dictionary"
 
@@ -1545,7 +1545,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",
@@ -1684,10 +1684,10 @@ from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.textnorm import normalize_token
-from flinq.modules.dictionary.models import DictionaryEntry
-from flinq.modules.dictionary.repo import DictionaryRepo
-from flinq.modules.dictionary.schemas import (
+from glosano.core.textnorm import normalize_token
+from glosano.modules.dictionary.models import DictionaryEntry
+from glosano.modules.dictionary.repo import DictionaryRepo
+from glosano.modules.dictionary.schemas import (
     AttributionOut,
     DictionaryEntryOut,
     DictionaryExampleOut,
@@ -1749,10 +1749,10 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import get_session
-from flinq.modules.dictionary.links import render_external_links
-from flinq.modules.dictionary.provider import WIKTIONARY_ATTRIBUTION, WiktionaryLocalProvider
-from flinq.modules.dictionary.schemas import DictionaryLookupResponse, ExternalLinkOut
+from glosano.core.db import get_session
+from glosano.modules.dictionary.links import render_external_links
+from glosano.modules.dictionary.provider import WIKTIONARY_ATTRIBUTION, WiktionaryLocalProvider
+from glosano.modules.dictionary.schemas import DictionaryLookupResponse, ExternalLinkOut
 
 router = APIRouter(prefix="/api/dictionary", tags=["dictionary"])
 
@@ -1785,7 +1785,7 @@ async def lookup(
     )
 ```
 
-`main.py`: add `from flinq.api.dictionary import router as dictionary_router` and `app.include_router(dictionary_router)` after the lessons router.
+`main.py`: add `from glosano.api.dictionary import router as dictionary_router` and `app.include_router(dictionary_router)` after the lessons router.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1796,8 +1796,8 @@ Expected: PASS (3 tests)
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/dictionary/schemas.py backend/src/flinq/modules/dictionary/provider.py backend/src/flinq/api/dictionary.py backend/src/flinq/main.py backend/tests/api/test_dictionary_lookup.py
-git commit -m "feat(FLQ-2.8): add provider abstraction and lookup endpoint" -- backend/src/flinq/modules/dictionary/schemas.py backend/src/flinq/modules/dictionary/provider.py backend/src/flinq/api/dictionary.py backend/src/flinq/main.py backend/tests/api/test_dictionary_lookup.py
+git add backend/src/glosano/modules/dictionary/schemas.py backend/src/glosano/modules/dictionary/provider.py backend/src/glosano/api/dictionary.py backend/src/glosano/main.py backend/tests/api/test_dictionary_lookup.py
+git commit -m "feat(FLQ-2.8): add provider abstraction and lookup endpoint" -- backend/src/glosano/modules/dictionary/schemas.py backend/src/glosano/modules/dictionary/provider.py backend/src/glosano/api/dictionary.py backend/src/glosano/main.py backend/tests/api/test_dictionary_lookup.py
 ```
 
 ---
@@ -1817,7 +1817,7 @@ Expected: all green; 0 pyright errors.
 
 - [ ] **Step 2: Smoke the real CLI once (optional but recommended)**
 
-With dev docker-compose Postgres up: `cd backend && uv run flinq dictionary refresh --lang pt --target ru --file tests/fixtures/dictionary/ru_portuguese.jsonl`, then `curl` the lookup endpoint with a dev session. Expected: entries in the response.
+With dev docker-compose Postgres up: `cd backend && uv run glosano dictionary refresh --lang pt --target ru --file tests/fixtures/dictionary/ru_portuguese.jsonl`, then `curl` the lookup endpoint with a dev session. Expected: entries in the response.
 
 - [ ] **Step 3: Reconcile spec, update backlog**
 

@@ -1,6 +1,6 @@
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def _register(c: AsyncClient, *, email: str) -> str:
@@ -9,7 +9,7 @@ async def _register(c: AsyncClient, *, email: str) -> str:
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    return c.cookies.get("flinq_csrf")  # type: ignore[return-value]
+    return c.cookies.get("glosano_csrf")  # type: ignore[return-value]
 
 
 async def test_onboarding_persists_settings_and_redirect() -> None:

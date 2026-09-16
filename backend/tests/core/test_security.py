@@ -1,4 +1,4 @@
-from flinq.core.security import hash_password, verify_password
+from glosano.core.security import hash_password, verify_password
 
 
 def test_hash_and_verify_round_trip() -> None:

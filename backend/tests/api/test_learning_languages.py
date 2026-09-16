@@ -3,7 +3,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 from tests.api.test_me_settings import register
 
 CODES = ["en", "ru", "pt", "es", "fr", "de", "zh-Hans", "ja", "ar", "hi"]
@@ -72,7 +72,7 @@ async def test_add_requires_auth(client: AsyncClient):
     async with AsyncClient(
         transport=ASGITransport(app=create_app()), base_url="http://test"
     ) as anonymous:
-        anonymous.cookies.set("flinq_csrf", "test-csrf")
+        anonymous.cookies.set("glosano_csrf", "test-csrf")
         anonymous.headers["X-CSRF-Token"] = "test-csrf"
         assert (
             await anonymous.post("/me/learning-languages", json={"language_code": "en"})

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.tokenization import normalize_phrase
+from glosano.modules.lesson_library.tokenization import normalize_phrase
 
 
 def test_joins_normalized_words_with_single_space() -> None:

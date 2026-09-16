@@ -14,8 +14,8 @@ The Word Card shows AI translation as the first suggestion for `new` words (ADR-
 ## Goals
 
 - `POST /api/ai/translate`: contextual word/phrase translation returning 1–3 short hint variants, best first.
-- `flinq.modules.ai_translation` module with a provider abstraction (`LLMProvider` Protocol) and the single MVP implementation `OpenAICompatibleProvider` (ADR-0003).
-- Admin kill-switch: `FLINQ_LLM_ENABLED=false` → 503, zero external calls, zero audit writes.
+- `glosano.modules.ai_translation` module with a provider abstraction (`LLMProvider` Protocol) and the single MVP implementation `OpenAICompatibleProvider` (ADR-0003).
+- Admin kill-switch: `GLOSANO_LLM_ENABLED=false` → 503, zero external calls, zero audit writes.
 - Metadata-only audit (`ai_requests`, migration 0005) per ADR-0003 privacy rules: hashes, token counts, latency, status — never raw text.
 - Full decoupling from content storage: the gateway reads no lesson tables.
 
@@ -36,7 +36,7 @@ The Word Card shows AI translation as the first suggestion for `new` words (ADR-
 
 ## Constraints (from canonical docs)
 
-- **ADR-0003 — one adapter**: OpenAI Chat Completions API only; configured by `FLINQ_LLM_BASE_URL` / `FLINQ_LLM_API_KEY` / `FLINQ_LLM_MODEL` / `FLINQ_LLM_ENABLED` (all already in `core/config.py`).
+- **ADR-0003 — one adapter**: OpenAI Chat Completions API only; configured by `GLOSANO_LLM_BASE_URL` / `GLOSANO_LLM_API_KEY` / `GLOSANO_LLM_MODEL` / `GLOSANO_LLM_ENABLED` (all already in `core/config.py`).
 - **ADR-0003 — retries**: up to 3 attempts, exponential backoff, ONLY on network errors and 5xx. Provider 4xx (bad key, bad model) fails immediately — retrying a misconfiguration is noise.
 - **ADR-0003 — privacy**: raw prompt, selected text, lesson text, model response, API keys never appear in structured logs or `ai_requests`. Loggable: request_id, user_id, lesson_id, provider/model, latency, success/failure, status codes, token counts, retry count.
 - **ADR-0003 — kill-switch semantics**: disabled ⇒ no external calls, no new audit rows; the product keeps working on dictionary data.
@@ -74,7 +74,7 @@ Errors:
 
 | Case | Status | Body detail |
 |---|---|---|
-| `FLINQ_LLM_ENABLED=false` | 503 | `ai_disabled` |
+| `GLOSANO_LLM_ENABLED=false` | 503 | `ai_disabled` |
 | Provider failed after retries (network, 5xx, timeout) | 502 | `ai_provider_error` |
 | Provider 4xx (misconfiguration) | 502 | `ai_provider_error` |
 | Model returned nothing parseable | 502 | `ai_empty_response` |
@@ -150,14 +150,14 @@ The endpoint is interactive (card is waiting): fail fast and clean. Timeout budg
 ## Module layout
 
 ```
-backend/src/flinq/modules/ai_translation/
+backend/src/glosano/modules/ai_translation/
 ├── __init__.py     module docstring
 ├── provider.py     LLMProvider Protocol, LLMCompletion, OpenAICompatibleProvider, typed errors
 ├── prompts.py      normalize_ai_text, build_hints_prompt, parse_hints, language names
 ├── service.py      translate_hints orchestration + audit write
 ├── models.py       AIRequest
 ├── schemas.py      TranslateRequest, TranslateResponse, HintOut
-backend/src/flinq/api/ai.py        POST /api/ai/translate (+ register in main.py)
+backend/src/glosano/api/ai.py        POST /api/ai/translate (+ register in main.py)
 backend/migrations/versions/0005_ai_requests.py
 ```
 
@@ -166,7 +166,7 @@ backend/migrations/versions/0005_ai_requests.py
 - **provider** — `httpx.MockTransport`: success with usage fields; 500→500→200 (retry succeeds, 3rd attempt); persistent 500 → `ProviderUnavailable` after exactly 3 attempts; connect timeout → `ProviderUnavailable`; 401 from provider → `ProviderRejected` with NO retry (assert single request); no `Authorization` header when api_key empty.
 - **prompts** — pure: normalization (NFC, whitespace collapse), prompt determinism (same inputs → same bytes), `parse_hints` against numbered/bulleted/quoted/duplicated/overlong model outputs, empty → `[]`.
 - **service** (fake provider, real Postgres via testcontainers) — success writes one audit row with hashes + tokens + `success=true`; provider failure writes `success=false` + `error_code` and re-raises; kill-switch raises `AIDisabled` and writes NOTHING (assert zero rows); audit-write failure doesn't mask the provider result.
-- **API** (ASGI, mocked provider at the service boundary) — 200 happy path with hints order preserved; 401 unauthenticated; 422 on 257-char surface / 1001-char context / bad language code; 503 when `FLINQ_LLM_ENABLED=false`; 502 with `ai_provider_error` on provider failure. AC#5 cases (mock LLM, success, timeout, provider error) all covered across these layers.
+- **API** (ASGI, mocked provider at the service boundary) — 200 happy path with hints order preserved; 401 unauthenticated; 422 on 257-char surface / 1001-char context / bad language code; 503 when `GLOSANO_LLM_ENABLED=false`; 502 with `ai_provider_error` on provider failure. AC#5 cases (mock LLM, success, timeout, provider error) all covered across these layers.
 - **Privacy regression** — one test asserting the audit row contains no substring of the raw surface/context text (hashes only).
 
 ## Deferred follow-ups

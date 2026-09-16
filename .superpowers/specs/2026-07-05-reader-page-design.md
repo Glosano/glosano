@@ -35,7 +35,7 @@ The Reader is the core product experience: read a lesson with status-highlighted
 ## Constraints (from canonical docs)
 
 - **ADR-0005**: `new` is computed (no row = new); bulk-known on "Next page" touches ONLY `new` occurrences; undo required; `ignored` never counted as known.
-- **§8.2**: `token_items` unique `(user_id, language_code, token_text)`; `token_text` stored normalized (the FLQ-1/2 join key — `flinq.core.textnorm.normalize_token` output, never recompute differently); check constraints on `confidence 0..5` ↔ `status='tracked'`.
+- **§8.2**: `token_items` unique `(user_id, language_code, token_text)`; `token_text` stored normalized (the FLQ-1/2 join key — `glosano.core.textnorm.normalize_token` output, never recompute differently); check constraints on `confidence 0..5` ↔ `status='tracked'`.
 - **§2.4/§6.5**: occurrences have NO FK to `token_items`; the link is computed via `(user_id, lesson.language_code, normalized_text)`.
 - **§7.1**: one reader position per `(user_id, lesson_id)`; `view_mode`, `current_segment_id`, `current_token_ordinal`.
 - **ADR-0003**: sentence translation is an AI call → kill-switch honored, metadata-only audit, response labeled AI-generated in UI.
@@ -100,7 +100,7 @@ Request `{target_language_code: "en"|"ru"|"pt"}`.
 
 Translations are instance-wide (keyed by segment, not user) — deliberate: lesson content is already shared, its translation is content too. UI labels it AI-generated (ADR-0003).
 
-## Data model (migration 0006, module `flinq/modules/reader_state/` + `token_items` housed in `flinq/modules/vocabulary/models.py` so FLQ-6 finds it home)
+## Data model (migration 0006, module `glosano/modules/reader_state/` + `token_items` housed in `glosano/modules/vocabulary/models.py` so FLQ-6 finds it home)
 
 ```
 token_items                      — §8.2 verbatim

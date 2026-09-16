@@ -1,11 +1,11 @@
 [project]
-name = "flinq"
+name = "glosano"
 version = "0.0.1"
 description = "Self-hosted content-driven language learning platform (backend)"
 readme = "README.md"
 license = { file = "../LICENSE" }
 requires-python = ">=3.13"
-authors = [{ name = "Flinq contributors" }]
+authors = [{ name = "Glosano contributors" }]
 
 dependencies = [
     # Web
@@ -47,14 +47,14 @@ dependencies = [
 ]
 
 [project.scripts]
-flinq = "flinq.cli.main:app"
+glosano = "glosano.cli.main:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/flinq"]
+packages = ["src/glosano"]
 
 [tool.uv]
 dev-dependencies = [
@@ -115,9 +115,9 @@ ignore = [
 "tests/**" = ["S101", "S105", "S106", "S107"]
 # Cyrillic abbreviations / sample text contain characters ruff flags as
 # confusable with Latin (RUF001); they are intentional and correct.
-"src/flinq/modules/lesson_library/tokenization.py" = ["RUF001"]
-"src/flinq/modules/lesson_library/progress.py" = ["RUF002"]
-"src/flinq/modules/lesson_library/schemas.py" = ["RUF003"]
+"src/glosano/modules/lesson_library/tokenization.py" = ["RUF001"]
+"src/glosano/modules/lesson_library/progress.py" = ["RUF002"]
+"src/glosano/modules/lesson_library/schemas.py" = ["RUF003"]
 "tests/modules/lesson_library/test_progress.py" = ["RUF002"]
 "tests/modules/lesson_library/test_segmenter.py" = ["RUF001"]
 "tests/api/test_lessons_progress.py" = ["RUF002", "RUF003"]
@@ -128,7 +128,7 @@ indent-style = "space"
 
 [tool.coverage.run]
 branch = true
-source = ["src/flinq"]
+source = ["src/glosano"]
 
 [tool.coverage.report]
 show_missing = true

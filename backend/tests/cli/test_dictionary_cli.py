@@ -10,9 +10,9 @@ from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from typer.testing import CliRunner
 
-from flinq.cli.main import app
-from flinq.modules.dictionary.models import DictionarySourceVersion
-from flinq.modules.dictionary.repo import DictionaryRepo
+from glosano.cli.main import app
+from glosano.modules.dictionary.models import DictionarySourceVersion
+from glosano.modules.dictionary.repo import DictionaryRepo
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "dictionary"
 
@@ -41,13 +41,13 @@ async def test_run_refresh_real_body_against_test_db(
 ) -> None:
     """Exercise the REAL `_run_refresh` body (engine init / session_scope /
     dispose), not a monkeypatched replacement. `init_engine`/`dispose_engine`
-    are imported inside `_run_refresh` at call time from `flinq.core.db`, so
+    are imported inside `_run_refresh` at call time from `glosano.core.db`, so
     they must be patched there (not on `cli_dictionary`) to take effect.
     They're stubbed to no-ops because the test engine is already initialized
     by conftest, and disposing it would break every other test in the run.
     """
-    import flinq.core.db as core_db
-    from flinq.cli import dictionary as cli_dictionary
+    import glosano.core.db as core_db
+    from glosano.cli import dictionary as cli_dictionary
 
     def _noop_init_engine(*_args: object, **_kwargs: object) -> None:
         return None
@@ -75,7 +75,7 @@ def test_refresh_command_success_path_invokes_run_refresh(
     """Pins the typer command's success-path wiring: arg parsing, `file:{name}`
     tag derivation, and the asyncio.run(...) bridge into `_run_refresh`.
     """
-    from flinq.cli import dictionary as cli_dictionary
+    from glosano.cli import dictionary as cli_dictionary
 
     calls: list[tuple[str, str, Path, str]] = []
 

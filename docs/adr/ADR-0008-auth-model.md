@@ -26,7 +26,7 @@ Decision log §10.3 зафиксировал «email + password, без SSO», �
 ### Сессии
 
 - **Storage:** Postgres, таблица `user_sessions` (см. domain model §5.5).
-- **Token:** secure random 256-bit, base64url, set-cookie `flinq_session` (HttpOnly, Secure, SameSite=Lax).
+- **Token:** secure random 256-bit, base64url, set-cookie `glosano_session` (HttpOnly, Secure, SameSite=Lax).
 - **TTL:** 30 дней sliding — каждый запрос обновляет `last_seen_at` и продлевает `expires_at` (debounced до раз в 5 минут).
 - **«Remember me» checkbox** на login:
   - Checked (default) — cookie persistent, `Max-Age=2592000`.
@@ -39,7 +39,7 @@ Decision log §10.3 зафиксировал «email + password, без SSO», �
 Double-submit cookie pattern:
 
 - На каждый mutating запрос (`POST/PUT/PATCH/DELETE`) middleware требует header `X-CSRF-Token`.
-- Cookie `flinq_csrf` (не HttpOnly, чтобы JS мог прочитать) выдаётся при создании сессии.
+- Cookie `glosano_csrf` (не HttpOnly, чтобы JS мог прочитать) выдаётся при создании сессии.
 - Сравнение header == cookie. Mismatch — 403.
 - Для GET endpoints CSRF не требуется.
 
@@ -59,14 +59,14 @@ Double-submit cookie pattern:
 
 - В MVP **нет UI**. Сброс делается админом через CLI:
   ```
-  flinq reset-password user@example.com
+  glosano reset-password user@example.com
   ```
 - Команда генерирует временный пароль (16 символов), хеширует, обновляет `users.password_hash`, печатает временный пароль в stdout (админ передаёт пользователю out-of-band).
 - Email-based reset link — Phase 2, требует SMTP.
 
 ### Регистрация
 
-- **Public registration toggle:** env `FLINQ_ALLOW_PUBLIC_REGISTRATION=true|false`, default `true`.
+- **Public registration toggle:** env `GLOSANO_ALLOW_PUBLIC_REGISTRATION=true|false`, default `true`.
   - При `false` страница `/register` показывает «Регистрация закрыта администратором», endpoint `POST /auth/register` возвращает 403.
 - **Поля формы:** `display_name`, `email`, `password`. Языки и UI language собираются на отдельном `/onboarding` (см. `docs/ui/onboarding.md`).
 - **Auto-login после register:** да, set-cookie сразу после создания записи.
@@ -74,9 +74,9 @@ Double-submit cookie pattern:
 
 ### Первый админ
 
-- Env `FLINQ_INITIAL_ADMIN_EMAIL` указывает email, который при первой регистрации с этим адресом получает `users.role = admin`. Все остальные — `learner`.
-- Если env не задан — первый админ создаётся вручную через CLI: `flinq create-admin user@example.com`.
-- Multiple admins возможны, но создаются только админом через `flinq promote user@example.com` (post-MVP — admin UI).
+- Env `GLOSANO_INITIAL_ADMIN_EMAIL` указывает email, который при первой регистрации с этим адресом получает `users.role = admin`. Все остальные — `learner`.
+- Если env не задан — первый админ создаётся вручную через CLI: `glosano create-admin user@example.com`.
+- Multiple admins возможны, но создаются только админом через `glosano promote user@example.com` (post-MVP — admin UI).
 
 ### Удаление аккаунта
 
@@ -94,7 +94,7 @@ Double-submit cookie pattern:
 - `GET /me` — текущий пользователь + `needs_onboarding` flag.
 - `POST /me/onboarding` — заполнение `user_profiles` и `user_learning_languages`.
 - `DELETE /me` — hard-delete (требует password).
-- CLI: `flinq create-admin`, `flinq promote`, `flinq reset-password`.
+- CLI: `glosano create-admin`, `glosano promote`, `glosano reset-password`.
 
 ## Последствия
 

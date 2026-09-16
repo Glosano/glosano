@@ -10,13 +10,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.identity.export import export_user_data
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.reader_state.models import BulkAction
-from flinq.modules.statistics.models import DailyReadOccurrence
-from flinq.modules.vocabulary.models import PhraseItem, TokenItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.identity.export import export_user_data
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.reader_state.models import BulkAction
+from glosano.modules.statistics.models import DailyReadOccurrence
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 from tests.api._reader_helpers import register_and_onboard, seed_ready_lesson
 
 
@@ -266,7 +266,7 @@ async def test_completion_is_personal_and_reset_only_by_content_edit(
 async def test_completion_failure_rolls_back_words_reading_and_position(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from flinq.modules.reader_state import completion
+    from glosano.modules.reader_state import completion
 
     real_bulk = completion.bulk_mark_known
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from flinq.modules.dictionary.kaikki import parse_record
+from glosano.modules.dictionary.kaikki import parse_record
 
 EN_BUILDING: dict[str, Any] = {
     "word": "building",

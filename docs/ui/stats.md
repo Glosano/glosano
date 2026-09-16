@@ -3,7 +3,7 @@
 Статус: согласованный объём, 2026-09-10.
 
 Основания: FLQ-8, decision log §9, ADR-0001, ADR-0005.
-Референс: [Figma StatisticsDropdown 83:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Flinq?node-id=83-2).
+Референс: [Figma StatisticsDropdown 83:2](https://www.figma.com/design/1iDFsUGSEku7QI87AkIBbb/Glosano?node-id=83-2).
 
 ## Объём
 

@@ -51,7 +51,7 @@
 ### Сопутствующие backend-библиотеки
 
 - **Logging**: **loguru**. Один импорт, без boilerplate, JSON-форматтер доступен из коробки, ротация и уровни конфигурируются в `settings`. Structured logs — требование `architecture overview §13` — обеспечиваются через JSON-sink loguru.
-- **CLI (admin-команды)**: **typer**. От автора FastAPI, тот же UX с type hints. Команды вида `flinq dictionary refresh`, `flinq export-user`, `flinq run-migrations`.
+- **CLI (admin-команды)**: **typer**. От автора FastAPI, тот же UX с type hints. Команды вида `glosano dictionary refresh`, `glosano export-user`, `glosano run-migrations`.
 - **Settings**: **pydantic-settings**. Env-переменные, `.env` файлы, валидация, типизация.
 - **Auth / password hashing**: **argon2-cffi** для хеширования паролей. Без отдельного authentication framework — session-based cookies, руками через FastAPI dependency.
 - **Pagination / filters**: без отдельной библиотеки. Простые query-параметры и SQL-queries в каждом endpoint'е, шаблонизировать при необходимости.
@@ -78,7 +78,7 @@
 **Monorepo**. Один git-репозиторий, две независимые подпапки — `backend/` и `frontend/` — со своими pyproject.toml / package.json, своими lockfile'ами, своими Dockerfile'ами. Общий root для документации, docker-compose, CI, scripts.
 
 ```
-Flinq/
+Glosano/
 ├── AGENTS.md
 ├── AGENTS_RU.md
 ├── README.md
@@ -93,7 +93,7 @@ Flinq/
 │   ├── pyproject.toml
 │   ├── uv.lock
 │   ├── Dockerfile
-│   ├── src/flinq/
+│   ├── src/glosano/
 │   │   ├── api/             # FastAPI routes
 │   │   ├── core/            # cross-cutting: config, logging, db, security
 │   │   ├── modules/         # доменные модули из architecture overview §7
@@ -136,7 +136,7 @@ Flinq/
 **Принципы:**
 
 - Backend и frontend независимы с точки зрения сборки: можно собрать только backend или только frontend.
-- В production (`docker-compose.yml`) Flinq поставляется как **два контейнера**: `app-api` и `app-worker`, оба из одного `backend/` кода. Frontend собирается в статические assets отдельным stage `backend/Dockerfile` и раздаётся FastAPI через `StaticFiles` — следует `architecture overview §5.3`.
+- В production (`docker-compose.yml`) Glosano поставляется как **два контейнера**: `app-api` и `app-worker`, оба из одного `backend/` кода. Frontend собирается в статические assets отдельным stage `backend/Dockerfile` и раздаётся FastAPI через `StaticFiles` — следует `architecture overview §5.3`.
 - В dev (`docker-compose.dev.yml`) frontend запускается отдельно через Vite dev server с proxy на backend — hot reload для обоих.
 - CI-джобы запускаются селективно по путям (`paths: backend/**` и `paths: frontend/**`), чтобы не тратить время на то, что не менялось.
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.ai_translation.prompts import build_sentence_prompt
+from glosano.modules.ai_translation.prompts import build_sentence_prompt
 
 
 def test_prompt_is_deterministic() -> None:

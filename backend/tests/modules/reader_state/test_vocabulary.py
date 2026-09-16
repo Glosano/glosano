@@ -8,14 +8,14 @@ import pytest
 from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import get_engine
-from flinq.core.security import hash_password
-from flinq.modules.ai_translation import service as ai_service
-from flinq.modules.dictionary.provider import WiktionaryLocalProvider
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson
-from flinq.modules.lesson_library.service import process_lesson_import
-from flinq.modules.reader_state.schemas import (
+from glosano.core.db import get_engine
+from glosano.core.security import hash_password
+from glosano.modules.ai_translation import service as ai_service
+from glosano.modules.dictionary.provider import WiktionaryLocalProvider
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson
+from glosano.modules.lesson_library.service import process_lesson_import
+from glosano.modules.reader_state.schemas import (
     LessonContentResponse,
     ParagraphOut,
     PunctToken,
@@ -23,9 +23,9 @@ from flinq.modules.reader_state.schemas import (
     WhitespaceToken,
     WordToken,
 )
-from flinq.modules.reader_state.vocabulary import build_lesson_vocabulary, find_phrase_context
-from flinq.modules.review.models import ReviewItem
-from flinq.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
+from glosano.modules.reader_state.vocabulary import build_lesson_vocabulary, find_phrase_context
+from glosano.modules.review.models import ReviewItem
+from glosano.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
 
 
 def test_find_phrase_context_uses_normalized_words_and_stays_in_one_sentence() -> None:

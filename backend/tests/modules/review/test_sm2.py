@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from flinq.modules.review.sm2 import (
+from glosano.modules.review.sm2 import (
     INITIAL_STATE,
     Sm2State,
     apply_answer,

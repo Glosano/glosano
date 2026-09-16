@@ -22,7 +22,7 @@ export function AppTopBar() {
           params={{ lang }}
           className="text-xl font-bold md:text-2xl tracking-tight"
         >
-          Flinq
+          Glosano
         </Link>
         <LanguagePicker />
         <nav className="order-last flex w-full items-center gap-0 md:order-none md:ml-4 md:w-auto md:gap-1">

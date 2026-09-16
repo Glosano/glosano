@@ -1,4 +1,4 @@
-# Flinq dev overrides.
+# Glosano dev overrides.
 # Use together with docker-compose.yml:
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
@@ -7,21 +7,21 @@ services:
     build:
       target: dev
     environment:
-      FLINQ_ENV: dev
-      FLINQ_LOG_LEVEL: DEBUG
+      GLOSANO_ENV: dev
+      GLOSANO_LOG_LEVEL: DEBUG
     volumes:
       - ./backend:/app/backend
-    command: ["uv", "run", "uvicorn", "flinq.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/backend/src"]
+    command: ["uv", "run", "uvicorn", "glosano.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/backend/src"]
 
   app-worker:
     build:
       target: dev
     environment:
-      FLINQ_ENV: dev
-      FLINQ_LOG_LEVEL: DEBUG
+      GLOSANO_ENV: dev
+      GLOSANO_LOG_LEVEL: DEBUG
     volumes:
       - ./backend:/app/backend
-    command: ["uv", "run", "taskiq", "worker", "flinq.worker.broker:broker", "--reload"]
+    command: ["uv", "run", "taskiq", "worker", "glosano.worker.broker:broker", "--reload"]
 
   frontend-dev:
     image: node:22-alpine

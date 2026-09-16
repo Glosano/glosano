@@ -7,10 +7,10 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from tests.api._reader_helpers import register_and_onboard
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.statistics.service import get_overview
-from flinq.modules.vocabulary.models import PhraseItem, TokenItem
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.statistics.service import get_overview
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 
 async def test_sources_first_addition_graduation_isolation_and_boundaries(

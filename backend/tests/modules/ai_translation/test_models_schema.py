@@ -9,8 +9,8 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.identity.repo import UserRepo
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.identity.repo import UserRepo
 
 
 @pytest.fixture(autouse=True)
@@ -78,7 +78,7 @@ async def test_user_delete_cascades_audit(db_session: AsyncSession) -> None:
         )
     )
     await db_session.flush()
-    from flinq.modules.identity.models import User
+    from glosano.modules.identity.models import User
 
     user = await db_session.get(User, user_id)
     assert user is not None

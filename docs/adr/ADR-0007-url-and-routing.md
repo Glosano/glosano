@@ -8,7 +8,7 @@
 
 UI-спеки писались с разнобоем по URL-стратегии: где-то `lang` был фильтром, где-то path-сегментом, где-то `?seg=` использовался для deep-link, в других местах `?view=`. Перед стартом frontend-эпика нужно зафиксировать единое правило — иначе TanStack Router придётся переписывать после первой пары feature'ов.
 
-Учебная единица в Flinq — пара `(user, learning_language)`. Большинство экранов (library, vocabulary, review, stats, reader) по природе scoped именно по этому языку. Multi-select `?lang=...` filter размывает естественную модальность «я сейчас учу португальский».
+Учебная единица в Glosano — пара `(user, learning_language)`. Большинство экранов (library, vocabulary, review, stats, reader) по природе scoped именно по этому языку. Multi-select `?lang=...` filter размывает естественную модальность «я сейчас учу португальский».
 
 ## Решение
 

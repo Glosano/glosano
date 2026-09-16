@@ -4,7 +4,7 @@
 
 **Goal:** `POST /api/ai/translate` — contextual word translation via one OpenAI-compatible adapter, returning 1–3 LingQ-style hint variants, with metadata-only audit and a hard kill-switch.
 
-**Architecture:** New `flinq/modules/ai_translation/` in thin layers: `prompts.py` (pure prompt build/parse), `provider.py` (httpx adapter + retries, the only HTTP-facing layer), `models.py` (`ai_requests`, migration 0005), `service.py` (orchestration + audit), `api/ai.py`. No cache, no Redis, no lesson-table reads — the gateway is fully decoupled from content storage.
+**Architecture:** New `glosano/modules/ai_translation/` in thin layers: `prompts.py` (pure prompt build/parse), `provider.py` (httpx adapter + retries, the only HTTP-facing layer), `models.py` (`ai_requests`, migration 0005), `service.py` (orchestration + audit), `api/ai.py`. No cache, no Redis, no lesson-table reads — the gateway is fully decoupled from content storage.
 
 **Tech Stack:** Python 3.13, FastAPI, httpx (existing dep), SQLAlchemy 2 async, Alembic, loguru, pytest + testcontainers. No new dependencies.
 
@@ -35,8 +35,8 @@ git checkout main && git pull --ff-only && git checkout -b feature/FLQ-3-ai-tran
 ### Task 1: Prompts — build + parse (pure functions)
 
 **Files:**
-- Create: `backend/src/flinq/modules/ai_translation/__init__.py` (docstring: `"""AI translation gateway: contextual hint translation via one OpenAI-compatible provider (FLQ-3, ADR-0003)."""`)
-- Create: `backend/src/flinq/modules/ai_translation/prompts.py`
+- Create: `backend/src/glosano/modules/ai_translation/__init__.py` (docstring: `"""AI translation gateway: contextual hint translation via one OpenAI-compatible provider (FLQ-3, ADR-0003)."""`)
+- Create: `backend/src/glosano/modules/ai_translation/prompts.py`
 - Test: `backend/tests/modules/ai_translation/__init__.py` (empty), `backend/tests/modules/ai_translation/test_prompts.py`
 
 **Interfaces:**
@@ -51,7 +51,7 @@ git checkout main && git pull --ff-only && git checkout -b feature/FLQ-3-ai-tran
 
 from __future__ import annotations
 
-from flinq.modules.ai_translation.prompts import (
+from glosano.modules.ai_translation.prompts import (
     build_hints_prompt,
     normalize_ai_text,
     parse_hints,
@@ -97,7 +97,7 @@ def test_parse_hints_empty_and_garbage() -> None:
 - [ ] **Step 2: Run to verify failure**
 
 Run: `cd backend && uv run pytest tests/modules/ai_translation/test_prompts.py -v`
-Expected: FAIL — `ModuleNotFoundError: flinq.modules.ai_translation`
+Expected: FAIL — `ModuleNotFoundError: glosano.modules.ai_translation`
 
 - [ ] **Step 3: Implement `prompts.py`**
 
@@ -168,8 +168,8 @@ Expected: PASS (6 tests). Note the U+2019 in `_QUOTES` is intentional (curly apo
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/ai_translation backend/tests/modules/ai_translation
-git commit -m "feat(FLQ-3.1): add hints prompt builder and parser" -- backend/src/flinq/modules/ai_translation backend/tests/modules/ai_translation
+git add backend/src/glosano/modules/ai_translation backend/tests/modules/ai_translation
+git commit -m "feat(FLQ-3.1): add hints prompt builder and parser" -- backend/src/glosano/modules/ai_translation backend/tests/modules/ai_translation
 ```
 
 ---
@@ -177,7 +177,7 @@ git commit -m "feat(FLQ-3.1): add hints prompt builder and parser" -- backend/sr
 ### Task 2: `ai_requests` model + migration 0005
 
 **Files:**
-- Create: `backend/src/flinq/modules/ai_translation/models.py`
+- Create: `backend/src/glosano/modules/ai_translation/models.py`
 - Create: `backend/migrations/versions/0005_ai_requests.py`
 - Test: `backend/tests/modules/ai_translation/test_models_schema.py`
 - Modify: `backend/tests/conftest.py` (`_init_schema` — add the ai_translation side-effect import next to the existing three)
@@ -199,8 +199,8 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.identity.repo import UserRepo
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.identity.repo import UserRepo
 
 
 async def _make_user(session: AsyncSession) -> uuid.UUID:
@@ -255,7 +255,7 @@ async def test_user_delete_cascades_audit(db_session: AsyncSession) -> None:
         )
     )
     await db_session.flush()
-    from flinq.modules.identity.models import User
+    from glosano.modules.identity.models import User
 
     user = await db_session.get(User, user_id)
     assert user is not None
@@ -289,7 +289,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, fu
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 
 class AIRequest(Base):
@@ -320,7 +320,7 @@ class AIRequest(Base):
 In `backend/tests/conftest.py` `_init_schema`, next to the three existing side-effect imports:
 
 ```python
-    from flinq.modules.ai_translation import (
+    from glosano.modules.ai_translation import (
         models as _ai_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
 ```
@@ -337,8 +337,8 @@ Follow `0004_dictionary.py` style: `revision = "0005_ai_requests"`, `down_revisi
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/ai_translation/models.py backend/migrations/versions/0005_ai_requests.py backend/tests/modules/ai_translation/test_models_schema.py backend/tests/conftest.py
-git commit -m "feat(FLQ-3.2): add ai_requests audit model and migration" -- backend/src/flinq/modules/ai_translation/models.py backend/migrations/versions/0005_ai_requests.py backend/tests/modules/ai_translation/test_models_schema.py backend/tests/conftest.py
+git add backend/src/glosano/modules/ai_translation/models.py backend/migrations/versions/0005_ai_requests.py backend/tests/modules/ai_translation/test_models_schema.py backend/tests/conftest.py
+git commit -m "feat(FLQ-3.2): add ai_requests audit model and migration" -- backend/src/glosano/modules/ai_translation/models.py backend/migrations/versions/0005_ai_requests.py backend/tests/modules/ai_translation/test_models_schema.py backend/tests/conftest.py
 ```
 
 ---
@@ -346,7 +346,7 @@ git commit -m "feat(FLQ-3.2): add ai_requests audit model and migration" -- back
 ### Task 3: OpenAI-compatible provider (httpx + retries)
 
 **Files:**
-- Create: `backend/src/flinq/modules/ai_translation/provider.py`
+- Create: `backend/src/glosano/modules/ai_translation/provider.py`
 - Test: `backend/tests/modules/ai_translation/test_provider.py`
 
 **Interfaces:**
@@ -364,9 +364,9 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from flinq.core.config import Settings
-from flinq.modules.ai_translation import provider as provider_mod
-from flinq.modules.ai_translation.provider import (
+from glosano.core.config import Settings
+from glosano.modules.ai_translation import provider as provider_mod
+from glosano.modules.ai_translation.provider import (
     OpenAICompatibleProvider,
     ProviderRejected,
     ProviderUnavailable,
@@ -511,7 +511,7 @@ from typing import Protocol
 import httpx
 from loguru import logger
 
-from flinq.core.config import Settings
+from glosano.core.config import Settings
 
 _MAX_ATTEMPTS = 3
 _BACKOFF_BASE_SECONDS = 0.5
@@ -606,8 +606,8 @@ def _parse_completion(response: httpx.Response) -> LLMCompletion:
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/ai_translation/provider.py backend/tests/modules/ai_translation/test_provider.py
-git commit -m "feat(FLQ-3.3): add OpenAI-compatible provider with retry discipline" -- backend/src/flinq/modules/ai_translation/provider.py backend/tests/modules/ai_translation/test_provider.py
+git add backend/src/glosano/modules/ai_translation/provider.py backend/tests/modules/ai_translation/test_provider.py
+git commit -m "feat(FLQ-3.3): add OpenAI-compatible provider with retry discipline" -- backend/src/glosano/modules/ai_translation/provider.py backend/tests/modules/ai_translation/test_provider.py
 ```
 
 ---
@@ -615,7 +615,7 @@ git commit -m "feat(FLQ-3.3): add OpenAI-compatible provider with retry discipli
 ### Task 4: Service orchestration + audit
 
 **Files:**
-- Create: `backend/src/flinq/modules/ai_translation/service.py`
+- Create: `backend/src/glosano/modules/ai_translation/service.py`
 - Test: `backend/tests/modules/ai_translation/test_service.py`
 
 **Interfaces:**
@@ -637,11 +637,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.modules.ai_translation import service
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.ai_translation.provider import LLMCompletion, ProviderUnavailable
-from flinq.modules.identity.repo import UserRepo
+from glosano.core.config import get_settings
+from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.ai_translation.provider import LLMCompletion, ProviderUnavailable
+from glosano.modules.identity.repo import UserRepo
 
 SURFACE = "later"
 CONTEXT = "See you later!"
@@ -796,10 +796,10 @@ from urllib.parse import urlparse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.modules.ai_translation.models import AIRequest
-from flinq.modules.ai_translation.prompts import build_hints_prompt, normalize_ai_text, parse_hints
-from flinq.modules.ai_translation.provider import (
+from glosano.core.config import get_settings
+from glosano.modules.ai_translation.models import AIRequest
+from glosano.modules.ai_translation.prompts import build_hints_prompt, normalize_ai_text, parse_hints
+from glosano.modules.ai_translation.provider import (
     LLMProvider,
     OpenAICompatibleProvider,
     ProviderRejected,
@@ -808,7 +808,7 @@ from flinq.modules.ai_translation.provider import (
 
 
 class AIDisabled(Exception):
-    """FLINQ_LLM_ENABLED is false — no calls, no audit (ADR-0003 kill-switch)."""
+    """GLOSANO_LLM_ENABLED is false — no calls, no audit (ADR-0003 kill-switch)."""
 
 
 class AIEmptyResponse(Exception):
@@ -923,8 +923,8 @@ async def translate_hints(
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/ai_translation/service.py backend/tests/modules/ai_translation/test_service.py
-git commit -m "feat(FLQ-3.4): add translate_hints service with metadata-only audit" -- backend/src/flinq/modules/ai_translation/service.py backend/tests/modules/ai_translation/test_service.py
+git add backend/src/glosano/modules/ai_translation/service.py backend/tests/modules/ai_translation/test_service.py
+git commit -m "feat(FLQ-3.4): add translate_hints service with metadata-only audit" -- backend/src/glosano/modules/ai_translation/service.py backend/tests/modules/ai_translation/test_service.py
 ```
 
 ---
@@ -932,9 +932,9 @@ git commit -m "feat(FLQ-3.4): add translate_hints service with metadata-only aud
 ### Task 5: Schemas + endpoint + wiring
 
 **Files:**
-- Create: `backend/src/flinq/modules/ai_translation/schemas.py`
-- Create: `backend/src/flinq/api/ai.py`
-- Modify: `backend/src/flinq/main.py` (import + `app.include_router(ai_router)` after `dictionary_router`)
+- Create: `backend/src/glosano/modules/ai_translation/schemas.py`
+- Create: `backend/src/glosano/api/ai.py`
+- Modify: `backend/src/glosano/main.py` (import + `app.include_router(ai_router)` after `dictionary_router`)
 - Test: `backend/tests/api/test_ai_translate.py`
 
 **Interfaces:**
@@ -954,10 +954,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.config import get_settings
-from flinq.main import create_app
-from flinq.modules.ai_translation import service
-from flinq.modules.ai_translation.provider import LLMCompletion, ProviderUnavailable
+from glosano.core.config import get_settings
+from glosano.main import create_app
+from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.provider import LLMCompletion, ProviderUnavailable
 
 BODY = {"surface_text": "later", "context_text": "See you later!", "target_language_code": "ru"}
 
@@ -968,7 +968,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "en") ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",
@@ -998,7 +998,7 @@ async def _clean_audit(db_session: AsyncSession) -> None:
     yield
     from sqlalchemy import delete
 
-    from flinq.modules.ai_translation.models import AIRequest
+    from glosano.modules.ai_translation.models import AIRequest
 
     await db_session.execute(delete(AIRequest))
     await db_session.commit()
@@ -1104,10 +1104,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import get_session
-from flinq.modules.ai_translation import service
-from flinq.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
-from flinq.modules.ai_translation.schemas import HintOut, TranslateRequest, TranslateResponse
+from glosano.core.db import get_session
+from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
+from glosano.modules.ai_translation.schemas import HintOut, TranslateRequest, TranslateResponse
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -1148,7 +1148,7 @@ async def translate(
     )
 ```
 
-`main.py`: add `from flinq.api.ai import router as ai_router` (keep the import block alphabetized) and `app.include_router(ai_router)` after `dictionary_router`.
+`main.py`: add `from glosano.api.ai import router as ai_router` (keep the import block alphabetized) and `app.include_router(ai_router)` after `dictionary_router`.
 
 - [ ] **Step 4: Run to verify pass** (5 tests), then the full suite once
 
@@ -1156,8 +1156,8 @@ async def translate(
 
 ```bash
 cd backend && uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
-git add backend/src/flinq/modules/ai_translation/schemas.py backend/src/flinq/api/ai.py backend/src/flinq/main.py backend/tests/api/test_ai_translate.py
-git commit -m "feat(FLQ-3.5): add POST /api/ai/translate endpoint" -- backend/src/flinq/modules/ai_translation/schemas.py backend/src/flinq/api/ai.py backend/src/flinq/main.py backend/tests/api/test_ai_translate.py
+git add backend/src/glosano/modules/ai_translation/schemas.py backend/src/glosano/api/ai.py backend/src/glosano/main.py backend/tests/api/test_ai_translate.py
+git commit -m "feat(FLQ-3.5): add POST /api/ai/translate endpoint" -- backend/src/glosano/modules/ai_translation/schemas.py backend/src/glosano/api/ai.py backend/src/glosano/main.py backend/tests/api/test_ai_translate.py
 ```
 
 ---

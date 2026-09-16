@@ -10,9 +10,9 @@ from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.reader_state.models import ReaderPosition
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.reader_state.models import ReaderPosition
+from glosano.modules.vocabulary.models import TokenItem
 
 
 @pytest.fixture(autouse=True)
@@ -76,7 +76,7 @@ async def test_tracked_requires_confidence_and_known_forbids_it(db_session: Asyn
 
 async def test_reader_position_unique_per_user_lesson(db_session: AsyncSession) -> None:
     user_id = await _user(db_session)
-    from flinq.modules.lesson_library.repo import LessonRepo
+    from glosano.modules.lesson_library.repo import LessonRepo
 
     lesson = await LessonRepo(db_session).create_processing_lesson(
         owner_user_id=user_id, title="T", language_code="pt", raw_text="Olá.", visibility="private"

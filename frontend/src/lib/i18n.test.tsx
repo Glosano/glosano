@@ -27,7 +27,7 @@ describe('shared localization', () => {
     expect(translate('Не менее {{count}} символов', { count: 10 }, 'en')).toBe(
       'At least 10 characters',
     )
-    expect(localStorage.getItem('flinq.ui-language')).toBe('en')
+    expect(localStorage.getItem('glosano.ui-language')).toBe('en')
   })
 
   it('uses the authenticated profile language before the browser preference', () => {
@@ -43,6 +43,6 @@ describe('shared localization', () => {
     persistUiLanguage(getUiLanguage())
     useUserStore.getState().reset()
     expect(getUiLanguage()).toBe('en')
-    expect(localStorage.getItem('flinq.ui-language')).toBe('en')
+    expect(localStorage.getItem('glosano.ui-language')).toBe('en')
   })
 })

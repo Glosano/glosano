@@ -7,14 +7,14 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.review import service as review_service
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.vocabulary import service
-from flinq.modules.vocabulary.models import PhraseItem, TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.review import service as review_service
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.vocabulary import service
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:

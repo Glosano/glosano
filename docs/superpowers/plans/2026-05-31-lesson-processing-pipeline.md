@@ -16,12 +16,12 @@
 
 Existing code you will extend (already on disk):
 
-- `backend/src/flinq/modules/lesson_library/models.py` — only `Lesson` today (`status` defaults to `"ready"`).
-- `backend/src/flinq/modules/lesson_library/repo.py` — `LessonRepo.list_for_user`, `LessonRepo.create`.
-- `backend/src/flinq/modules/lesson_library/service.py` — `create_lesson_from_text` (synchronous, sets `ready`).
-- `backend/src/flinq/modules/lesson_library/schemas.py` — `CreateLessonRequest`, `LessonSummary`, `LessonListResponse`.
-- `backend/src/flinq/api/lessons.py` — `GET /api/lessons`, `POST /api/lessons` (returns `201`).
-- `backend/src/flinq/worker/tasks.py` — taskiq tasks (`ping`, `cleanup_expired_sessions`); broker in `worker/broker.py` (InMemory in `env=test`).
+- `backend/src/glosano/modules/lesson_library/models.py` — only `Lesson` today (`status` defaults to `"ready"`).
+- `backend/src/glosano/modules/lesson_library/repo.py` — `LessonRepo.list_for_user`, `LessonRepo.create`.
+- `backend/src/glosano/modules/lesson_library/service.py` — `create_lesson_from_text` (synchronous, sets `ready`).
+- `backend/src/glosano/modules/lesson_library/schemas.py` — `CreateLessonRequest`, `LessonSummary`, `LessonListResponse`.
+- `backend/src/glosano/api/lessons.py` — `GET /api/lessons`, `POST /api/lessons` (returns `201`).
+- `backend/src/glosano/worker/tasks.py` — taskiq tasks (`ping`, `cleanup_expired_sessions`); broker in `worker/broker.py` (InMemory in `env=test`).
 - `backend/migrations/versions/0002_lessons_minimal.py` — current Alembic head (`revision = "0002_lessons_minimal"`).
 - `backend/migrations/env.py` — already imports `lesson_library.models` for autogenerate.
 - `backend/tests/conftest.py` — session-scoped Postgres + Redis testcontainers; `_init_schema` builds the schema with `Base.metadata.create_all` (NOT Alembic); `db_session` and `client` fixtures; auth tests register via `/auth/register` + `/me/onboarding` and pass `X-CSRF-Token`.
@@ -43,7 +43,7 @@ Conventions to copy:
 ## Task 1: Data model — ORM tables for the pipeline
 
 **Files:**
-- Modify: `backend/src/flinq/modules/lesson_library/models.py`
+- Modify: `backend/src/glosano/modules/lesson_library/models.py`
 - Modify: `backend/tests/conftest.py` (add models import in `_init_schema`)
 - Test: `backend/tests/modules/lesson_library/test_models_schema.py` (create)
 - Create (empty package markers): `backend/tests/modules/lesson_library/__init__.py`
@@ -63,7 +63,7 @@ from __future__ import annotations
 
 from sqlalchemy import inspect
 
-from flinq.core.db import get_engine
+from glosano.core.db import get_engine
 
 
 async def test_pipeline_tables_exist() -> None:
@@ -99,7 +99,7 @@ async def test_occurrence_unique_constraint() -> None:
     assert "uq_occurrence_lesson_ordinal" in uniques
 ```
 
-Note: `get_engine` is added in Step 4 if it does not exist; check `backend/src/flinq/core/db.py` first — it exposes `init_engine`/`dispose_engine`. If there is no `get_engine`, use the module-level `_engine` accessor pattern below in Step 4.
+Note: `get_engine` is added in Step 4 if it does not exist; check `backend/src/glosano/core/db.py` first — it exposes `init_engine`/`dispose_engine`. If there is no `get_engine`, use the module-level `_engine` accessor pattern below in Step 4.
 
 - [ ] **Step 3: Run the test to verify it fails**
 
@@ -108,7 +108,7 @@ Expected: FAIL — tables/columns/constraint do not exist yet (or `ImportError` 
 
 - [ ] **Step 4: Add a `get_engine` accessor if missing**
 
-Open `backend/src/flinq/core/db.py`. If there is no public `get_engine()`, add one next to `init_engine`:
+Open `backend/src/glosano/core/db.py`. If there is no public `get_engine()`, add one next to `init_engine`:
 
 ```python
 def get_engine() -> AsyncEngine:
@@ -122,7 +122,7 @@ Ensure `AsyncEngine` is imported in that file (`from sqlalchemy.ext.asyncio impo
 
 - [ ] **Step 5: Implement the ORM models**
 
-Replace the full contents of `backend/src/flinq/modules/lesson_library/models.py` with:
+Replace the full contents of `backend/src/glosano/modules/lesson_library/models.py` with:
 
 ```python
 """Lesson library models: lessons plus the processing-pipeline facts.
@@ -153,7 +153,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 LessonStatus = Literal["draft", "processing", "ready", "failed", "archived"]
 LessonVisibility = Literal["private", "shared"]
@@ -297,8 +297,8 @@ class LessonImportJob(Base):
 In `backend/tests/conftest.py`, inside `_init_schema`, add an explicit import next to the identity import (around line 57) so `create_all` always registers the pipeline tables:
 
 ```python
-    from flinq.modules.identity import models as _identity_models  # noqa: F401
-    from flinq.modules.lesson_library import models as _lesson_models  # noqa: F401
+    from glosano.modules.identity import models as _identity_models  # noqa: F401
+    from glosano.modules.lesson_library import models as _lesson_models  # noqa: F401
 ```
 
 - [ ] **Step 7: Run the schema test to verify it passes**
@@ -309,7 +309,7 @@ Expected: PASS (3 tests).
 - [ ] **Step 8: Commit**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/models.py backend/src/flinq/core/db.py backend/tests/conftest.py backend/tests/modules/lesson_library/
+git add backend/src/glosano/modules/lesson_library/models.py backend/src/glosano/core/db.py backend/tests/conftest.py backend/tests/modules/lesson_library/
 git commit -m "feat(lessons): add pipeline ORM models (sources, segments, occurrences, jobs)"
 ```
 
@@ -544,7 +544,7 @@ git commit -m "feat(lessons): add alembic migration for pipeline tables"
 ## Task 3: Tokenizer — `normalize_token`, `is_word_like`, `tokenize` (AC#2)
 
 **Files:**
-- Create: `backend/src/flinq/modules/lesson_library/tokenization.py`
+- Create: `backend/src/glosano/modules/lesson_library/tokenization.py`
 - Test: `backend/tests/modules/lesson_library/test_tokenization.py` (create)
 
 - [ ] **Step 1: Write the failing tokenizer tests**
@@ -556,7 +556,7 @@ Create `backend/tests/modules/lesson_library/test_tokenization.py`:
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.tokenization import (
+from glosano.modules.lesson_library.tokenization import (
     Token,
     is_word_like,
     normalize_token,
@@ -620,7 +620,7 @@ Expected: FAIL — module `tokenization` not found.
 
 - [ ] **Step 3: Implement the tokenizer primitives**
 
-Create `backend/src/flinq/modules/lesson_library/tokenization.py`:
+Create `backend/src/glosano/modules/lesson_library/tokenization.py`:
 
 ```python
 """Segmentation and tokenization for lesson text (ADR-0001).
@@ -692,7 +692,7 @@ Expected: PASS (7 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/tokenization.py backend/tests/modules/lesson_library/test_tokenization.py
+git add backend/src/glosano/modules/lesson_library/tokenization.py backend/tests/modules/lesson_library/test_tokenization.py
 git commit -m "feat(lessons): add token normalization and tokenizer (ADR-0001)"
 ```
 
@@ -701,7 +701,7 @@ git commit -m "feat(lessons): add token normalization and tokenizer (ADR-0001)"
 ## Task 4: Segmenter — `Segmenter` protocol + `RegexSegmenter` (AC#2)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/lesson_library/tokenization.py`
+- Modify: `backend/src/glosano/modules/lesson_library/tokenization.py`
 - Test: `backend/tests/modules/lesson_library/test_segmenter.py` (create)
 
 - [ ] **Step 1: Write the failing segmenter tests**
@@ -713,7 +713,7 @@ Create `backend/tests/modules/lesson_library/test_segmenter.py`:
 
 from __future__ import annotations
 
-from flinq.modules.lesson_library.tokenization import RegexSegmenter, Span
+from glosano.modules.lesson_library.tokenization import RegexSegmenter, Span
 
 
 def _texts(spans: list[Span]) -> list[str]:
@@ -779,7 +779,7 @@ Expected: FAIL — `Span` / `RegexSegmenter` not defined.
 
 - [ ] **Step 3: Add the `Span`, `Segmenter` protocol, and `RegexSegmenter`**
 
-Append to `backend/src/flinq/modules/lesson_library/tokenization.py` (after the existing code; also add `Protocol` to imports):
+Append to `backend/src/glosano/modules/lesson_library/tokenization.py` (after the existing code; also add `Protocol` to imports):
 
 At the top, change the imports block to include `typing.Protocol`:
 
@@ -898,7 +898,7 @@ If `test_initials_do_not_split` fails because "С." is followed by "Пушкин
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/tokenization.py backend/tests/modules/lesson_library/test_segmenter.py
+git add backend/src/glosano/modules/lesson_library/tokenization.py backend/tests/modules/lesson_library/test_segmenter.py
 git commit -m "feat(lessons): add RegexSegmenter behind Segmenter protocol (en/ru/pt)"
 ```
 
@@ -907,8 +907,8 @@ git commit -m "feat(lessons): add RegexSegmenter behind Segmenter protocol (en/r
 ## Task 5: Import service — build facts, idempotent, callable directly (AC#5, AC#6)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/lesson_library/repo.py`
-- Modify: `backend/src/flinq/modules/lesson_library/service.py`
+- Modify: `backend/src/glosano/modules/lesson_library/repo.py`
+- Modify: `backend/src/glosano/modules/lesson_library/service.py`
 - Test: `backend/tests/modules/lesson_library/test_import_service.py` (create)
 
 - [ ] **Step 1: Write the failing service tests**
@@ -926,14 +926,14 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library import service
-from flinq.modules.lesson_library.models import (
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library import service
+from glosano.modules.lesson_library.models import (
     Lesson,
     LessonSegment,
     LessonTokenOccurrence,
 )
-from flinq.modules.lesson_library.repo import LessonRepo
+from glosano.modules.lesson_library.repo import LessonRepo
 
 TEXT = "Olá mundo. Como vai você?\n\nTudo bem aqui."
 
@@ -1021,7 +1021,7 @@ Expected: FAIL — `create_processing_lesson`, `process_lesson_import`, `LessonN
 
 - [ ] **Step 3: Extend the repo**
 
-Replace the full contents of `backend/src/flinq/modules/lesson_library/repo.py` with:
+Replace the full contents of `backend/src/glosano/modules/lesson_library/repo.py` with:
 
 ```python
 """Lesson repository: list, create, and pipeline-fact persistence."""
@@ -1033,7 +1033,7 @@ import uuid
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.lesson_library.models import (
+from glosano.modules.lesson_library.models import (
     Lesson,
     LessonImportJob,
     LessonSegment,
@@ -1177,7 +1177,7 @@ class LessonRepo:
 
 - [ ] **Step 4: Implement the import service**
 
-Replace the full contents of `backend/src/flinq/modules/lesson_library/service.py` with:
+Replace the full contents of `backend/src/glosano/modules/lesson_library/service.py` with:
 
 ```python
 """Lesson library service: lesson creation and the import pipeline."""
@@ -1190,13 +1190,13 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.lesson_library.models import (
+from glosano.modules.lesson_library.models import (
     Lesson,
     LessonSegment,
     LessonTokenOccurrence,
 )
-from flinq.modules.lesson_library.repo import LessonRepo
-from flinq.modules.lesson_library.tokenization import RegexSegmenter, tokenize
+from glosano.modules.lesson_library.repo import LessonRepo
+from glosano.modules.lesson_library.tokenization import RegexSegmenter, tokenize
 
 # Lesson statuses from which (re)processing is allowed. A `ready` lesson is
 # immutable (domain model §14.1), so it is never reprocessed.
@@ -1331,7 +1331,7 @@ Expected: PASS (4 tests).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/repo.py backend/src/flinq/modules/lesson_library/service.py backend/tests/modules/lesson_library/test_import_service.py
+git add backend/src/glosano/modules/lesson_library/repo.py backend/src/glosano/modules/lesson_library/service.py backend/tests/modules/lesson_library/test_import_service.py
 git commit -m "feat(lessons): add idempotent import service (segments + occurrences)"
 ```
 
@@ -1340,7 +1340,7 @@ git commit -m "feat(lessons): add idempotent import service (segments + occurren
 ## Task 6: Worker job + enqueue helper (AC#4)
 
 **Files:**
-- Modify: `backend/src/flinq/worker/tasks.py`
+- Modify: `backend/src/glosano/worker/tasks.py`
 - Test: `backend/tests/modules/lesson_library/test_import_job.py` (create)
 
 - [ ] **Step 1: Write the failing job tests**
@@ -1357,10 +1357,10 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonImportJob, LessonTokenOccurrence
-from flinq.modules.lesson_library.repo import LessonRepo
-from flinq.worker.tasks import run_lesson_import
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonImportJob, LessonTokenOccurrence
+from glosano.modules.lesson_library.repo import LessonRepo
+from glosano.worker.tasks import run_lesson_import
 
 
 async def _seed(session: AsyncSession, raw_text: str) -> tuple[uuid.UUID, uuid.UUID]:
@@ -1414,7 +1414,7 @@ async def test_job_failure_sets_failed_and_records_error(
         raise RuntimeError("segmentation exploded")
 
     # Force the processing step to raise.
-    monkeypatch.setattr("flinq.worker.tasks.process_lesson_import", _boom)
+    monkeypatch.setattr("glosano.worker.tasks.process_lesson_import", _boom)
 
     await run_lesson_import(lesson_id, job_id)
 
@@ -1449,14 +1449,14 @@ Expected: FAIL — `run_lesson_import` not found.
 
 - [ ] **Step 3: Add the job, runner, and enqueue helper**
 
-Edit `backend/src/flinq/worker/tasks.py`. Add imports near the top (after the existing imports):
+Edit `backend/src/glosano/worker/tasks.py`. Add imports near the top (after the existing imports):
 
 ```python
 import uuid
 from datetime import datetime, timezone
 
-from flinq.modules.lesson_library.repo import LessonRepo
-from flinq.modules.lesson_library.service import LessonNotProcessable, process_lesson_import
+from glosano.modules.lesson_library.repo import LessonRepo
+from glosano.modules.lesson_library.service import LessonNotProcessable, process_lesson_import
 ```
 
 Then append the following to the file (before the `scheduler = ...` line is fine; keep `scheduler` last):
@@ -1523,7 +1523,7 @@ Expected: PASS (3 tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/flinq/worker/tasks.py backend/tests/modules/lesson_library/test_import_job.py
+git add backend/src/glosano/worker/tasks.py backend/tests/modules/lesson_library/test_import_job.py
 git commit -m "feat(lessons): add taskiq import job with ready/failed lifecycle"
 ```
 
@@ -1532,8 +1532,8 @@ git commit -m "feat(lessons): add taskiq import job with ready/failed lifecycle"
 ## Task 7: API — async POST (202) + GET status, update existing tests (AC#3)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/lesson_library/schemas.py`
-- Modify: `backend/src/flinq/api/lessons.py`
+- Modify: `backend/src/glosano/modules/lesson_library/schemas.py`
+- Modify: `backend/src/glosano/api/lessons.py`
 - Modify: `backend/tests/api/test_lessons.py`
 - Test: `backend/tests/api/test_lessons_import.py` (create)
 
@@ -1548,7 +1548,7 @@ from __future__ import annotations
 
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") -> str:
@@ -1557,7 +1557,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",
@@ -1573,7 +1573,7 @@ async def test_post_returns_202_processing_and_enqueues(monkeypatch) -> None:
     async def _spy(lesson_id, job_id) -> None:
         calls.append((str(lesson_id), str(job_id)))
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", _spy)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", _spy)
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -1609,7 +1609,7 @@ async def test_enqueue_failure_marks_failed_and_returns_503(monkeypatch) -> None
     async def _boom(lesson_id, job_id) -> None:
         raise RuntimeError("redis down")
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", _boom)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", _boom)
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -1637,7 +1637,7 @@ async def test_get_unknown_lesson_returns_404(monkeypatch) -> None:
     async def _spy(lesson_id, job_id) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", _spy)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", _spy)
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -1660,7 +1660,7 @@ Expected: FAIL — POST still returns 201; `GET /api/lessons/{id}` and `enqueue_
 
 - [ ] **Step 3: Add the response schemas**
 
-In `backend/src/flinq/modules/lesson_library/schemas.py`, append:
+In `backend/src/glosano/modules/lesson_library/schemas.py`, append:
 
 ```python
 class LessonCreatedResponse(BaseModel):
@@ -1683,7 +1683,7 @@ class LessonStatusResponse(BaseModel):
 
 - [ ] **Step 4: Rewrite the lessons API**
 
-Replace the full contents of `backend/src/flinq/api/lessons.py` with:
+Replace the full contents of `backend/src/glosano/api/lessons.py` with:
 
 ```python
 """Lessons API: list, async import (202 + enqueue), and status polling."""
@@ -1696,17 +1696,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import get_session
-from flinq.modules.lesson_library import service
-from flinq.modules.lesson_library.repo import LessonRepo
-from flinq.modules.lesson_library.schemas import (
+from glosano.core.db import get_session
+from glosano.modules.lesson_library import service
+from glosano.modules.lesson_library.repo import LessonRepo
+from glosano.modules.lesson_library.schemas import (
     CreateLessonRequest,
     LessonCreatedResponse,
     LessonListResponse,
     LessonStatusResponse,
     LessonSummary,
 )
-from flinq.worker.tasks import enqueue_lesson_import
+from glosano.worker.tasks import enqueue_lesson_import
 
 router = APIRouter(prefix="/api/lessons", tags=["lessons"])
 
@@ -1807,8 +1807,8 @@ Replace `test_create_and_list_lesson` with a version that drives the import serv
 
 ```python
 async def test_create_and_list_lesson() -> None:
-    from flinq.core.db import session_scope
-    from flinq.modules.lesson_library import service
+    from glosano.core.db import session_scope
+    from glosano.modules.lesson_library import service
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -1859,7 +1859,7 @@ Expected: PASS (all).
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/flinq/modules/lesson_library/schemas.py backend/src/flinq/api/lessons.py backend/tests/api/test_lessons.py backend/tests/api/test_lessons_import.py
+git add backend/src/glosano/modules/lesson_library/schemas.py backend/src/glosano/api/lessons.py backend/tests/api/test_lessons.py backend/tests/api/test_lessons_import.py
 git commit -m "feat(lessons): async import endpoint (202) + status polling"
 ```
 
@@ -1894,7 +1894,7 @@ Expected: no new errors in the files this plan touched. Pre-existing warnings/er
 The test suite builds its schema with `create_all`, so this is the only check that exercises the Alembic migration end-to-end. If you have a disposable Postgres available:
 
 ```bash
-cd backend && FLINQ_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/flinq_migtest uv run alembic upgrade head
+cd backend && GLOSANO_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/glosano_migtest uv run alembic upgrade head
 ```
 
 Expected: upgrades cleanly through `0003_lesson_pipeline`. Then `uv run alembic downgrade base` should drop everything without error. If no clean DB is available, state that this manual check was skipped.

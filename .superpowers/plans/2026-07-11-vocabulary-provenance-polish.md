@@ -24,9 +24,9 @@
 ### Task 1: Backend — `added_by` column, migration 0009 with backfill, bulk writer
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/models.py` (TokenItem)
+- Modify: `backend/src/glosano/modules/vocabulary/models.py` (TokenItem)
 - Create: `backend/migrations/versions/0009_item_provenance.py`
-- Modify: `backend/src/flinq/modules/reader_state/bulk.py`
+- Modify: `backend/src/glosano/modules/reader_state/bulk.py`
 - Test: `backend/tests/modules/test_vocabulary_provenance.py` (new)
 
 **Interfaces:**
@@ -108,7 +108,7 @@ def downgrade() -> None:
 
 In `undo_bulk_action`, extend the delete's WHERE with `TokenItem.added_by == "bulk"` (alongside the existing `status == "known"` guard): once a user explicitly claims a word (promotion in Task 2 — e.g. added a tag to a page-turn word while it is still `known`), the reader's Ctrl+Z must not delete their record.
 
-- [ ] **Step 4: Failing tests.** Create `backend/tests/modules/test_vocabulary_provenance.py` (helpers `_make_user`, `_clean` copied per file-local convention — clean `PersonalTranslation, PersonalNote, ItemTag, TokenItem, BulkAction, Lesson`; import `BulkAction` from reader_state.models, `Lesson`, `LessonSegment`, `LessonTokenOccurrence` from lesson_library.models, `bulk` module from `flinq.modules.reader_state import bulk`):
+- [ ] **Step 4: Failing tests.** Create `backend/tests/modules/test_vocabulary_provenance.py` (helpers `_make_user`, `_clean` copied per file-local convention — clean `PersonalTranslation, PersonalNote, ItemTag, TokenItem, BulkAction, Lesson`; import `BulkAction` from reader_state.models, `Lesson`, `LessonSegment`, `LessonTokenOccurrence` from lesson_library.models, `bulk` module from `glosano.modules.reader_state import bulk`):
 
 ```python
 async def _lesson_with_words(s: AsyncSession, user_id: uuid.UUID, words: list[str]) -> Lesson:
@@ -199,14 +199,14 @@ async def test_undo_skips_user_claimed_items():
         assert await s.get(TokenItem, item_id) is not None
 ```
 
-- [ ] **Step 5: Run failing → implement already done in Steps 1-3 → run green.** `uv run pytest tests/modules/test_vocabulary_provenance.py -q` → 3 passed. Apply migration to dev DB: `uv run alembic upgrade head` → `0009_item_provenance (head)`; sanity: `docker exec flinq-postgres-1 psql -U flinq -d flinq -c "select added_by, count(*) from token_items group by 1;"` — bulk-known words from smoke sessions show as `bulk`.
+- [ ] **Step 5: Run failing → implement already done in Steps 1-3 → run green.** `uv run pytest tests/modules/test_vocabulary_provenance.py -q` → 3 passed. Apply migration to dev DB: `uv run alembic upgrade head` → `0009_item_provenance (head)`; sanity: `docker exec glosano-postgres-1 psql -U glosano -d glosano -c "select added_by, count(*) from token_items group by 1;"` — bulk-known words from smoke sessions show as `bulk`.
 
 - [ ] **Step 6: Full suite + gates + commit.**
 
 ```bash
-uv run pytest -q && uv run ruff format src/flinq/modules/vocabulary/models.py migrations/versions/0009_item_provenance.py src/flinq/modules/reader_state/bulk.py tests/modules/test_vocabulary_provenance.py && uv run ruff check . && uv run pyright
+uv run pytest -q && uv run ruff format src/glosano/modules/vocabulary/models.py migrations/versions/0009_item_provenance.py src/glosano/modules/reader_state/bulk.py tests/modules/test_vocabulary_provenance.py && uv run ruff check . && uv run pyright
 git add migrations/versions/0009_item_provenance.py tests/modules/test_vocabulary_provenance.py
-git commit -m "feat(FLQ-6.2): token item provenance column with bulk backfill" -- src/flinq/modules/vocabulary/models.py migrations/versions/0009_item_provenance.py src/flinq/modules/reader_state/bulk.py tests/modules/test_vocabulary_provenance.py
+git commit -m "feat(FLQ-6.2): token item provenance column with bulk backfill" -- src/glosano/modules/vocabulary/models.py migrations/versions/0009_item_provenance.py src/glosano/modules/reader_state/bulk.py tests/modules/test_vocabulary_provenance.py
 ```
 
 ---
@@ -214,8 +214,8 @@ git commit -m "feat(FLQ-6.2): token item provenance column with bulk backfill" -
 ### Task 2: Backend — promotion semantics, list filter, API param
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
-- Modify: `backend/src/flinq/api/vocabulary.py`
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/api/vocabulary.py`
 - Test: extend `backend/tests/modules/test_vocabulary_provenance.py`, extend `backend/tests/api/test_vocabulary_page.py`
 
 **Interfaces:**
@@ -349,7 +349,7 @@ async def test_list_added_by_param():
 - [ ] **Step 4: Full suite + gates + commit** (scoped: service.py, api/vocabulary.py, the two test files).
 
 ```bash
-git commit -m "feat(FLQ-6.2): provenance promotion and added_by list filter" -- src/flinq/modules/vocabulary/service.py src/flinq/api/vocabulary.py tests/modules/test_vocabulary_provenance.py tests/modules/test_vocabulary_list.py tests/api/test_vocabulary_page.py
+git commit -m "feat(FLQ-6.2): provenance promotion and added_by list filter" -- src/glosano/modules/vocabulary/service.py src/glosano/api/vocabulary.py tests/modules/test_vocabulary_provenance.py tests/modules/test_vocabulary_list.py tests/api/test_vocabulary_page.py
 ```
 
 ---

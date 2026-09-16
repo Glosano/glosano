@@ -1,6 +1,6 @@
 import redis.asyncio as aioredis
 
-from flinq.core.rate_limit import RateLimiter
+from glosano.core.rate_limit import RateLimiter
 
 
 async def test_first_n_requests_allowed(redis_client: aioredis.Redis) -> None:

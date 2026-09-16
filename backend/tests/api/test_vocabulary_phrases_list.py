@@ -7,9 +7,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.vocabulary.models import PhraseItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.vocabulary.models import PhraseItem
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +30,7 @@ async def _register(c: AsyncClient) -> str:
         json={"email": email, "password": "abcdefghij", "display_name": "T"},
     )
     assert r.status_code == 201, r.text
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     return csrf
 

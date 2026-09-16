@@ -1,12 +1,12 @@
-# Flinq MVP Architecture Overview
+# Glosano MVP Architecture Overview
 
 - Статус: Draft v1
 - Дата: 2026-04-11
-- Основано на: [Спецификации](/Users/shibaev/Dev/github/Flinq/docs/lingq-like-self-hosted-spec-2026.md), [Decision log](/Users/shibaev/Dev/github/Flinq/docs/specs/2026-04-11-mvp-product-alignment-design.md), [ADR-0001](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0001-unit-of-learning-token-level.md), [ADR-0003](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0003-llm-provider-openai-compatible.md), [ADR-0004](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0004-dictionary-wiktionary-provider.md), [ADR-0005](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0005-word-status-model-lingq-levels.md), [ADR-0006](/Users/shibaev/Dev/github/Flinq/docs/adr/ADR-0006-tech-stack.md). ADR-0002 — superseded by ADR-0005.
+- Основано на: [Спецификации](/Users/shibaev/Dev/github/Glosano/docs/lingq-like-self-hosted-spec-2026.md), [Decision log](/Users/shibaev/Dev/github/Glosano/docs/specs/2026-04-11-mvp-product-alignment-design.md), [ADR-0001](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0001-unit-of-learning-token-level.md), [ADR-0003](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0003-llm-provider-openai-compatible.md), [ADR-0004](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0004-dictionary-wiktionary-provider.md), [ADR-0005](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0005-word-status-model-lingq-levels.md), [ADR-0006](/Users/shibaev/Dev/github/Glosano/docs/adr/ADR-0006-tech-stack.md). ADR-0002 — superseded by ADR-0005.
 
 ## 1. Назначение документа
 
-Этот документ фиксирует высокоуровневую архитектуру Flinq для MVP и ближайшего post-MVP периода. Его задача:
+Этот документ фиксирует высокоуровневую архитектуру Glosano для MVP и ближайшего post-MVP периода. Его задача:
 
 - превратить продуктовые решения и ADR в понятную техническую форму;
 - определить deployable-контур для self-hosted поставки;
@@ -53,7 +53,7 @@ MVP-архитектура должна обеспечивать:
 
 ## 4. Runtime baseline
 
-Backend Flinq для MVP и ближайших итераций проектируется на **Python 3.13+**.
+Backend Glosano для MVP и ближайших итераций проектируется на **Python 3.13+**.
 
 Это означает:
 

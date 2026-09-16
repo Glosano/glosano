@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.dictionary.models import (
+from glosano.modules.dictionary.models import (
     DictionaryEntry,
     DictionaryExample,
     DictionarySourceVersion,

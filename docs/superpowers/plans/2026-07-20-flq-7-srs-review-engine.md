@@ -26,14 +26,14 @@
 ### Task 1: Модели review + миграция 0012 с backfill
 
 **Files:**
-- Create: `backend/src/flinq/modules/review/__init__.py` (пустой)
-- Create: `backend/src/flinq/modules/review/models.py`
+- Create: `backend/src/glosano/modules/review/__init__.py` (пустой)
+- Create: `backend/src/glosano/modules/review/models.py`
 - Create: `backend/migrations/versions/0012_review.py`
 - Modify: `backend/tests/conftest.py` (side-effect импорт моделей, после блока vocabulary ~строка 78-80)
 - Test: `backend/tests/modules/review/test_models.py` (+ пустой `backend/tests/modules/review/__init__.py`, если pytest его требует — в остальных tests/modules его нет, значит не нужен)
 
 **Interfaces:**
-- Produces: ORM-классы `ReviewItem`, `ReviewEvent` (`flinq.modules.review.models`); миграция `0012_review` с константой `BACKFILL_SQL_TOKENS`, `BACKFILL_SQL_PHRASES`.
+- Produces: ORM-классы `ReviewItem`, `ReviewEvent` (`glosano.modules.review.models`); миграция `0012_review` с константой `BACKFILL_SQL_TOKENS`, `BACKFILL_SQL_PHRASES`.
 
 - [ ] **Step 1: Написать падающий тест**
 
@@ -51,11 +51,11 @@ import pytest
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.vocabulary.models import TokenItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
@@ -181,12 +181,12 @@ async def test_backfill_sql_creates_active_items_for_tracked():
 - [ ] **Step 2: Запустить тест — убедиться, что падает**
 
 Run: `cd backend && uv run pytest tests/modules/review/test_models.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'flinq.modules.review'`
+Expected: FAIL — `ModuleNotFoundError: No module named 'glosano.modules.review'`
 
 - [ ] **Step 3: Реализация — модели**
 
 ```python
-# backend/src/flinq/modules/review/models.py
+# backend/src/glosano/modules/review/models.py
 """SRS review tables (FLQ-7): current state + append-only history."""
 
 from __future__ import annotations
@@ -209,7 +209,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from flinq.core.db import Base
+from glosano.core.db import Base
 
 
 class ReviewItem(Base):
@@ -276,7 +276,7 @@ class ReviewEvent(Base):
     )
 ```
 
-Создать пустой `backend/src/flinq/modules/review/__init__.py`.
+Создать пустой `backend/src/glosano/modules/review/__init__.py`.
 
 - [ ] **Step 4: Реализация — миграция**
 
@@ -403,7 +403,7 @@ def downgrade() -> None:
 В `backend/tests/conftest.py` после импорта `vocabulary.models` (строки ~78-80) добавить:
 
 ```python
-    from flinq.modules.review import (
+    from glosano.modules.review import (
         models as _review_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
 ```
@@ -421,7 +421,7 @@ Run: `cd backend && uv run ruff check . && uv run ruff format . && uv run pyrigh
 Expected: чисто.
 
 ```bash
-git add backend/src/flinq/modules/review backend/migrations/versions/0012_review.py backend/tests/conftest.py backend/tests/modules/review
+git add backend/src/glosano/modules/review backend/migrations/versions/0012_review.py backend/tests/conftest.py backend/tests/modules/review
 git commit -m "feat(review): review_items/review_events models, migration 0012 with tracked backfill"
 ```
 
@@ -430,7 +430,7 @@ git commit -m "feat(review): review_items/review_events models, migration 0012 w
 ### Task 2: Чистый SM-2 модуль
 
 **Files:**
-- Create: `backend/src/flinq/modules/review/sm2.py`
+- Create: `backend/src/glosano/modules/review/sm2.py`
 - Test: `backend/tests/modules/review/test_sm2.py`
 
 **Interfaces:**
@@ -449,7 +449,7 @@ git commit -m "feat(review): review_items/review_events models, migration 0012 w
 
 from datetime import UTC, datetime, timedelta
 
-from flinq.modules.review.sm2 import (
+from glosano.modules.review.sm2 import (
     INITIAL_STATE,
     Sm2State,
     apply_answer,
@@ -515,7 +515,7 @@ Expected: FAIL — `ModuleNotFoundError` / `ImportError`
 - [ ] **Step 3: Реализация**
 
 ```python
-# backend/src/flinq/modules/review/sm2.py
+# backend/src/glosano/modules/review/sm2.py
 """SM-2 baseline (FLQ-7). Бинарный ответ мапится в SM-2 quality: верно=4, ошибка=2.
 
 При q=4 формула EF' = EF + (0.1 - (5-q)*(0.08+(5-q)*0.02)) даёт дельту 0 — EF
@@ -591,7 +591,7 @@ Expected: 7 PASS
 Run: `cd backend && uv run ruff check . && uv run ruff format . && uv run pyright`
 
 ```bash
-git add backend/src/flinq/modules/review/sm2.py backend/tests/modules/review/test_sm2.py
+git add backend/src/glosano/modules/review/sm2.py backend/tests/modules/review/test_sm2.py
 git commit -m "feat(review): pure SM-2 scheduler (binary answer, EF floor, reset on wrong)"
 ```
 
@@ -600,12 +600,12 @@ git commit -m "feat(review): pure SM-2 scheduler (binary answer, EF floor, reset
 ### Task 3: Lifecycle-синк review_items
 
 **Files:**
-- Create: `backend/src/flinq/modules/review/service.py`
+- Create: `backend/src/glosano/modules/review/service.py`
 - Test: `backend/tests/modules/review/test_review_lifecycle.py`
 
 **Interfaces:**
 - Consumes: `ReviewItem` (Task 1), `INITIAL_STATE`, `state_to_json` (Task 2).
-- Produces (в `flinq.modules.review.service`):
+- Produces (в `glosano.modules.review.service`):
   - `async def sync_review_item(session, *, user_id: uuid.UUID, item_kind: str, item_id: uuid.UUID, language_code: str, status: str, now: datetime | None = None) -> None` — **не коммитит**; вызывающий (vocabulary service) коммитит сам.
   - `async def deactivate_review_items(session, *, user_id: uuid.UUID, item_kind: str, item_ids: list[uuid.UUID]) -> None` — bulk-версия, не коммитит.
 
@@ -623,12 +623,12 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import deactivate_review_items, sync_review_item
-from flinq.modules.review.sm2 import INITIAL_STATE, state_to_json
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import deactivate_review_items, sync_review_item
+from glosano.modules.review.sm2 import INITIAL_STATE, state_to_json
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 
@@ -746,7 +746,7 @@ Expected: FAIL — `ImportError` (нет service.py)
 - [ ] **Step 3: Реализация**
 
 ```python
-# backend/src/flinq/modules/review/service.py
+# backend/src/glosano/modules/review/service.py
 """SRS review service (FLQ-7). Session-first module functions.
 
 Lifecycle-инвариант (domain model §10.1): tracked item ⇔ активный review_item.
@@ -762,8 +762,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.modules.review.models import ReviewItem
-from flinq.modules.review.sm2 import INITIAL_STATE, state_to_json
+from glosano.modules.review.models import ReviewItem
+from glosano.modules.review.sm2 import INITIAL_STATE, state_to_json
 
 
 async def sync_review_item(
@@ -842,7 +842,7 @@ Expected: 4 PASS
 Run: `cd backend && uv run ruff check . && uv run ruff format . && uv run pyright`
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/tests/modules/review/test_review_lifecycle.py
+git add backend/src/glosano/modules/review/service.py backend/tests/modules/review/test_review_lifecycle.py
 git commit -m "feat(review): review_item lifecycle sync (tracked <-> active invariant)"
 ```
 
@@ -851,7 +851,7 @@ git commit -m "feat(review): review_item lifecycle sync (tracked <-> active inva
 ### Task 4: Вызовы синка из vocabulary service
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py` (`create_item` ~123-210, `patch_item` ~213-228, `bulk_action` ~804-871)
+- Modify: `backend/src/glosano/modules/vocabulary/service.py` (`create_item` ~123-210, `patch_item` ~213-228, `bulk_action` ~804-871)
 - Test: `backend/tests/modules/review/test_vocab_sync_integration.py`
 
 **Interfaces:**
@@ -871,12 +871,12 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import PhraseItem, TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 
 async def _make_user(s: AsyncSession) -> uuid.UUID:
@@ -988,12 +988,12 @@ Expected: FAIL — assert по review_items (синк ещё не вызывае
 
 - [ ] **Step 3: Реализация — вставить вызовы синка**
 
-В `backend/src/flinq/modules/vocabulary/service.py`:
+В `backend/src/glosano/modules/vocabulary/service.py`:
 
 1. Импорт вверху (к остальным импортам):
 
 ```python
-from flinq.modules.review.service import deactivate_review_items, sync_review_item
+from glosano.modules.review.service import deactivate_review_items, sync_review_item
 ```
 
 2. В `create_item` — во **всех пяти** ветках завершения перед `await session.commit()` вставить синк. Ветка «existing phrase» (~143-147):
@@ -1055,7 +1055,7 @@ Expected: все PASS (регресс vocabulary не сломан)
 Run: `cd backend && uv run ruff check . && uv run ruff format . && uv run pyright`
 
 ```bash
-git add backend/src/flinq/modules/vocabulary/service.py backend/tests/modules/review/test_vocab_sync_integration.py
+git add backend/src/glosano/modules/vocabulary/service.py backend/tests/modules/review/test_vocab_sync_integration.py
 git commit -m "feat(review): wire review_item lifecycle sync into vocabulary write paths"
 ```
 
@@ -1064,12 +1064,12 @@ git commit -m "feat(review): wire review_item lifecycle sync into vocabulary wri
 ### Task 5: Сервис очереди + дневной счётчик
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/service.py` (добавить)
+- Modify: `backend/src/glosano/modules/review/service.py` (добавить)
 - Test: `backend/tests/modules/review/test_review_queue.py`
 
 **Interfaces:**
-- Consumes: модели Task 1; `UserSettings` (`flinq.modules.identity.models`, `daily_goal_reviews`); `Lesson`, `LessonSegment`, `LessonTokenOccurrence` (`flinq.modules.lesson_library.models`); `TokenItem`, `PhraseItem`, `PersonalTranslation`, `PersonalNote` (`flinq.modules.vocabulary.models`).
-- Produces (в `flinq.modules.review.service`):
+- Consumes: модели Task 1; `UserSettings` (`glosano.modules.identity.models`, `daily_goal_reviews`); `Lesson`, `LessonSegment`, `LessonTokenOccurrence` (`glosano.modules.lesson_library.models`); `TokenItem`, `PhraseItem`, `PersonalTranslation`, `PersonalNote` (`glosano.modules.vocabulary.models`).
+- Produces (в `glosano.modules.review.service`):
 
 ```python
 class LessonNotFound(Exception): ...
@@ -1113,15 +1113,15 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.models import UserSettings
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import LessonNotFound, get_queue
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.models import UserSettings
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import LessonNotFound, get_queue
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 
@@ -1283,10 +1283,10 @@ from dataclasses import dataclass
 
 from sqlalchemy import func
 
-from flinq.modules.identity.models import UserSettings
-from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
-from flinq.modules.review.models import ReviewEvent
-from flinq.modules.vocabulary.models import PersonalNote, PersonalTranslation, PhraseItem, TokenItem
+from glosano.modules.identity.models import UserSettings
+from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
+from glosano.modules.review.models import ReviewEvent
+from glosano.modules.vocabulary.models import PersonalNote, PersonalTranslation, PhraseItem, TokenItem
 ```
 
 И код:
@@ -1488,7 +1488,7 @@ Expected: 5 PASS
 Run: `cd backend && uv run ruff check . && uv run ruff format . && uv run pyright`
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/tests/modules/review/test_review_queue.py
+git add backend/src/glosano/modules/review/service.py backend/tests/modules/review/test_review_queue.py
 git commit -m "feat(review): queue service (due ordering, soft daily limit, lesson scope)"
 ```
 
@@ -1497,12 +1497,12 @@ git commit -m "feat(review): queue service (due ordering, soft daily limit, less
 ### Task 6: Сервис ответа (SM-2 + confidence + graduation + event)
 
 **Files:**
-- Modify: `backend/src/flinq/modules/review/service.py` (добавить)
+- Modify: `backend/src/glosano/modules/review/service.py` (добавить)
 - Test: `backend/tests/modules/review/test_review_answer.py`
 
 **Interfaces:**
 - Consumes: `apply_answer`, `state_from_json`, `state_to_json` (Task 2); модели Task 1.
-- Produces (в `flinq.modules.review.service`):
+- Produces (в `glosano.modules.review.service`):
 
 ```python
 class ReviewItemNotFound(Exception): ...
@@ -1535,13 +1535,13 @@ import pytest
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import session_scope
-from flinq.core.security import hash_password
-from flinq.modules.identity.repo import UserRepo
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.review.service import ReviewItemNotFound, answer
-from flinq.modules.vocabulary import service as vocab
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.core.db import session_scope
+from glosano.core.security import hash_password
+from glosano.modules.identity.repo import UserRepo
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.review.service import ReviewItemNotFound, answer
+from glosano.modules.vocabulary import service as vocab
+from glosano.modules.vocabulary.models import TokenItem
 
 NOW = datetime(2026, 7, 20, 12, 0, tzinfo=UTC)
 
@@ -1649,7 +1649,7 @@ Expected: FAIL — `ImportError: cannot import name 'answer'`
 
 - [ ] **Step 3: Реализация — дополнить `modules/review/service.py`**
 
-Импорты: добавить `from flinq.modules.review.sm2 import apply_answer, state_from_json` (state_to_json/INITIAL_STATE уже есть). Код:
+Импорты: добавить `from glosano.modules.review.sm2 import apply_answer, state_from_json` (state_to_json/INITIAL_STATE уже есть). Код:
 
 ```python
 class ReviewItemNotFound(Exception):  # noqa: N818 -- matches vocabulary exception naming
@@ -1742,7 +1742,7 @@ Expected: все PASS
 Run: `cd backend && uv run ruff check . && uv run ruff format . && uv run pyright`
 
 ```bash
-git add backend/src/flinq/modules/review/service.py backend/tests/modules/review/test_review_answer.py
+git add backend/src/glosano/modules/review/service.py backend/tests/modules/review/test_review_answer.py
 git commit -m "feat(review): answer service (SM-2 apply, confidence step, graduation, events)"
 ```
 
@@ -1751,9 +1751,9 @@ git commit -m "feat(review): answer service (SM-2 apply, confidence step, gradua
 ### Task 7: API `/api/review` + регистрация
 
 **Files:**
-- Create: `backend/src/flinq/modules/review/schemas.py`
-- Create: `backend/src/flinq/api/review.py`
-- Modify: `backend/src/flinq/main.py` (импорт ~строка 24, include ~строка 71)
+- Create: `backend/src/glosano/modules/review/schemas.py`
+- Create: `backend/src/glosano/api/review.py`
+- Modify: `backend/src/glosano/main.py` (импорт ~строка 24, include ~строка 71)
 - Test: `backend/tests/api/test_review.py`
 
 **Interfaces:**
@@ -1775,10 +1775,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
-from flinq.core.db import session_scope
-from flinq.main import create_app
-from flinq.modules.review.models import ReviewEvent, ReviewItem
-from flinq.modules.vocabulary.models import TokenItem
+from glosano.core.db import session_scope
+from glosano.main import create_app
+from glosano.modules.review.models import ReviewEvent, ReviewItem
+from glosano.modules.vocabulary.models import TokenItem
 
 
 @pytest.fixture(autouse=True)
@@ -1803,7 +1803,7 @@ async def _register(c: AsyncClient) -> str:
         },
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     return csrf
 
@@ -1900,7 +1900,7 @@ Expected: FAIL — 404 на /api/review/* (роутер не зарегистр�
 - [ ] **Step 3: Реализация — схемы**
 
 ```python
-# backend/src/flinq/modules/review/schemas.py
+# backend/src/glosano/modules/review/schemas.py
 """Pydantic-схемы API /api/review (FLQ-7)."""
 
 from __future__ import annotations
@@ -1949,7 +1949,7 @@ class AnswerResponse(BaseModel):
 - [ ] **Step 4: Реализация — роутер**
 
 ```python
-# backend/src/flinq/api/review.py
+# backend/src/glosano/api/review.py
 """SRS review API (FLQ-7)."""
 
 from __future__ import annotations
@@ -1960,9 +1960,9 @@ from typing import Annotated, Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from flinq.core.db import get_session
-from flinq.modules.review import service
-from flinq.modules.review.schemas import (
+from glosano.core.db import get_session
+from glosano.modules.review import service
+from glosano.modules.review.schemas import (
     AnswerRequest,
     AnswerResponse,
     DailyOut,
@@ -2040,7 +2040,7 @@ async def answer(
     )
 ```
 
-В `backend/src/flinq/main.py`: добавить `from flinq.api.review import router as review_router` (после `reader`, ~строка 23-24) и `app.include_router(review_router)` (после `reader_router`, ~строка 68-71).
+В `backend/src/glosano/main.py`: добавить `from glosano.api.review import router as review_router` (после `reader`, ~строка 23-24) и `app.include_router(review_router)` (после `reader_router`, ~строка 68-71).
 
 - [ ] **Step 5: Прогнать тесты**
 
@@ -2053,7 +2053,7 @@ Run: `cd backend && uv run pytest && uv run ruff check . && uv run ruff format .
 Expected: все PASS, чисто.
 
 ```bash
-git add backend/src/flinq/modules/review/schemas.py backend/src/flinq/api/review.py backend/src/flinq/main.py backend/tests/api/test_review.py
+git add backend/src/glosano/modules/review/schemas.py backend/src/glosano/api/review.py backend/src/glosano/main.py backend/tests/api/test_review.py
 git commit -m "feat(review): /api/review queue + answer endpoints"
 ```
 
@@ -2785,4 +2785,4 @@ git commit -m "feat(review-ui): lesson mini-review entry from reader bottom tool
 | #5 /review работает на desktop и mobile | Task 8-9: одна колонка, max-w-xl, крупные кнопки; проверить руками в браузере (см. ниже) |
 | #6 Mini-review с фильтром по lesson_id из reader | Task 5 lesson-тесты + Task 10 навигация |
 
-Финальный шаг: живая проверка через `/verify`-скилл или вручную (`uv run flinq serve` + `pnpm dev`): создать tracked-слово в reader, пройти сессию на `/learn/pt/review`, убедиться в смене confidence и подсветки; проверить мобильную ширину в devtools. После этого — чек-лист backlog task finalization (acceptance criteria, final summary, Definition of Done).
+Финальный шаг: живая проверка через `/verify`-скилл или вручную (`uv run glosano serve` + `pnpm dev`): создать tracked-слово в reader, пройти сессию на `/learn/pt/review`, убедиться в смене confidence и подсветки; проверить мобильную ширину в devtools. После этого — чек-лист backlog task finalization (acceptance criteria, final summary, Definition of Done).

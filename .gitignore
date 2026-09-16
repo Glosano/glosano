@@ -241,7 +241,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-### Flinq additions
+### Glosano additions
 
 # OS files
 .DS_Store
@@ -286,6 +286,6 @@ pnpm-debug.log*
 # Docker / runtime data
 docker-data/
 .data/
-# Local data (dictionary dump cache, FLINQ_DATA_DIR default)
+# Local data (dictionary dump cache, GLOSANO_DATA_DIR default)
 /data/
 tmp/

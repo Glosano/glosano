@@ -17,7 +17,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[3]
 async def test_migration_roundtrip_and_model_registration() -> None:
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as pg:
         url = pg.get_connection_url()
-        env = {**os.environ, "FLINQ_DATABASE_URL": url}
+        env = {**os.environ, "GLOSANO_DATABASE_URL": url}
 
         def migrate(*args: str) -> None:
             result = subprocess.run(  # noqa: S603 — fixed executable and migration arguments

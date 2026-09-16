@@ -1,7 +1,7 @@
 """Alembic environment.
 
-Uses an async engine driven by `flinq.core.db.Base.metadata`. Database URL is
-taken from Flinq settings, so there is no need to duplicate it in alembic.ini.
+Uses an async engine driven by `glosano.core.db.Base.metadata`. Database URL is
+taken from Glosano settings, so there is no need to duplicate it in alembic.ini.
 """
 
 from __future__ import annotations
@@ -14,19 +14,19 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from flinq.core.config import get_settings
-from flinq.core.db import Base
+from glosano.core.config import get_settings
+from glosano.core.db import Base
 
 # Import all modules here so Alembic autogenerate sees their ORM models.
 # As new modules are added, import them below.
-from flinq.modules.ai_translation import models as _ai_translation_models  # noqa: F401
-from flinq.modules.dictionary import models as _dictionary_models  # noqa: F401
-from flinq.modules.identity import models as _identity_models  # noqa: F401
-from flinq.modules.lesson_library import models as _lesson_library_models  # noqa: F401
-from flinq.modules.reader_state import models as _reader_state_models  # noqa: F401
-from flinq.modules.review import models as _review_models  # noqa: F401
-from flinq.modules.statistics import models as _statistics_models  # noqa: F401
-from flinq.modules.vocabulary import models as _vocabulary_models  # noqa: F401
+from glosano.modules.ai_translation import models as _ai_translation_models  # noqa: F401
+from glosano.modules.dictionary import models as _dictionary_models  # noqa: F401
+from glosano.modules.identity import models as _identity_models  # noqa: F401
+from glosano.modules.lesson_library import models as _lesson_library_models  # noqa: F401
+from glosano.modules.reader_state import models as _reader_state_models  # noqa: F401
+from glosano.modules.review import models as _review_models  # noqa: F401
+from glosano.modules.statistics import models as _statistics_models  # noqa: F401
+from glosano.modules.vocabulary import models as _vocabulary_models  # noqa: F401
 
 config = context.config
 

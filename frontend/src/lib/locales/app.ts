@@ -38,7 +38,7 @@ export const appMessages: Record<string, string> = {
   'Выберите хотя бы один язык': 'Select at least one language',
   'Не удалось сохранить настройки. Попробуйте ещё раз.':
     'Could not save your preferences. Please try again.',
-  'Добро пожаловать в Flinq': 'Welcome to Flinq',
+  'Добро пожаловать в Glosano': 'Welcome to Glosano',
   'Язык интерфейса': 'Interface language',
   'Я хочу изучать': 'I want to learn',
   'Можно выбрать несколько': 'You can select more than one',

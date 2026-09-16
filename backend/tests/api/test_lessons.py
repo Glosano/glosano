@@ -1,7 +1,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from flinq.main import create_app
+from glosano.main import create_app
 
 
 async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") -> str:
@@ -10,7 +10,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") ->
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
     )
     assert r.status_code == 201
-    csrf = c.cookies.get("flinq_csrf")
+    csrf = c.cookies.get("glosano_csrf")
     assert csrf
     await c.post(
         "/me/onboarding",
@@ -25,8 +25,8 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") ->
 
 
 async def test_create_and_list_lesson(monkeypatch: pytest.MonkeyPatch) -> None:
-    from flinq.core.db import session_scope
-    from flinq.modules.lesson_library import service
+    from glosano.core.db import session_scope
+    from glosano.modules.lesson_library import service
 
     # In env=test the InMemoryBroker runs .kiq() inline, which would process the
     # lesson to `ready` before we can drive it ourselves. Stub the enqueue so the
@@ -34,7 +34,7 @@ async def test_create_and_list_lesson(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _noop(lesson_id: object, job_id: object) -> None:
         return None
 
-    monkeypatch.setattr("flinq.api.lessons.enqueue_lesson_import", _noop)
+    monkeypatch.setattr("glosano.api.lessons.enqueue_lesson_import", _noop)
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:

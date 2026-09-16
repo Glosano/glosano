@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- `flinq.core.textnorm.normalize_token` is FROZEN — do not touch; `token_text` stays the join key.
+- `glosano.core.textnorm.normalize_token` is FROZEN — do not touch; `token_text` stays the join key.
 - Commits: conventional, English imperative subject ≤72 chars, body explains why, NO Co-Authored-By, one logical change per commit, always scoped: `git commit -m "..." -- <exact paths>`.
 - Before every backend commit run `uv run ruff format <changed files>` then `uv run ruff check .` and `uv run pyright` — CI runs `ruff format --check` and fails on unformatted files (this exact failure shipped in FLQ-5).
 - Backend tests: `uv run pytest` needs Docker (testcontainers). No per-test rollback — file-local autouse cleanup fixtures delete rows after each test (see existing `_clean` fixtures).
@@ -28,14 +28,14 @@
 
 **Files:**
 - Create: `backend/migrations/versions/0008_translation_variants.py`
-- Modify: `backend/src/flinq/modules/vocabulary/models.py` (PersonalTranslation `__table_args__`)
+- Modify: `backend/src/glosano/modules/vocabulary/models.py` (PersonalTranslation `__table_args__`)
 
 **Interfaces:**
 - Produces: DB unique index `uq_personal_translations_text` on `(owner_user_id, item_kind, item_id, target_language_code, translation_text)`; Tasks 2–3 rely on "duplicate text per item/target is impossible".
 
 - [ ] **Step 1: Add the unique index to the model**
 
-In `backend/src/flinq/modules/vocabulary/models.py`, extend `PersonalTranslation.__table_args__` (keep the two existing entries) with:
+In `backend/src/glosano/modules/vocabulary/models.py`, extend `PersonalTranslation.__table_args__` (keep the two existing entries) with:
 
 ```python
         Index(
@@ -121,9 +121,9 @@ Expected: PASS (existing tests never insert duplicate texts).
 - [ ] **Step 5: Format, lint, commit**
 
 ```bash
-uv run ruff format migrations/versions/0008_translation_variants.py src/flinq/modules/vocabulary/models.py
+uv run ruff format migrations/versions/0008_translation_variants.py src/glosano/modules/vocabulary/models.py
 uv run ruff check . && uv run pyright
-git commit -m "feat(FLQ-18): dedupe personal translations and enforce unique text" -- migrations/versions/0008_translation_variants.py src/flinq/modules/vocabulary/models.py
+git commit -m "feat(FLQ-18): dedupe personal translations and enforce unique text" -- migrations/versions/0008_translation_variants.py src/glosano/modules/vocabulary/models.py
 ```
 
 ---
@@ -131,8 +131,8 @@ git commit -m "feat(FLQ-18): dedupe personal translations and enforce unique tex
 ### Task 2: Service — server-side primary, text dedupe, update/delete
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/service.py`
-- Modify: `backend/src/flinq/api/vocabulary.py` (only the `add_translation` call site — keep route/schema as-is for now; full API rework is Task 3)
+- Modify: `backend/src/glosano/modules/vocabulary/service.py`
+- Modify: `backend/src/glosano/api/vocabulary.py` (only the `add_translation` call site — keep route/schema as-is for now; full API rework is Task 3)
 - Test: `backend/tests/modules/test_vocabulary_service.py`
 
 **Interfaces:**
@@ -523,7 +523,7 @@ In `lookup()`, replace the inline translations query with `_item_translations(..
 
 - [ ] **Step 4: Adapt the one API call site (minimal shim)**
 
-In `backend/src/flinq/api/vocabulary.py`, `add_translation` route body — the service no longer accepts `is_primary` and returns a tuple:
+In `backend/src/glosano/api/vocabulary.py`, `add_translation` route body — the service no longer accepts `is_primary` and returns a tuple:
 
 ```python
     row, _created = await service.add_translation(
@@ -547,9 +547,9 @@ Expected: PASS.
 - [ ] **Step 6: Format, lint, commit**
 
 ```bash
-uv run ruff format src/flinq/modules/vocabulary/service.py src/flinq/api/vocabulary.py tests/modules/test_vocabulary_service.py
+uv run ruff format src/glosano/modules/vocabulary/service.py src/glosano/api/vocabulary.py tests/modules/test_vocabulary_service.py
 uv run ruff check . && uv run pyright
-git commit -m "feat(FLQ-18): server-side primary, text dedupe, translation edit/delete" -- src/flinq/modules/vocabulary/service.py src/flinq/api/vocabulary.py tests/modules/test_vocabulary_service.py
+git commit -m "feat(FLQ-18): server-side primary, text dedupe, translation edit/delete" -- src/glosano/modules/vocabulary/service.py src/glosano/api/vocabulary.py tests/modules/test_vocabulary_service.py
 ```
 
 ---
@@ -557,8 +557,8 @@ git commit -m "feat(FLQ-18): server-side primary, text dedupe, translation edit/
 ### Task 3: API — PATCH/DELETE translation routes, schema cleanup
 
 **Files:**
-- Modify: `backend/src/flinq/modules/vocabulary/schemas.py`
-- Modify: `backend/src/flinq/api/vocabulary.py`
+- Modify: `backend/src/glosano/modules/vocabulary/schemas.py`
+- Modify: `backend/src/glosano/api/vocabulary.py`
 - Test: `backend/tests/api/test_vocabulary.py`
 
 **Interfaces:**
@@ -797,9 +797,9 @@ Expected: PASS (all files).
 - [ ] **Step 6: Format, lint, commit**
 
 ```bash
-uv run ruff format src/flinq/api/vocabulary.py src/flinq/modules/vocabulary/schemas.py tests/api/test_vocabulary.py
+uv run ruff format src/glosano/api/vocabulary.py src/glosano/modules/vocabulary/schemas.py tests/api/test_vocabulary.py
 uv run ruff check . && uv run pyright
-git commit -m "feat(FLQ-18): translation PATCH/DELETE endpoints, drop client is_primary" -- src/flinq/api/vocabulary.py src/flinq/modules/vocabulary/schemas.py tests/api/test_vocabulary.py
+git commit -m "feat(FLQ-18): translation PATCH/DELETE endpoints, drop client is_primary" -- src/glosano/api/vocabulary.py src/glosano/modules/vocabulary/schemas.py tests/api/test_vocabulary.py
 ```
 
 ---
@@ -1594,5 +1594,5 @@ Expected: all green.
 
 - [ ] **Step 3: Manual smoke (dev stack)**
 
-With postgres:5433/redis up: `uv run alembic upgrade head`, start `uv run flinq serve`, `uv run flinq worker`, `corepack pnpm dev`. In the reader: click a new word → type a translation → Enter → token turns blue (tracked/0); hover the field → `+`/`✕` appear; `+` → second variant; `✕` on the top field → primary moves; AI block shows «AI-переводы отключены» (LLM off); click `🗑` → ignored layout with the reactivation hint.
+With postgres:5433/redis up: `uv run alembic upgrade head`, start `uv run glosano serve`, `uv run glosano worker`, `corepack pnpm dev`. In the reader: click a new word → type a translation → Enter → token turns blue (tracked/0); hover the field → `+`/`✕` appear; `+` → second variant; `✕` on the top field → primary moves; AI block shows «AI-переводы отключены» (LLM off); click `🗑` → ignored layout with the reactivation hint.
 Expected: behaviours match spec §2.1, §3.2, §4.2.

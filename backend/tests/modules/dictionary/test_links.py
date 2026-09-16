@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flinq.modules.dictionary.links import ExternalLink, render_external_links
+from glosano.modules.dictionary.links import ExternalLink, render_external_links
 
 
 def _names(links: list[ExternalLink]) -> set[str]:

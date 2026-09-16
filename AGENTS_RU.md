@@ -1,10 +1,10 @@
 # AGENTS_RU.md
 
-Инструкции для AI-агентов (Claude Code, Cursor, Copilot и аналогичных), работающих в репозитории Flinq.
+Инструкции для AI-агентов (Claude Code, Cursor, Copilot и аналогичных), работающих в репозитории Glosano.
 
 ## Состояние проекта
 
-Flinq — self-hosted платформа для изучения языков по модели content-driven learning, аналог LingQ. Текущая фаза — **pre-implementation**. В репозитории лежат только спецификации и записи архитектурных решений; прикладного кода пока нет.
+Glosano — self-hosted платформа для изучения языков по модели content-driven learning, аналог LingQ. Текущая фаза — **pre-implementation**. В репозитории лежат только спецификации и записи архитектурных решений; прикладного кода пока нет.
 
 Прежде чем предлагать или писать какой-либо код, прочитай:
 
@@ -90,12 +90,12 @@ Reader обязан поддерживать undo последнего bulk-know
 - **Провайдер:** один адаптер, совместимый с OpenAI Chat Completions API. Покрывает OpenAI, OpenRouter, vLLM, LM Studio, LocalAI и Ollama (у которой есть OpenAI-compat endpoint).
 - **Конфигурация** — через переменные окружения Docker Compose-сервиса:
   ```
-  FLINQ_LLM_BASE_URL=https://api.openai.com/v1
-  FLINQ_LLM_API_KEY=sk-...
-  FLINQ_LLM_MODEL=gpt-4o-mini
-  FLINQ_LLM_ENABLED=true
+  GLOSANO_LLM_BASE_URL=https://api.openai.com/v1
+  GLOSANO_LLM_API_KEY=sk-...
+  GLOSANO_LLM_MODEL=gpt-4o-mini
+  GLOSANO_LLM_ENABLED=true
   ```
-- `FLINQ_LLM_ENABLED=false` — admin kill-switch. Reader и словарь продолжают работать, AI-секции исчезают из карточек.
+- `GLOSANO_LLM_ENABLED=false` — admin kill-switch. Reader и словарь продолжают работать, AI-секции исчезают из карточек.
 - AI-ответы всегда помечаются как AI-generated. Канонический перевод карточки — это то, что пользователь написал сам; AI-ответ — черновик.
 - Кэш AI-ответов **per-user**, ключ `(user_id, model, prompt_hash)`. Без шаринга между пользователями.
 - Ретрай: простой экспоненциальный backoff, максимум 3 попытки, на сетевых ошибках и 5xx.
@@ -122,7 +122,7 @@ Reader обязан поддерживать undo последнего bulk-know
 
 - Экспорт всех пользовательских данных в JSON (кнопка в профиле).
 - Hard-delete профиля (общие словари и shared-контент не затрагиваются).
-- Admin kill-switch для всех внешних AI-вызовов (см. `FLINQ_LLM_ENABLED`).
+- Admin kill-switch для всех внешних AI-вызовов (см. `GLOSANO_LLM_ENABLED`).
 - Провайдерские секреты в MVP лежат в env-переменных контейнера — шифрования секретов на уровне БД в MVP нет.
 
 ## Non-goals (не предлагать для MVP)
@@ -196,8 +196,8 @@ MVP скорее всего схлопнет несколько из этих с
 **TBD.** Команды будут заполнены после scaffolding'а проекта. Ожидаемый набор:
 
 - `uv sync` — установить backend-зависимости
-- `uv run flinq serve` — запустить app-api в dev-режиме
-- `uv run flinq worker` — запустить Taskiq worker
+- `uv run glosano serve` — запустить app-api в dev-режиме
+- `uv run glosano worker` — запустить Taskiq worker
 - `uv run pytest` — backend-тесты
 - `uv run ruff check . && uv run ruff format .` — линтер и форматтер
 - `uv run pyright` — тайпчек
@@ -243,7 +243,7 @@ MVP скорее всего схлопнет несколько из этих с
    - Код, идентификаторы, API-схемы, сообщения коммитов, заголовки PR — английский.
    - Design docs, ADR, decision logs — в языке окружающего документа (текущие документы на русском).
 5. **Семантика токенизации и статусов** тонкая — ADR-0001 и ADR-0005 обязательны к прочтению перед любыми изменениями, связанными с словарём. Не добавляй специальную морфологическую обработку для русского; LingQ-модель принята сознательно.
-6. **Когда AI выключен** (`FLINQ_LLM_ENABLED=false`), продукт должен работать, и reader должен рендерить карточки — просто без AI-секций. У каждого AI-касательного code path должна быть такая graceful degradation.
+6. **Когда AI выключен** (`GLOSANO_LLM_ENABLED=false`), продукт должен работать, и reader должен рендерить карточки — просто без AI-секций. У каждого AI-касательного code path должна быть такая graceful degradation.
 7. **Никогда не коммить провайдерские секреты.** API-ключи живут только в переменных окружения или в локальном `.env` разработчика (в `.gitignore`).
 8. **Не вводи зависимости на морфологические анализаторы** (`pymorphy3`, `spaCy`, `stanza`) в ядре без ADR. ADR-0001 явно отверг этот класс зависимостей для слоя обучения.
 9. **Атрибуция CC-BY-SA для словарных данных обязательна.** Любой рендер карточки должен включать указание Wiktionary.
