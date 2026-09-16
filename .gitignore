@@ -289,3 +289,11 @@ docker-data/
 # Local data (dictionary dump cache, GLOSANO_DATA_DIR default)
 /data/
 tmp/
+
+# Agent working artifacts (kept locally, not published)
+.superpowers/
+docs/superpowers/
+backlog/
+.claude/
+.codex/
+.ai/
