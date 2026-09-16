@@ -53,3 +53,36 @@ uv run alembic revision --autogenerate -m "describe change"
 ## Environment variables
 
 See [`../.env.example`](../.env.example) at the repo root.
+
+## YouTube materials
+
+YouTube imports use `youtube-transcript-api==1.2.4` and oEmbed. No API key or
+additional environment variable is required. Install the updated lockfile with
+`uv sync --frozen`, apply `uv run alembic upgrade head` (migration
+`0019_youtube_materials`), and restart both API and worker. Container installations
+should rebuild the images. The existing Redis broker and `app-worker` must be
+running; the worker also expires abandoned imports every 60 seconds without a
+separate scheduler.
+
+The worker needs outbound HTTPS access to YouTube. Imports prefer creator captions
+in the selected learning language, then generated captions in that same language;
+tracks are never translated. The provider acquires metadata and subtitles only.
+The browser connects to the embedded YouTube player when the learner presses Play.
+AI configuration does not affect import or playback.
+
+Each acquisition has a 120-second total deadline and runs in a child process that
+is terminated on timeout/cancellation. Accepted captions are limited to 5 MiB of
+text, 20,000 cues and a final cue end within 6 hours. Network/queue/expired-job
+failures can be retried on the same lesson. Missing language, disabled captions,
+unavailable video, invalid transcript and source blocking have distinct errors.
+An unsuccessful import is never exposed as a ready lesson.
+
+YouTube may block server IPs or disallow embedding even when captions are available.
+No cookies, proxy configuration or access-control bypass is supplied. A player
+failure leaves the imported text usable. Reverse proxies should preserve a browser
+referrer policy that sends the application origin to YouTube, such as
+`strict-origin-when-cross-origin`; suppressing the referrer can prevent embedding.
+
+See the [approved design](../docs/superpowers/specs/FLQ-28-youtube-video-materials-design.md)
+and [verification record](../docs/superpowers/specs/FLQ-28-youtube-validation.md)
+for editing/version rules and the remaining live playback acceptance checks.

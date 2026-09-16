@@ -35,6 +35,7 @@ async def bulk_mark_known(
     from_ordinal: int,
     to_ordinal: int,
     commit: bool = True,
+    request_id: uuid.UUID | None = None,
 ) -> tuple[uuid.UUID, int]:
     await record_reading(
         session, user_id=user_id, lesson=lesson, from_ordinal=from_ordinal, to_ordinal=to_ordinal
@@ -84,6 +85,8 @@ async def bulk_mark_known(
         user_id=user_id,
         lesson_id=lesson.id,
         action_type="bulk_known",
+        request_id=request_id,
+        source_version=lesson.current_source_version,
         page_fingerprint=f"{from_ordinal}:{to_ordinal}",
         payload_json={"token_item_ids": [str(i) for i in created_ids]},
     )
@@ -116,6 +119,8 @@ async def undo_bulk_action(
     )
     if action is None or action.user_id != user_id:
         raise ActionNotFound
+    if action.payload_json.get("invalidated"):
+        raise ActionNotFound
     if action.undone_at is not None:
         raise ActionAlreadyUndone
     await session.execute(
@@ -139,3 +144,15 @@ async def undo_bulk_action(
     action.undone_at = func.now()
     await session.commit()
     return undone
+
+
+async def invalidate_bulk_actions(session: AsyncSession, lesson_id: uuid.UUID) -> None:
+    """Reset Undo but retain request identity across source revisions."""
+    await session.execute(
+        delete(BulkAction).where(BulkAction.lesson_id == lesson_id, BulkAction.request_id.is_(None))
+    )
+    await session.execute(
+        update(BulkAction)
+        .where(BulkAction.lesson_id == lesson_id)
+        .values(payload_json=BulkAction.payload_json.op("||")({"invalidated": True}))
+    )

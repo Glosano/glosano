@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import type { ViewMode } from './readerStore'
 
 interface Props {
+  video?: boolean
   disabled?: boolean
   mode: ViewMode
   onToggleMode: () => void
@@ -38,7 +39,7 @@ function Action({ icon, label, onClick, disabled, title }: ActionProps) {
   )
 }
 
-export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview, disabled }: Props) {
+export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview, disabled, video }: Props) {
   const tr = useTranslation()
   return (
     <div className="fixed inset-x-0 bottom-0 z-[var(--z-fixed)] border-t border-border bg-background">
@@ -51,7 +52,11 @@ export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview, disable
         <Action icon="♪" label={tr('Сгенерировать аудио')} disabled title={tr('Скоро')} />
         <Action
           icon="📖"
-          label={mode === 'sentence' ? tr('Показать всю страницу') : tr('По предложениям')}
+          label={
+            mode === 'sentence'
+              ? tr('Показать всю страницу')
+              : tr(video ? 'По фрагментам' : 'По предложениям')
+          }
           disabled={disabled}
           onClick={onToggleMode}
         />

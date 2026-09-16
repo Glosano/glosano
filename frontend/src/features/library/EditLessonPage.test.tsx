@@ -109,3 +109,37 @@ it('shows unavailable material without exposing an empty edit form', async () =>
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(leave).toHaveBeenCalledOnce()
 })
+
+it('edits video text within fixed timed fragments and sends the source version', async () => {
+  let saved: unknown
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    if (init.method === 'PATCH') saved = JSON.parse(init.body as string)
+    return new Response(
+      JSON.stringify({
+        ...material,
+        source_version: 2,
+        media: {
+          provider: 'youtube',
+          video_id: 'M7lc1UVf-VE',
+          canonical_url: 'https://www.youtube.com/watch?v=M7lc1UVf-VE',
+          title: 'Olá',
+          author: null,
+          language_code: 'pt',
+          is_generated: false,
+        },
+        fragments: [{ seg_id: 's1', text: 'Olá mundo.', media_start_ms: 1000, media_end_ms: 3000 }],
+      }),
+    )
+  })
+  const leave = setup()
+  const fragment = await screen.findByLabelText('Fragment 1 · 0:01–0:03')
+  expect(screen.queryByLabelText('Text')).not.toBeInTheDocument()
+  fireEvent.change(fragment, { target: { value: 'Olá amigos.' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(leave).toHaveBeenCalledOnce())
+  expect(saved).toEqual({
+    title: 'Olá',
+    source_version: 2,
+    fragments: [{ seg_id: 's1', text: 'Olá amigos.' }],
+  })
+})

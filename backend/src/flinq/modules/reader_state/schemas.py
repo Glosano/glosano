@@ -33,7 +33,21 @@ class PunctToken(BaseModel):
 Token = WordToken | WhitespaceToken | PunctToken
 
 
+class LessonMedia(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    provider: Literal["youtube"] = "youtube"
+    video_id: str
+    canonical_url: str
+    title: str
+    author: str | None
+    language_code: str
+    is_generated: bool
+
+
 class SentenceOut(BaseModel):
+    media_start_ms: int | None = None
+    media_end_ms: int | None = None
+    cue_intervals: list[dict[str, int]] | None = None
     seg_id: uuid.UUID
     index: int  # sentence ordinal (segment.ordinal)
     text: str
@@ -46,6 +60,7 @@ class ParagraphOut(BaseModel):
 
 
 class LessonContentResponse(BaseModel):
+    media: LessonMedia | None = None
     lesson_id: uuid.UUID
     source_version: int = 1
     language_code: str
@@ -126,6 +141,7 @@ class CompleteLessonRequest(BaseModel):
 
 
 class BulkKnownRequest(BaseModel):
+    request_id: uuid.UUID | None = None
     lesson_id: uuid.UUID
     source_version: int = Field(default=1, ge=1)
     from_ordinal: int = Field(ge=0)
@@ -139,6 +155,7 @@ class BulkKnownRequest(BaseModel):
 
 
 class BulkKnownResponse(BaseModel):
+    undone: bool = False
     action_id: uuid.UUID
     created_count: int
 

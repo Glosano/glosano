@@ -2,6 +2,7 @@ import { useI18n } from '@/lib/i18n'
 import type { LessonSummary } from '@/api/lessons'
 import { LessonCover } from './LessonCover'
 import { LessonActions } from './LessonActions'
+import { RetryVideoImport } from './RetryVideoImport'
 
 interface Props {
   lesson: LessonSummary
@@ -23,6 +24,11 @@ export function LessonCard({ lesson }: Props) {
         <div className="flex h-[110px] flex-col gap-2 p-3">
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">{lesson.title}</h3>
           <div className="mt-auto space-y-1">
+            {lesson.status === 'processing' && (
+              <p role="status" className="text-xs text-muted-foreground">
+                {t('Обработка урока…')}
+              </p>
+            )}
             {lesson.completed_at && (
               <p className="text-xs text-primary">✓ {t('Материал завершён')}</p>
             )}
@@ -51,6 +57,9 @@ export function LessonCard({ lesson }: Props) {
           </div>
         </div>
       </a>
+      {lesson.can_manage && lesson.status === 'failed' && lesson.source_type === 'youtube' && (
+        <RetryVideoImport lessonId={lesson.id} lang={lesson.language_code} />
+      )}
       {lesson.can_manage && <LessonActions lesson={lesson} />}
     </article>
   )

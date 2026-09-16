@@ -18,6 +18,31 @@ import type { LessonDetail } from '@/api/lessons'
 import type { LessonContent, StatusMap } from '@/api/reader'
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
+const video = vi.hoisted(() => ({ time: 1, state: 2 }))
+vi.mock('./video/youtubePlayer', () => ({
+  createYouTubePlayer: async (
+    _host: HTMLElement,
+    _id: string,
+    events: { onState: (state: number) => void },
+  ) => ({
+    play: () => {
+      video.state = 1
+      events.onState(1)
+    },
+    pause: () => {
+      video.state = 2
+      events.onState(2)
+    },
+    seek: (time: number) => {
+      video.time = time
+    },
+    time: () => video.time,
+    rate: () => 1,
+    destroy: () => {
+      video.state = 2
+    },
+  }),
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
@@ -67,12 +92,16 @@ import { readerApi } from '@/api/reader'
 import { vocabularyApi } from '@/api/vocabulary'
 import { dictionaryApi } from '@/api/dictionary'
 import { aiApi } from '@/api/ai'
+import { ApiError } from '@/api/client'
 
 import { useReaderStore } from './readerStore'
 import { ReaderPage } from './ReaderPage'
 import { setUiLanguage } from '@/lib/i18n'
 
-afterEach(() => { setUiLanguage('ru') })
+afterEach(() => {
+  vi.useRealTimers()
+  setUiLanguage('ru')
+})
 
 const baseLesson: LessonDetail = {
   id: 'lesson-1',
@@ -136,6 +165,63 @@ function renderPage(
   )
 }
 
+function videoLesson(wordsPerFragment = 250) {
+  video.time = 1
+  video.state = 2
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] })
+  vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+  vi.mocked(readerApi.statuses).mockResolvedValue({})
+  vi.mocked(readerApi.bulkKnown).mockResolvedValue({
+    action_id: 'video-bulk',
+    created_count: 250,
+    undone: false,
+  })
+  vi.mocked(readerApi.content).mockResolvedValue({
+    ...content,
+    word_count: wordsPerFragment * 2 + 1,
+    media: {
+      provider: 'youtube',
+      video_id: 'M7lc1UVf-VE',
+      canonical_url: 'https://www.youtube.com/watch?v=M7lc1UVf-VE',
+      title: 'Video',
+      author: null,
+      language_code: 'en',
+      is_generated: true,
+    },
+    paragraphs: [
+      {
+        sentences: [0, 1, 2].map((index) => ({
+          seg_id: `video-${index}`,
+          index,
+          text: `Caption ${index}`,
+          normalized_text: `caption ${index}`,
+          media_start_ms: 1000 + index * 1000,
+          media_end_ms: 2000 + index * 1000,
+          tokens: Array.from({ length: index < 2 ? wordsPerFragment : 1 }, (_, ordinal) => ({
+            t: `Word${index * wordsPerFragment + ordinal}`,
+            n: `word${index * wordsPerFragment + ordinal}`,
+            i: index * wordsPerFragment + ordinal,
+          })),
+        })),
+      },
+    ],
+  })
+  return renderPage()
+}
+
+async function startVideo() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Воспроизвести фрагмент' }))
+  await screen.findByRole('button', { name: 'Пауза' })
+  act(() => {
+    video.time = 1.8
+    vi.advanceTimersByTime(100)
+  })
+  act(() => {
+    video.time = 1.9
+    vi.advanceTimersByTime(100)
+  })
+}
+
 describe('ReaderPage', () => {
   beforeEach(() => {
     setUiLanguage('ru')
@@ -158,28 +244,199 @@ describe('ReaderPage', () => {
     })
   })
 
+  it('stops video at the current page and preserves explicit completion', async () => {
+    videoLesson()
+    await startVideo()
+    act(() => {
+      video.time = 2.02
+      vi.advanceTimersByTime(100)
+    })
+    expect(video.state).toBe(2)
+    expect(screen.getByText('Word0')).toBeVisible()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Завершить материал?' })).not.toBeInTheDocument()
+  })
+
+  it('starts playback at a clicked timestamp and can restart at another timestamp', async () => {
+    videoLesson(100)
+    fireEvent.click(await screen.findByRole('button', { name: 'Воспроизвести с 0:02' }))
+    await screen.findByRole('button', { name: 'Пауза' })
+    expect(video.time).toBe(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Пауза' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Воспроизвести с 0:03' }))
+    await screen.findByRole('button', { name: 'Пауза' })
+    expect(video.time).toBe(3)
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it('auto turns pages, marks the departed page and highlights the playing fragment', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    await startVideo()
+    act(() => {
+      video.time = 2.02
+      vi.advanceTimersByTime(100)
+    })
+    expect(await screen.findByText('Word250')).toBeVisible()
+    await waitFor(() =>
+      expect(readerApi.bulkKnown).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lesson_id: 'lesson-1',
+          from_ordinal: 0,
+          to_ordinal: 249,
+          request_id: expect.any(String),
+        }),
+        expect.anything(),
+      ),
+    )
+    expect(video.state).toBe(1)
+    expect(screen.getByText('Word250').closest('[aria-current]')).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+  })
+
+  it('follows a manual video seek without marking skipped pages known', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    await startVideo()
+    act(() => {
+      video.time = 3.2
+      vi.advanceTimersByTime(100)
+    })
+    expect(await screen.findByText('Word500')).toBeVisible()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it.each(['lesson_version_changed', 'source_version_conflict'])(
+    'offers to reload when an automatic page save retry returns %s',
+    async (detail) => {
+      videoLesson()
+      vi.mocked(readerApi.bulkKnown)
+        .mockRejectedValueOnce(new Error('Response lost'))
+        .mockRejectedValueOnce(new ApiError(409, detail))
+      fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+      await startVideo()
+      act(() => {
+        video.time = 2.02
+        vi.advanceTimersByTime(100)
+      })
+      fireEvent.click(await screen.findByRole('button', { name: 'Повторить сохранение' }))
+      expect(await screen.findByRole('link', { name: 'Обновить страницу' })).toHaveAttribute(
+        'href',
+        '/learn/en/lessons/lesson-1',
+      )
+      expect(video.state).toBe(2)
+      expect(screen.queryByRole('button', { name: 'Повторить сохранение' })).not.toBeInTheDocument()
+    },
+  )
+
+  it('pauses on mode change and limits sentence mode to its fragment', async () => {
+    videoLesson()
+    await startVideo()
+    fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+    expect(video.state).toBe(2)
+    expect(screen.queryByRole('switch', { name: 'Листать автоматически' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Воспроизвести аудио' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Воспроизвести фрагмент' }))
+    act(() => {
+      video.time = 1.9
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      video.time = 2.02
+      vi.advanceTimersByTime(100)
+    })
+    expect(video.state).toBe(2)
+    expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('Word0')
+  })
+
+  it('Undo pauses playback and disables automatic paging', async () => {
+    videoLesson()
+    vi.mocked(readerApi.undoBulk).mockResolvedValue({ undone_count: 250 })
+    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    await startVideo()
+    act(() => {
+      video.time = 2.02
+      vi.advanceTimersByTime(100)
+    })
+    const toast = await screen.findByTestId('undo-toast')
+    fireEvent.click(within(toast).getByRole('button', { name: 'Отменить' }))
+    await waitFor(() => expect(readerApi.undoBulk).toHaveBeenCalled())
+    expect(video.state).toBe(2)
+    expect(screen.getByRole('switch', { name: 'Листать автоматически' })).not.toBeChecked()
+  })
+
+  it('does not complete the material when the final video fragment ends', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    await startVideo()
+    act(() => {
+      video.time = 3.7
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      video.time = 3.8
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      video.time = 3.9
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      video.time = 4.01
+      vi.advanceTimersByTime(100)
+    })
+    expect(video.state).toBe(2)
+    expect(screen.getByRole('button', { name: 'Завершить материал' })).toBeEnabled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
   it('switches reader labels and all translation targets live without changing saved translations', async () => {
     vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
-      item_id: 'saved', status: 'known', confidence: null,
+      item_id: 'saved',
+      status: 'known',
+      confidence: null,
       translations: {
         primary: null,
         all: [
-          { id: 'ru-saved', text: 'Мой перевод', target_language_code: 'ru', is_primary: true, source_type: 'user' },
-          { id: 'en-saved', text: 'My translation', target_language_code: 'en', is_primary: true, source_type: 'user' },
+          {
+            id: 'ru-saved',
+            text: 'Мой перевод',
+            target_language_code: 'ru',
+            is_primary: true,
+            source_type: 'user',
+          },
+          {
+            id: 'en-saved',
+            text: 'My translation',
+            target_language_code: 'en',
+            is_primary: true,
+            source_type: 'user',
+          },
         ],
-      }, note: null, tags: [],
+      },
+      note: null,
+      tags: [],
     })
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [], attribution: { source: 'Wiktionary', license: 'CC-BY-SA 4.0', url: '' }, external_links: [],
+      entries: [],
+      attribution: { source: 'Wiktionary', license: 'CC-BY-SA 4.0', url: '' },
+      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: 'test', latency_ms: 1 })
-    vi.mocked(readerApi.segmentTranslation).mockImplementation(async (_lesson, _segment, target) => ({
-      text: target === 'en' ? 'English sentence translation' : 'Русский перевод предложения',
-      source: 'ai', model: 'test', stored: true,
-    }))
+    vi.mocked(readerApi.segmentTranslation).mockImplementation(
+      async (_lesson, _segment, target) => ({
+        text: target === 'en' ? 'English sentence translation' : 'Русский перевод предложения',
+        source: 'ai',
+        model: 'test',
+        stored: true,
+      }),
+    )
     setUiLanguage('en')
     renderPage()
     fireEvent.click(await screen.findByText('Hello'))
@@ -187,22 +444,36 @@ describe('ReaderPage', () => {
     expect(screen.getByRole('button', { name: 'Close card' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Finish material' })).toBeInTheDocument()
     await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'en', 'hello'))
-    await waitFor(() => expect(aiApi.translate).toHaveBeenCalledWith(expect.objectContaining({ target_language_code: 'en' })))
+    await waitFor(() =>
+      expect(aiApi.translate).toHaveBeenCalledWith(
+        expect.objectContaining({ target_language_code: 'en' }),
+      ),
+    )
 
-    act(() => { setUiLanguage('ru') })
+    act(() => {
+      setUiLanguage('ru')
+    })
     await screen.findByDisplayValue('Мой перевод')
     expect(screen.getByRole('button', { name: 'Закрыть карточку' })).toBeInTheDocument()
     expect(screen.queryByDisplayValue('My translation')).not.toBeInTheDocument()
     await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'ru', 'hello'))
-    await waitFor(() => expect(aiApi.translate).toHaveBeenCalledWith(expect.objectContaining({ target_language_code: 'ru' })))
+    await waitFor(() =>
+      expect(aiApi.translate).toHaveBeenCalledWith(
+        expect.objectContaining({ target_language_code: 'ru' }),
+      ),
+    )
     expect(vocabularyApi.updateTranslation).not.toHaveBeenCalled()
     expect(vocabularyApi.addTranslation).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть карточку' }))
-    act(() => { useReaderStore.setState({ mode: 'sentence' }) })
+    act(() => {
+      useReaderStore.setState({ mode: 'sentence' })
+    })
     fireEvent.click(await screen.findByTestId('toggle-translation'))
     await screen.findByText('Русский перевод предложения')
-    act(() => { setUiLanguage('en') })
+    act(() => {
+      setUiLanguage('en')
+    })
     await screen.findByText('English sentence translation')
     expect(readerApi.segmentTranslation).toHaveBeenCalledWith('lesson-1', 'seg-1', 'en')
     expect(screen.getByRole('button', { name: 'Previous sentence' })).toBeInTheDocument()

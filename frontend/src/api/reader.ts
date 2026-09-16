@@ -1,5 +1,6 @@
 import { api } from './client'
 import type { CardStatus, ItemKind } from './vocabulary'
+import type { LessonMedia } from './lessons'
 
 export interface WordToken {
   t: string
@@ -16,6 +17,9 @@ export type Token = WordToken | WhitespaceToken | PunctToken
 export const isWord = (tok: Token): tok is WordToken => 't' in tok
 
 export interface Sentence {
+  media_start_ms?: number | null
+  media_end_ms?: number | null
+  cue_intervals?: { start_ms: number; end_ms: number }[] | null
   seg_id: string
   index: number
   text: string
@@ -26,6 +30,7 @@ export interface Paragraph {
   sentences: Sentence[]
 }
 export interface LessonContent {
+  media?: LessonMedia | null
   lesson_id: string
   source_version: number
   language_code: string
@@ -48,6 +53,7 @@ export interface ReaderPosition {
   current_token_ordinal: number | null
 }
 export interface BulkKnownResult {
+  undone?: boolean
   action_id: string
   created_count: number
 }
@@ -115,6 +121,7 @@ export const readerApi = {
   putPosition: (body: { lesson_id: string; source_version?: number } & ReaderPosition) =>
     api<void>('/api/reader/positions', { method: 'PUT', body: JSON.stringify(body) }),
   bulkKnown: (body: {
+    request_id?: string
     lesson_id: string
     source_version?: number
     from_ordinal: number

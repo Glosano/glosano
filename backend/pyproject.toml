@@ -41,6 +41,9 @@ dependencies = [
     # Surface segmentation (ADR-0012)
     "jieba==0.42.1",
     "tinysegmenter==0.4",
+
+    # Public YouTube captions (ADR-0016)
+    "youtube-transcript-api==1.2.4",
 ]
 
 [project.scripts]

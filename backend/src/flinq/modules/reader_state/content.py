@@ -18,8 +18,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from flinq.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from flinq.modules.lesson_library.tokenization import RegexSegmenter
+from flinq.modules.lesson_library.video_import import current_media
 from flinq.modules.reader_state.schemas import (
     LessonContentResponse,
+    LessonMedia,
     ParagraphOut,
     PunctToken,
     SentenceOut,
@@ -80,6 +82,9 @@ async def build_lesson_content(session: AsyncSession, lesson: Lesson) -> LessonC
         inner = [
             SentenceOut(
                 seg_id=s.id,
+                media_start_ms=s.media_start_ms,
+                media_end_ms=s.media_end_ms,
+                cue_intervals=s.cue_intervals,
                 index=s.ordinal,
                 text=s.text,
                 # display-only casing helper for clients; NOT the token join key (see textnorm)
@@ -90,7 +95,13 @@ async def build_lesson_content(session: AsyncSession, lesson: Lesson) -> LessonC
             if para.start <= s.start_char_offset and s.end_char_offset <= para.end
         ]
         para_out.append(ParagraphOut(sentences=inner))
+    media = (
+        await current_media(session, lesson)
+        if any(s.media_start_ms is not None for s in sentences)
+        else None
+    )
     return LessonContentResponse(
+        media=LessonMedia.model_validate(media) if media else None,
         lesson_id=lesson.id,
         source_version=lesson.current_source_version,
         language_code=lesson.language_code,

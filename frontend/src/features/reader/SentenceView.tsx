@@ -19,6 +19,8 @@ interface SelectedWord {
 }
 
 interface Props {
+  video?: boolean
+  active?: boolean
   lessonId: string
   sentence: Sentence
   statuses: StatusMap
@@ -54,6 +56,8 @@ function collectVocabWords(sentence: Sentence, statuses: StatusMap): WordToken[]
 }
 
 export function SentenceView({
+  video = false,
+  active = false,
   lessonId,
   sentence,
   statuses,
@@ -83,24 +87,28 @@ export function SentenceView({
   const vocabWords = collectVocabWords(sentence, statuses)
 
   const showRetry =
-    translation.isError && !(translation.error instanceof ApiError && translation.error.status === 503)
+    translation.isError &&
+    !(translation.error instanceof ApiError && translation.error.status === 503)
 
   return (
     <div className="mx-auto max-w-[900px]">
-      <div className="flex justify-center">
-        <button
-          type="button"
-          disabled
-          title={tr('Скоро')}
-          aria-label={tr('Воспроизвести аудио')}
-          className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-[1.5px] border-[#D9DBE0] disabled:opacity-60"
-        >
-          <Play aria-hidden className="h-5 w-5" />
-        </button>
-      </div>
+      {!video && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            disabled
+            title={tr('Скоро')}
+            aria-label={tr('Воспроизвести аудио')}
+            className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-[1.5px] border-[#D9DBE0] disabled:opacity-60"
+          >
+            <Play aria-hidden className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       <div className="mt-10 px-4 sm:px-16">
         <p
+          aria-current={active ? 'true' : undefined}
           data-testid="learning-content"
           dir={learningContentDirection(lang)}
           className="text-xl leading-[1.8]"

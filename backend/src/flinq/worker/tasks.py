@@ -45,6 +45,14 @@ async def run_lesson_import(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
     delivery becomes a no-op instead of double-processing.
     """
     async with session_scope() as session:
+        job = await LessonRepo(session).get_job(job_id)
+        is_video = job is not None and job.job_type == "import_youtube"
+    if is_video:
+        from flinq.modules.lesson_library.video_import import run_video_import
+
+        await run_video_import(lesson_id, job_id)
+        return
+    async with session_scope() as session:
         repo = LessonRepo(session)
         job = await repo.lock_job(job_id)  # FOR UPDATE: serialize deliveries
         if job is None:
@@ -85,6 +93,14 @@ async def import_lesson_task(lesson_id: str, job_id: str) -> None:
 async def enqueue_lesson_import(lesson_id: uuid.UUID, job_id: uuid.UUID) -> None:
     """Enqueue the import task. Patched in tests to isolate the API handler."""
     await import_lesson_task.kiq(str(lesson_id), str(job_id))
+
+
+@broker.task(schedule=[{"cron": "* * * * *"}])
+async def cleanup_expired_video_imports() -> int:
+    from flinq.modules.lesson_library.video_import import expire_imports
+
+    async with session_scope() as session:
+        return await expire_imports(session)
 
 
 scheduler = TaskiqScheduler(broker=broker, sources=[LabelScheduleSource(broker)])

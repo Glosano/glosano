@@ -213,6 +213,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
 
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
+        request_id: expect.any(String),
         lesson_id: 'lesson-1',
         source_version: 1,
         from_ordinal: 0,
@@ -242,6 +243,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
 
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
+        request_id: expect.any(String),
         lesson_id: 'lesson-1',
         source_version: 1,
         from_ordinal: 0,
@@ -267,6 +269,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
     fireEvent.keyDown(window, { key: 'ArrowRight' })
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
+        request_id: expect.any(String),
         lesson_id: 'lesson-1',
         source_version: 1,
         from_ordinal: 0,
@@ -295,6 +298,7 @@ describe('bulk-known flow, undo, hotkeys', () => {
 
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toEqual({
+        request_id: expect.any(String),
         lesson_id: 'lesson-1',
         source_version: 1,
         from_ordinal: 0,

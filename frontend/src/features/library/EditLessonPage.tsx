@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useTranslation } from '@/lib/i18n'
 import { invalidateMaterial } from './materialQueries'
+import { mediaTime } from '@/lib/mediaTime'
 
 interface Props {
   lessonId: string
@@ -59,9 +60,23 @@ function LessonEditForm({
   const queryClient = useQueryClient()
   const [title, setTitle] = useState(lesson.title)
   const [text, setText] = useState(lesson.raw_text)
+  const [fragments, setFragments] = useState(lesson.fragments ?? [])
   const [validation, setValidation] = useState<string | null>(null)
   const save = useMutation({
-    mutationFn: () => lessonsApi.update(lesson.id, { title: title.trim(), raw_text: text }),
+    mutationFn: () =>
+      lessonsApi.update(
+        lesson.id,
+        lesson.media
+          ? {
+              title: title.trim(),
+              source_version: lesson.source_version!,
+              fragments: fragments.map(({ seg_id, text: fragmentText }) => ({
+                seg_id,
+                text: fragmentText,
+              })),
+            }
+          : { title: title.trim(), raw_text: text },
+      ),
     onSuccess: () => {
       void invalidateMaterial(queryClient, lesson.id, lang)
       onClose()
@@ -69,7 +84,11 @@ function LessonEditForm({
   })
   const error =
     save.error instanceof ApiError && save.error.status === 409
-      ? t('Материал ещё обрабатывается. Попробуйте сохранить позже.')
+      ? t(
+          lesson.media
+            ? 'Материал изменился или ещё обрабатывается. Обновите страницу перед сохранением.'
+            : 'Материал ещё обрабатывается. Попробуйте сохранить позже.',
+        )
       : getApiErrorMessage(save.error)
   return (
     <form
@@ -79,7 +98,10 @@ function LessonEditForm({
         event.preventDefault()
         if (save.isPending) return
         setValidation(null)
-        if (!title.trim() || !text.trim()) {
+        if (
+          !title.trim() ||
+          (lesson.media ? fragments.some((fragment) => !fragment.text.trim()) : !text.trim())
+        ) {
           setValidation('Заполните название и текст')
           return
         }
@@ -100,15 +122,49 @@ function LessonEditForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="edit-lesson-text">{t('Текст')}</Label>
-        <textarea
-          id="edit-lesson-text"
-          rows={18}
-          value={text}
-          disabled={save.isPending}
-          onChange={(event) => setText(event.target.value)}
-          className="flex min-h-72 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-base leading-relaxed shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        />
+        {lesson.media ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {t('Исправляйте текст внутри фрагментов. Их время и порядок сохраняются.')}
+            </p>
+            {fragments.map((fragment, index) => (
+              <div key={fragment.seg_id} className="space-y-2 py-2">
+                <Label htmlFor={`fragment-${fragment.seg_id}`}>
+                  {t('Фрагмент {{number}} · {{range}}', {
+                    number: index + 1,
+                    range: `${mediaTime(fragment.media_start_ms)}–${mediaTime(fragment.media_end_ms)}`,
+                  })}
+                </Label>
+                <textarea
+                  id={`fragment-${fragment.seg_id}`}
+                  rows={3}
+                  value={fragment.text}
+                  disabled={save.isPending}
+                  onChange={(event) =>
+                    setFragments((current) =>
+                      current.map((item, i) =>
+                        i === index ? { ...item, text: event.target.value } : item,
+                      ),
+                    )
+                  }
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 leading-relaxed"
+                />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <Label htmlFor="edit-lesson-text">{t('Текст')}</Label>
+            <textarea
+              id="edit-lesson-text"
+              rows={18}
+              value={text}
+              disabled={save.isPending}
+              onChange={(event) => setText(event.target.value)}
+              className="flex min-h-72 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-base leading-relaxed shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </>
+        )}
         <p className="text-sm text-muted-foreground">
           {t(
             'Изменение текста сбросит позицию чтения. Сохранённые слова, повторения и статистика останутся.',

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from flinq.modules.identity.repo import UserRepo
-from flinq.modules.lesson_library.models import Lesson, LessonSegment
+from flinq.modules.lesson_library.models import Lesson
 from flinq.modules.reader_state.models import LessonSegmentTranslation
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
@@ -48,19 +48,23 @@ async def test_translation_migration_preserves_legacy_and_refuses_unsafe_downgra
             lesson = Lesson(owner_user_id=user.id, language_code="pt", title="T", raw_text="cada")
             session.add(lesson)
             await session.flush()
-            segment = LessonSegment(
-                lesson_id=lesson.id, ordinal=0, text="cada", start_char_offset=0, end_char_offset=4
+            segment_id = uuid.uuid4()
+            await session.execute(
+                text(
+                    "INSERT INTO lesson_segments (id, lesson_id, ordinal, segment_type, text, "
+                    "start_char_offset, end_char_offset) "
+                    "VALUES (:id, :lesson, 0, 'sentence', 'cada', 0, 4)"
+                ),
+                {"id": segment_id, "lesson": lesson.id},
             )
-            session.add(segment)
-            await session.flush()
             legacy_id = uuid.uuid4()
             await session.execute(
                 text("""INSERT INTO lesson_segment_translations
                 (id, segment_id, target_language_code, translation_text, source, model)
                 VALUES (:id, :segment, 'en', 'legacy', 'ai', 'old')"""),
-                {"id": legacy_id, "segment": segment.id},
+                {"id": legacy_id, "segment": segment_id},
             )
-            user_id, segment_id = user.id, segment.id
+            user_id = user.id
             await session.commit()
         migrate("0017_ui_language_translation")
         async with AsyncSession(engine) as session:

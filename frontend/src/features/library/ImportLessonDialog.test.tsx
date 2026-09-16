@@ -154,3 +154,58 @@ it('shows an actionable UTF-8 error and allows correcting the upload', async () 
   expect(screen.getByRole('button', { name: 'Create lesson' })).toBeEnabled()
   expect(screen.getByLabelText('Title')).toHaveValue('book')
 })
+
+it('imports a YouTube link without a title and retries the same failed material', async () => {
+  const posts: { url: string; body: unknown }[] = []
+  let retried = false
+  vi.stubGlobal('fetch', async (url: string, init: RequestInit) => {
+    if (init.method === 'POST') {
+      posts.push({ url, body: init.body ? JSON.parse(init.body as string) : null })
+      if (url.endsWith('/retry-import')) retried = true
+      return new Response(JSON.stringify({ id: 'Y1', status: 'processing' }), { status: 202 })
+    }
+    return new Response(
+      JSON.stringify({
+        id: 'Y1',
+        status: retried ? 'ready' : 'failed',
+        import_error: { code: 'network_error', retryable: true },
+      }),
+    )
+  })
+  const close = setup()
+  await userEvent.click(screen.getByRole('tab', { name: 'YouTube' }))
+  expect(screen.queryByLabelText('Title')).not.toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('YouTube link'), 'https://youtu.be/M7lc1UVf-VE')
+  await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach YouTube')
+  expect(posts[0]).toEqual({
+    url: '/api/lessons/import-youtube',
+    body: {
+      url: 'https://youtu.be/M7lc1UVf-VE',
+      language_code: 'pt',
+      request_id: expect.any(String),
+    },
+  })
+  await userEvent.click(screen.getByRole('button', { name: 'Retry import' }))
+  await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+  expect(posts.map((post) => post.url)).toEqual([
+    '/api/lessons/import-youtube',
+    '/api/lessons/Y1/retry-import',
+  ])
+})
+
+it('reuses the import request id after an ambiguous network failure', async () => {
+  const bodies: { request_id: string }[] = []
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    bodies.push(JSON.parse(init.body as string))
+    throw new TypeError('Network unavailable')
+  })
+  setup()
+  await userEvent.click(screen.getByRole('tab', { name: 'YouTube' }))
+  await userEvent.type(screen.getByLabelText('YouTube link'), 'https://youtu.be/M7lc1UVf-VE')
+  await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+  await screen.findByRole('alert')
+  await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+  await waitFor(() => expect(bodies).toHaveLength(2))
+  expect(bodies[0]?.request_id).toBe(bodies[1]?.request_id)
+})

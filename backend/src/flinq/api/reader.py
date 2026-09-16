@@ -192,6 +192,32 @@ async def bulk_known(
     session: AsyncSession = Depends(get_session),
 ) -> BulkKnownResponse:
     user_id = _require_user(request)
+    from sqlalchemy import select
+
+    from flinq.modules.lesson_library.video_import import request_lock
+    from flinq.modules.reader_state.models import BulkAction
+
+    if body.request_id is not None:
+        await request_lock(session, user_id, body.request_id, "bulk")
+        previous = await session.scalar(
+            select(BulkAction).where(
+                BulkAction.user_id == user_id, BulkAction.request_id == body.request_id
+            )
+        )
+        if previous is not None:
+            if (
+                previous.lesson_id != body.lesson_id
+                or previous.source_version != body.source_version
+                or previous.page_fingerprint != f"{body.from_ordinal}:{body.to_ordinal}"
+            ):
+                raise HTTPException(409, "request_id_reused")
+            if previous.payload_json.get("invalidated"):
+                raise HTTPException(409, "source_version_conflict")
+            return BulkKnownResponse(
+                action_id=previous.id,
+                created_count=len(previous.payload_json.get("token_item_ids", [])),
+                undone=previous.undone_at is not None,
+            )
     lesson = await _load_lesson(session, body.lesson_id, user_id, lock_content=True)
     _check_source_version(lesson, body.source_version)
     action_id, created_count = await bulk_mark_known(
@@ -200,6 +226,7 @@ async def bulk_known(
         lesson=lesson,
         from_ordinal=body.from_ordinal,
         to_ordinal=body.to_ordinal,
+        request_id=body.request_id,
     )
     return BulkKnownResponse(action_id=action_id, created_count=created_count)
 

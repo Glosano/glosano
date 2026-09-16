@@ -16,7 +16,8 @@ from flinq.modules.lesson_library.models import (
 )
 from flinq.modules.lesson_library.repo import LessonRepo
 from flinq.modules.lesson_library.tokenization import RegexSegmenter, tokenize
-from flinq.modules.reader_state.models import BulkAction, ReaderPosition
+from flinq.modules.reader_state.bulk import invalidate_bulk_actions
+from flinq.modules.reader_state.models import ReaderPosition
 from flinq.modules.statistics.models import DailyReadOccurrence
 from flinq.modules.vocabulary.models import PhraseItem, TokenItem
 
@@ -131,7 +132,8 @@ async def update_lesson(
         )
         # Ordinals and segment IDs refer to the old content. Historical totals
         # and personal learning items are independent and must survive.
-        for model in (ReaderPosition, BulkAction, DailyReadOccurrence):
+        await invalidate_bulk_actions(session, lesson_id)
+        for model in (ReaderPosition, DailyReadOccurrence):
             await session.execute(delete(model).where(model.lesson_id == lesson_id))
         for model in (TokenItem, PhraseItem):
             await session.execute(
@@ -158,7 +160,9 @@ async def delete_lesson(session: AsyncSession, *, lesson_id: uuid.UUID, user_id:
     await session.flush()
 
 
-async def process_lesson_import(session: AsyncSession, lesson_id: uuid.UUID) -> None:
+async def process_lesson_import(
+    session: AsyncSession, lesson_id: uuid.UUID, *, prepared: list[LessonSegment] | None = None
+) -> None:
     """Segment + tokenize a lesson's text into facts, then mark it ready.
 
     Idempotent and concurrency-safe: the lesson row is locked FOR UPDATE and its
@@ -180,42 +184,53 @@ async def process_lesson_import(session: AsyncSession, lesson_id: uuid.UUID) -> 
     segment_ordinal = 0
     occ_ordinal = 0
 
-    for paragraph in segmenter.split_paragraphs(lesson.raw_text):
-        for sentence in segmenter.split_sentences(paragraph.text, base_offset=paragraph.start):
-            segment = LessonSegment(
+    if prepared is None:
+        prepared = [
+            LessonSegment(
                 lesson_id=lesson_id,
-                ordinal=segment_ordinal,
+                ordinal=i,
                 segment_type="sentence",
                 text=sentence.text,
                 start_char_offset=sentence.start,
                 end_char_offset=sentence.end,
             )
-            session.add(segment)
-            await session.flush()  # assign segment.id for the occurrence FK
-
-            for seg_idx, tok in enumerate(
-                tokenize(
-                    sentence.text, base_offset=sentence.start, language_code=lesson.language_code
+            for i, sentence in enumerate(
+                sentence
+                for paragraph in segmenter.split_paragraphs(lesson.raw_text)
+                for sentence in segmenter.split_sentences(
+                    paragraph.text, base_offset=paragraph.start
                 )
-            ):
-                session.add(
-                    LessonTokenOccurrence(
-                        lesson_id=lesson_id,
-                        segment_id=segment.id,
-                        ordinal_in_lesson=occ_ordinal,
-                        ordinal_in_segment=seg_idx,
-                        surface_text=tok.surface_text,
-                        normalized_text=tok.normalized_text,
-                        start_char_offset=tok.start_char_offset,
-                        end_char_offset=tok.end_char_offset,
-                        is_word_like=tok.is_word_like,
-                    )
-                )
-                occ_ordinal += 1
-                if tok.is_word_like:
-                    word_count += 1
+            )
+        ]
+    for segment in prepared:
+        session.add(segment)
+        await session.flush()  # assign segment.id for the occurrence FK
 
-            segment_ordinal += 1
+        for seg_idx, tok in enumerate(
+            tokenize(
+                segment.text,
+                base_offset=segment.start_char_offset,
+                language_code=lesson.language_code,
+            )
+        ):
+            session.add(
+                LessonTokenOccurrence(
+                    lesson_id=lesson_id,
+                    segment_id=segment.id,
+                    ordinal_in_lesson=occ_ordinal,
+                    ordinal_in_segment=seg_idx,
+                    surface_text=tok.surface_text,
+                    normalized_text=tok.normalized_text,
+                    start_char_offset=tok.start_char_offset,
+                    end_char_offset=tok.end_char_offset,
+                    is_word_like=tok.is_word_like,
+                )
+            )
+            occ_ordinal += 1
+            if tok.is_word_like:
+                word_count += 1
+
+        segment_ordinal += 1
 
     lesson.word_count = word_count
     lesson.segment_count = segment_ordinal

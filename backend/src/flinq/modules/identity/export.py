@@ -103,7 +103,14 @@ LESSON_TABLES: dict[str, str] = {
         "id lesson_id source_type source_uri original_filename content_hash author "
         "license source_label version_number created_at"
     ),
-    "lesson_segments": ("id lesson_id ordinal segment_type text start_char_offset end_char_offset"),
+    "lesson_media_sources": (
+        "id source_id lesson_id provider video_id canonical_url title author "
+        "language_code is_generated cue_snapshot preparation_version user_edited"
+    ),
+    "lesson_segments": (
+        "id lesson_id ordinal segment_type text start_char_offset end_char_offset "
+        "media_start_ms media_end_ms cue_start cue_end cue_intervals"
+    ),
     "lesson_token_occurrences": (
         "id lesson_id segment_id ordinal_in_lesson ordinal_in_segment surface_text "
         "normalized_text start_char_offset end_char_offset is_word_like"

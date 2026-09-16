@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { videoImportError, VIDEO_IMPORT_ERRORS } from './videoImportErrors'
 
 interface Props {
   open: boolean
@@ -50,17 +51,28 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
+  const [url, setUrl] = useState('')
+  const requestId = useRef<string | null>(null)
 
   const create = useMutation({
-    mutationFn: () =>
-      tab === 'file' && file
+    mutationFn: () => {
+      if (tab === 'youtube') {
+        requestId.current ??= crypto.randomUUID()
+        return lessonsApi.importYouTube({
+          url: url.trim(),
+          language_code: lang,
+          request_id: requestId.current,
+        })
+      }
+      return tab === 'file' && file
         ? lessonsApi.importFile(file, title.trim(), lang)
         : lessonsApi.create({
             title: title.trim(),
             language_code: lang,
             raw_text: text.trim(),
             visibility: 'private',
-          }),
+          })
+    },
     onSuccess: (lesson) => {
       setLessonId(lesson.id)
       void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
@@ -79,6 +91,14 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
         ? false
         : 1000,
   })
+  const retry = useMutation({
+    mutationFn: () => lessonsApi.retryImport(lessonId!),
+    onSuccess: () => {
+      queryClient.setQueryData(['lesson-import', lessonId], undefined)
+      void lesson.refetch()
+      void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
+    },
+  })
   useEffect(() => {
     if (lesson.data?.status === 'ready') {
       void queryClient.invalidateQueries({ queryKey: ['lessons', lang] })
@@ -91,10 +111,12 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
 
   const busy = create.isPending || lessonId !== null
   const failed = lesson.data && !['processing', 'ready'].includes(lesson.data.status)
-  const shownError = error ?? lesson.error
+  const shownError = error ?? lesson.error ?? retry.error
   function errorMessage(err: unknown) {
     if (typeof err === 'string') return t(err)
     if (err instanceof ApiError && FILE_ERRORS[err.detail]) return t(FILE_ERRORS[err.detail]!)
+    if (err instanceof ApiError && VIDEO_IMPORT_ERRORS[err.detail])
+      return t(videoImportError(err.detail))
     return getApiErrorMessage(err)
   }
   function selectFiles(files: FileList | File[]) {
@@ -125,6 +147,14 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
     e.preventDefault()
     if (busy) return
     setError(null)
+    if (tab === 'youtube') {
+      if (!url.trim()) {
+        setError('Введите HTTPS-ссылку на одно видео YouTube.')
+        return
+      }
+      create.mutate()
+      return
+    }
     if (tab === 'file' && !file) {
       setError('Выберите файл .txt или .md.')
       return
@@ -151,13 +181,17 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>{t('Импорт урока')}</DialogTitle>
           <DialogDescription>
-            {tab === 'text'
-              ? t('Вставьте текст для нового урока на текущем языке ({{language}}).', {
+            {tab === 'youtube'
+              ? t('Название и субтитры будут импортированы с YouTube. Язык: {{language}}.', {
                   language: lang.toUpperCase(),
                 })
-              : t('Загрузите .txt или .md в UTF-8, до 5 МиБ. Язык урока: {{language}}.', {
-                  language: lang.toUpperCase(),
-                })}
+              : tab === 'text'
+                ? t('Вставьте текст для нового урока на текущем языке ({{language}}).', {
+                    language: lang.toUpperCase(),
+                  })
+                : t('Загрузите .txt или .md в UTF-8, до 5 МиБ. Язык урока: {{language}}.', {
+                    language: lang.toUpperCase(),
+                  })}
           </DialogDescription>
         </DialogHeader>
         <form noValidate onSubmit={onSubmit} className="space-y-4">
@@ -175,6 +209,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
               {[
                 ['text', 'Текст'],
                 ['file', 'Файл'],
+                ['youtube', 'YouTube'],
               ].map(([value, label]) => (
                 <Tabs.Trigger
                   key={value}
@@ -186,17 +221,36 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
                 </Tabs.Trigger>
               ))}
             </Tabs.List>
-            <div className="mb-4 space-y-2">
-              <Label htmlFor="lesson-title">{t('Название')}</Label>
+            {tab !== 'youtube' && (
+              <div className="mb-4 space-y-2">
+                <Label htmlFor="lesson-title">{t('Название')}</Label>
+                <Input
+                  id="lesson-title"
+                  required
+                  maxLength={200}
+                  disabled={busy}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+            )}
+            <Tabs.Content value="youtube" className="space-y-3">
+              <Label htmlFor="youtube-url">{t('Ссылка YouTube')}</Label>
               <Input
-                id="lesson-title"
-                required
-                maxLength={200}
+                id="youtube-url"
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=…"
+                value={url}
                 disabled={busy}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(event) => {
+                  setUrl(event.target.value)
+                  requestId.current = null
+                }}
               />
-            </div>
+              <p className="text-sm text-muted-foreground">
+                {t('Сначала авторские субтитры, затем автоматические на том же языке.')}
+              </p>
+            </Tabs.Content>
             <Tabs.Content value="text" className="space-y-2">
               <Label htmlFor="lesson-text">{t('Текст')}</Label>
               <textarea
@@ -260,7 +314,9 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
           )}
           {failed && (
             <p role="alert" className="text-sm text-destructive">
-              {t('Не удалось обработать урок. Закройте окно и попробуйте импортировать снова.')}
+              {tab === 'youtube'
+                ? t(videoImportError(lesson.data?.import_error?.code))
+                : t('Не удалось обработать урок. Закройте окно и попробуйте импортировать снова.')}
             </p>
           )}
           {lessonId && !failed && !lesson.error && (
@@ -287,9 +343,18 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
                 {t('Проверить статус')}
               </Button>
             )}
+            {failed && tab === 'youtube' && lesson.data?.import_error?.retryable && (
+              <Button type="button" disabled={retry.isPending} onClick={() => retry.mutate()}>
+                {retry.isPending ? t('Сохранение…') : t('Повторить импорт')}
+              </Button>
+            )}
             {!lessonId && (
               <Button type="submit" disabled={busy}>
-                {create.isPending ? t('Сохранение…') : t('Создать урок')}
+                {create.isPending
+                  ? t('Сохранение…')
+                  : tab === 'youtube'
+                    ? t('Импортировать')
+                    : t('Создать урок')}
               </Button>
             )}
           </DialogFooter>

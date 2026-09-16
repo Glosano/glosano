@@ -42,7 +42,7 @@ Full rationale in the decision log and ADRs. This section is a lookup table, not
 - **Client:** web-first responsive. No native mobile, no PWA, no offline.
 - **Audience:** learner-only. No teacher/LMS features.
 - **Library:** private imports + shared library inside the instance. License/source/author fields are required for shared content.
-- **Import formats:** `.txt`, `.md` only. PDF/EPUB/scans go through an **external OCR service** with its own API that returns `.md`.
+- **Import formats:** `.txt`, `.md`; YouTube URL with existing learning-language captions (ADR-0016). PDF/EPUB/scans go through an **external OCR service** with its own API that returns `.md`.
 - **Languages (learning):** EN, RU, PT, ES, FR, DE, ZH-Hans (Simplified Chinese), JA, AR, HI — ADR-0012 supersedes the original three-language scope.
 - **Languages (UI):** EN, RU.
 - **Auth:** email + password. No SSO.
@@ -131,7 +131,7 @@ If a user asks for any of these, point them at `docs/specs/2026-04-11-mvp-produc
 
 - Native mobile apps (iOS, Android).
 - PWA or full offline support.
-- Audio/video import, TTS, STT, alignment, shadowing, speaking practice.
+- General audio/video import, TTS, STT, alignment, shadowing, speaking practice. **Exception: ADR-0016 accepts YouTube URL imports with existing learning-language captions, timed fragments, embedded playback and optional auto paging in MVP.**
 - Teacher/coach workflows, LMS, cohort analytics.
 - SSO, tenant isolation, quota management UI.
 - Marketplace or federation between instances.

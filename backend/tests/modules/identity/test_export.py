@@ -15,6 +15,7 @@ from flinq.modules.identity.repo import UserRepo
 from flinq.modules.lesson_library.models import (
     Lesson,
     LessonImportJob,
+    LessonMediaSource,
     LessonSegment,
     LessonSource,
     LessonTokenOccurrence,
@@ -60,6 +61,24 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
         )
         s.add(segment)
         await s.flush()
+        media_source = LessonSource(
+            lesson_id=own.id, source_type="youtube", content_hash="video", version_number=2
+        )
+        s.add(media_source)
+        await s.flush()
+        s.add(
+            LessonMediaSource(
+                source_id=media_source.id,
+                lesson_id=own.id,
+                video_id="M7lc1UVf-VE",
+                canonical_url="https://www.youtube.com/watch?v=M7lc1UVf-VE",
+                title="Video",
+                author=None,
+                language_code="pt",
+                is_generated=False,
+                cue_snapshot=[{"text": "cada dia", "start_ms": 0, "end_ms": 1000}],
+            )
+        )
         token = TokenItem(
             user_id=user_id,
             language_code="pt",
