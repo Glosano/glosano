@@ -104,3 +104,18 @@ async def cleanup_expired_video_imports() -> int:
 
 
 scheduler = TaskiqScheduler(broker=broker, sources=[LabelScheduleSource(broker)])
+
+
+@broker.task
+async def chat_generation_task(generation_id: str) -> None:
+    from glosano.modules.chat.generation import run_generation
+
+    await run_generation(uuid.UUID(generation_id))
+
+
+async def enqueue_chat_generation(generation_id: uuid.UUID) -> None:
+    """Queue failure cannot roll back an acknowledged durable command."""
+    try:
+        await chat_generation_task.kiq(str(generation_id))
+    except Exception:
+        logger.warning("Chat enqueue unavailable; generation={}", generation_id)

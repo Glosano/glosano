@@ -1,5 +1,5 @@
 import { useTranslation } from '@/lib/i18n'
-import { PanelLeft, PanelRight, X } from 'lucide-react'
+import { PanelRight, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 
 import {
@@ -10,14 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
-import { useReaderStore, type ViewMode } from './readerStore'
+import { useReaderStore } from './readerStore'
 
 interface Props {
   lang: string
   progressPercent: number
-  mode: ViewMode
-  sidebarOpen: boolean
-  onToggleSidebar: () => void
   vocabularyPanelPinned: boolean
   onToggleVocabularyPanel: () => void
 }
@@ -37,9 +34,6 @@ const LINE_HEIGHT_OPTIONS = [
 export function ReaderTopBar({
   lang,
   progressPercent,
-  mode,
-  sidebarOpen,
-  onToggleSidebar,
   vocabularyPanelPinned,
   onToggleVocabularyPanel,
 }: Props) {
@@ -119,21 +113,11 @@ export function ReaderTopBar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {mode === 'page' && (
-        <button
-          type="button"
-          aria-label={tr('Оглавление')}
-          aria-pressed={sidebarOpen}
-          onClick={onToggleSidebar}
-          className="rounded-md p-2 hover:bg-accent"
-        >
-          <PanelLeft className="h-5 w-5" />
-        </button>
-      )}
-
       <button
         type="button"
-        aria-label={vocabularyPanelPinned ? tr('Скрыть словарь урока') : tr('Показать словарь урока')}
+        aria-label={
+          vocabularyPanelPinned ? tr('Скрыть словарь урока') : tr('Показать словарь урока')
+        }
         aria-expanded={vocabularyPanelPinned}
         aria-controls="lesson-vocabulary-panel"
         onClick={onToggleVocabularyPanel}

@@ -15,6 +15,10 @@ export interface LessonVocabularyPanelProps {
   onClearSelection: () => void
   onHide: () => void
   card: ReactNode
+  chat?: ReactNode
+  chatOpen?: boolean
+  onChat?: () => void
+  onDictionary?: () => void
   renderList: (state: {
     tab: VocabularyTab
     onTabChange: (tab: VocabularyTab) => void
@@ -48,11 +52,15 @@ export function LessonVocabularyPanel({
   onClearSelection,
   onHide,
   card,
+  chat,
+  chatOpen = false,
+  onChat,
+  onDictionary,
   renderList,
 }: LessonVocabularyPanelProps) {
   const tr = useTranslation()
   const desktop = useDesktopPanel()
-  const visible = pinned || selectedWord !== null
+  const visible = chatOpen || pinned || selectedWord !== null
   const [tab, setTab] = useState<VocabularyTab>('added')
   const [scrollPositions, setScrollPositions] = useState<Record<VocabularyTab, number>>({
     added: 0,
@@ -97,16 +105,20 @@ export function LessonVocabularyPanel({
   )
 
   const dismissCurrentLayer = useCallback(() => {
+    if (chatOpen) {
+      onDictionary?.()
+      return
+    }
     if (pinned && selectedWord) {
       onClearSelection()
       return
     }
     onHide()
-  }, [onClearSelection, onHide, pinned, selectedWord])
+  }, [onClearSelection, onHide, pinned, selectedWord, chatOpen, onDictionary])
 
   if (!visible) return null
 
-  const body = (
+  const dictionary = (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {pinned && (
         <div
@@ -141,11 +153,35 @@ export function LessonVocabularyPanel({
     </div>
   )
 
+  const body = (
+    <>
+      {onChat && (
+        <div className="flex shrink-0 gap-2 border-b p-2" aria-label={tr('Словарь / Чат')}>
+          <button
+            className="flex-1 rounded p-2 text-sm aria-pressed:bg-accent"
+            aria-pressed={!chatOpen}
+            onClick={onDictionary}
+          >
+            {tr('Словарь')}
+          </button>
+          <button
+            className="flex-1 rounded p-2 text-sm aria-pressed:bg-accent"
+            aria-pressed={chatOpen}
+            onClick={onChat}
+          >
+            {tr('Чат')}
+          </button>
+        </div>
+      )}
+      {chatOpen ? chat : dictionary}
+    </>
+  )
+
   if (desktop) {
     return (
       <aside
         id="lesson-vocabulary-panel"
-        aria-label={tr('Словарь урока')}
+        aria-label={tr(chatOpen ? 'AI-чат' : 'Словарь урока')}
         data-reader-panel
         className="fixed bottom-24 right-4 top-20 z-[var(--z-fixed)] flex w-[var(--reader-panel-width)] min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg"
       >
@@ -168,7 +204,11 @@ export function LessonVocabularyPanel({
           id="lesson-vocabulary-panel"
           aria-describedby={undefined}
           data-reader-panel
-          className="fixed inset-x-0 bottom-0 z-[var(--z-modal)] flex max-h-[85dvh] min-h-0 flex-col overflow-hidden rounded-t-xl border border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-lg outline-none"
+          className={
+            chatOpen
+              ? 'fixed inset-0 z-[var(--z-modal)] flex h-dvh min-h-0 flex-col overflow-hidden bg-card pb-[env(safe-area-inset-bottom)] outline-none'
+              : 'fixed inset-x-0 bottom-0 z-[var(--z-modal)] flex max-h-[85dvh] min-h-0 flex-col overflow-hidden rounded-t-xl border border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-lg outline-none'
+          }
           onEscapeKeyDown={(event) => {
             event.preventDefault()
             event.stopPropagation()

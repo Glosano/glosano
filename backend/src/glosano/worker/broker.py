@@ -32,6 +32,7 @@ broker: AsyncBroker = _build_broker()
 
 async def run_import_maintenance() -> None:
     """Recover abandoned imports even when no separate Taskiq scheduler runs."""
+    from glosano.modules.chat.generation import recover_generations
     from glosano.modules.lesson_library.video_import import expire_imports
 
     while True:
@@ -40,6 +41,10 @@ async def run_import_maintenance() -> None:
                 await expire_imports(session)
         except Exception:
             logger.warning("Video import maintenance failed; retrying in 60 seconds")
+        try:
+            await recover_generations()
+        except Exception:
+            logger.warning("Chat maintenance failed; retrying in 60 seconds")
         await asyncio.sleep(60)
 
 

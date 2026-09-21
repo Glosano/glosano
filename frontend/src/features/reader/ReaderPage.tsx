@@ -1,3 +1,4 @@
+import type { ParagraphQuoteAction } from './ParagraphQuote'
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -10,6 +11,12 @@ import {
   DialogFooter,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { chatsApi } from '@/api/chats'
+import { containsQuote } from '@/features/chat/inlineQuotes'
+import { ChatWorkspace } from '@/features/chat/ChatWorkspace'
+import { ChatSidebar } from '@/features/chat/ChatSidebar'
+import { useChatLayoutStore } from '@/features/chat/chatLayoutStore'
+import { chatDrafts, useChatStore } from '@/features/chat/chatStore'
 import { ApiError } from '@/api/client'
 
 import { isWord, type LessonVocabularyItem, type Sentence } from '@/api/reader'
@@ -49,12 +56,18 @@ import { useVideoPageTransitions } from './video/useVideoPageTransitions'
 interface Props {
   lang: string
   lessonId: string
+  sourcePosition?: {
+    sourceVersion: number
+    ordinal: number
+    paragraphIndex?: number
+    requestId?: string
+  }
 }
 
 const FONT_SIZE_CLASS = ['text-base', 'text-lg', 'text-xl'] as const
 const LINE_HEIGHT_CLASS = ['leading-normal', 'leading-relaxed', 'leading-loose'] as const
 
-export function ReaderPage({ lang, lessonId }: Props) {
+export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const { language: targetLanguage, t: tr } = useI18n()
   const navigate = useNavigate()
   const { data: lessonDetail, isError: lessonDetailError } = useLessonDetail(lessonId)
@@ -64,6 +77,22 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const { data: content, isLoading: contentLoading } = useLessonContent(lessonId, contentEnabled)
   const { data: statuses } = useTokenStatuses(lessonId, contentEnabled)
 
+  const [chatOpen, setChatOpen] = useState(false)
+  const chatListOpen = useChatLayoutStore((s) => s.sidebarOpen)
+  const setChatListOpen = useChatLayoutStore((s) => s.setSidebarOpen)
+  const [citationError, setCitationError] = useState<string | null>(null)
+  const pendingQuote = useChatStore((s) => s.preparations[s.activeId ?? 'new'])
+  const chatUser = useChatStore((s) => s.userId)
+  const sourceVersionRef = useRef(content?.source_version)
+  sourceVersionRef.current = content?.source_version
+  const preparingCitation =
+    !!pendingQuote &&
+    pendingQuote.lesson === lessonId &&
+    pendingQuote.source === content?.source_version
+  const [paragraphErrors, setParagraphErrors] = useState<Record<string, string>>({})
+  const activeDraft = useChatStore((state) => state.entries[state.activeId ?? 'new'])
+  const preparedSelections = useChatStore((state) => state.citationTexts)
+  const readerPage = useRef<HTMLDivElement>(null)
   const [selectedWord, setSelectedWord] = useState<SelectedItem | null>(null)
   // Вхождение, из которого открыта карточка: держит подсветку выделения,
   // пока карточка открыта; гаснет при закрытии или при выборе статуса
@@ -91,14 +120,12 @@ export function ReaderPage({ lang, lessonId }: Props) {
   const mode = useReaderStore((s) => s.mode)
   const pageIndex = useReaderStore((s) => s.pageIndex)
   const sentenceFlatIndex = useReaderStore((s) => s.sentenceFlatIndex)
-  const sidebarOpen = useReaderStore((s) => s.sidebarOpen)
   const vocabularyPanelPinned = useReaderStore((s) => s.vocabularyPanelPinned)
   const font = useReaderStore((s) => s.font)
   const lastBulkActionId = useReaderStore((s) => s.lastBulkActionId)
   const setMode = useReaderStore((s) => s.setMode)
   const setPageIndex = useReaderStore((s) => s.setPageIndex)
   const setSentenceFlatIndex = useReaderStore((s) => s.setSentenceFlatIndex)
-  const toggleSidebar = useReaderStore((s) => s.toggleSidebar)
   const setVocabularyPanelPinned = useReaderStore((s) => s.setVocabularyPanelPinned)
   const setLastBulkActionId = useReaderStore((s) => s.setLastBulkActionId)
 
@@ -178,6 +205,37 @@ export function ReaderPage({ lang, lessonId }: Props) {
     setSentenceFlatIndex,
     setLastBulkActionId,
   ])
+
+  const sourceTarget = useRef<string | null>(null)
+  useEffect(() => {
+    if (!content || !sourcePosition || initializedRef.current !== lessonId) return
+    const target = `${lessonId}:${sourcePosition.sourceVersion}:${sourcePosition.ordinal}:${sourcePosition.paragraphIndex ?? ''}:${sourcePosition.requestId ?? ''}`
+    if (sourceTarget.current === target || content.source_version !== sourcePosition.sourceVersion)
+      return
+    const paragraph =
+      sourcePosition.paragraphIndex != null
+        ? content.paragraphs[sourcePosition.paragraphIndex]
+        : undefined
+    const sentenceIndex = paragraph?.sentences[0]
+      ? flatSentences.findIndex((sentence) => sentence.seg_id === paragraph.sentences[0]!.seg_id)
+      : flatSentences.findIndex((sentence) =>
+          sentence.tokens.some((token) => 'i' in token && token.i === sourcePosition.ordinal),
+        )
+    if (sentenceIndex < 0) return
+    const page = pages.findIndex((page) =>
+      page.sentences.some(
+        (entry) => entry.sentence.seg_id === flatSentences[sentenceIndex]!.seg_id,
+      ),
+    )
+    videoControls.current?.pause()
+    setAutoPages(false)
+    setPageIndex(page >= 0 ? page : 0)
+    setSentenceFlatIndex(sentenceIndex)
+    setSelectionRange(
+      paragraph ? null : { from: sourcePosition.ordinal, to: sourcePosition.ordinal },
+    )
+    sourceTarget.current = target
+  }, [content, sourcePosition, lessonId, pages, flatSentences, setPageIndex, setSentenceFlatIndex])
 
   const statusMap = statuses ?? {}
   const currentPage = pages[pageIndex] ?? pages[0]
@@ -278,13 +336,14 @@ export function ReaderPage({ lang, lessonId }: Props) {
   }, [completedAt, currentOrdinalForProgress, maxWordOrdinal])
 
   const readyForInteraction = contentEnabled && !!content
-  const panelVisible = vocabularyPanelPinned || selectedWord !== null
+  const panelVisible = chatOpen || vocabularyPanelPinned || selectedWord !== null
 
   const contentLang = content?.language_code ?? lang
   const phrases = usePhrases(contentLang, readyForInteraction)
   const phraseIndex = useMemo(() => buildPhraseIndex(phrases.data ?? []), [phrases.data])
 
-  function handlePhraseSelect(range: { from: number; to: number }, sentence: Sentence) {
+  function handlePhraseSelect(range: DragRange, sentence: Sentence) {
+    setChatOpen(false)
     videoControls.current?.pause()
     const sel = buildSelection(sentence, range.from, range.to)
     if (!sel) return
@@ -293,12 +352,14 @@ export function ReaderPage({ lang, lessonId }: Props) {
       t: sel.displayText,
       n: sel.text,
       i: sel.firstOrdinal,
+      endOrdinal: range.to,
       sentenceText: sentence.text,
     })
     setSelectionRange(range)
   }
 
   function handlePhraseClick(match: PhraseMatch, sentence: Sentence) {
+    setChatOpen(false)
     videoControls.current?.pause()
     const slice = sentence.tokens.slice(match.startIdx, match.endIdx + 1)
     const display = slice
@@ -313,6 +374,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
       t: display,
       n: match.entry.words.join(' '),
       i: first?.i ?? null,
+      endOrdinal: last?.i ?? null,
       sentenceText: sentence.text,
     })
     setSelectionRange(first && last ? { from: first.i, to: last.i } : null)
@@ -350,14 +412,155 @@ export function ReaderPage({ lang, lessonId }: Props) {
 
   const handleWordClick = (w: { t: string; n: string; i: number }) => {
     videoControls.current?.pause()
+    setChatOpen(false)
     setSelectedWord({ kind: 'token', ...w, sentenceText: null })
     setSelectionRange({ from: w.i, to: w.i })
   }
 
   function handleVocabularySelect(item: LessonVocabularyItem) {
     videoControls.current?.pause()
+    setChatOpen(false)
     setSelectedWord(toSelectedVocabularyItem(item))
     setSelectionRange(null)
+  }
+
+  function openChat() {
+    videoControls.current?.pause()
+    setAutoPages(false)
+    setChatOpen(true)
+  }
+  function returnToReader() {
+    setChatOpen(false)
+    readerPage.current?.focus({ preventScroll: true })
+  }
+  async function addToChat(newConversation: boolean) {
+    if (
+      selectedWord?.i == null ||
+      (selectedWord.kind === 'phrase' && selectedWord.endOrdinal == null)
+    )
+      return
+    await attachSelection(
+      { from: selectedWord.i, to: selectedWord.endOrdinal ?? selectedWord.i },
+      newConversation,
+    )
+  }
+
+  function paragraphKey(index: number, cid = chatDrafts.active()) {
+    return JSON.stringify([chatUser, cid, lessonId, content?.source_version, 'paragraph', index])
+  }
+
+  function paragraphAction(index: number): ParagraphQuoteAction {
+    const key = paragraphKey(index)
+    const cached = preparedSelections[key]
+    const added = cached != null && containsQuote(activeDraft?.draft.text ?? '', cached)
+    return {
+      state:
+        preparingCitation && pendingQuote?.paragraphIndex === index
+          ? 'pending'
+          : added
+            ? 'added'
+            : 'ready',
+      disabled: !!pendingQuote,
+      error: paragraphErrors[key],
+    }
+  }
+
+  function addParagraphToChat(segmentId: string) {
+    const paragraphIndex =
+      content?.paragraphs.findIndex((p) => p.sentences.some((s) => s.seg_id === segmentId)) ?? -1
+    if (paragraphIndex < 0) return
+    void attachSelection(null, false, { segmentId, paragraphIndex })
+  }
+
+  async function attachSelection(
+    range: DragRange | null,
+    newConversation: boolean,
+    paragraph?: { segmentId: string; paragraphIndex: number },
+  ) {
+    if (!content || (!range && !paragraph)) return
+    const uid = useChatStore.getState().userId
+    if (!uid) return
+    const sourceVersion = content.source_version
+    const cid = newConversation ? null : chatDrafts.active()
+    if (newConversation) chatDrafts.select(null)
+    const selection:
+      | Parameters<typeof chatsApi.prepareParagraphCitation>[0]
+      | Parameters<typeof chatsApi.prepareCitation>[0] = paragraph
+      ? {
+          lesson_id: lessonId,
+          source_version: sourceVersion,
+          segment_id: paragraph.segmentId,
+        }
+      : {
+          lesson_id: lessonId,
+          source_version: sourceVersion,
+          from_ordinal: range!.from,
+          to_ordinal: range!.to,
+          context: 'paragraph' as const,
+        }
+    const selectionKey = paragraph
+      ? paragraphKey(paragraph.paragraphIndex, cid)
+      : JSON.stringify([uid, cid, selection])
+    setCitationError(null)
+    setParagraphErrors((errors) => {
+      const next = { ...errors }
+      delete next[selectionKey]
+      return next
+    })
+    const tokens = content.paragraphs.flatMap((paragraph) => [
+      ...paragraph.sentences.flatMap((sentence) => [...sentence.tokens, { ws: ' ' }]),
+      { ws: '\n\n' },
+    ])
+    const first = tokens.findIndex((token) => 'i' in token && token.i === range?.from)
+    const last = tokens.findIndex((token) => 'i' in token && token.i === range?.to)
+    const request = chatDrafts.beginCitation(cid, {
+      lesson: lessonId,
+      source: sourceVersion,
+      paragraphIndex: paragraph?.paragraphIndex,
+      text: paragraph
+        ? content.paragraphs[paragraph.paragraphIndex]!.sentences.map((s) => s.text).join(' ')
+        : tokens
+            .slice(first, last + 1)
+            .map((token) => ('t' in token ? token.t : 'p' in token ? token.p : token.ws))
+            .join(''),
+    })
+    if (!request) return
+    const current = () =>
+      useChatStore.getState().userId === uid &&
+      activeLesson.current === lessonId &&
+      sourceVersionRef.current === sourceVersion &&
+      chatDrafts.ownsCitation(cid, request)
+    const visible = () => current() && chatDrafts.active() === cid
+    openChat()
+    try {
+      await chatDrafts.load(cid)
+      if (!current()) return
+      let paragraphText = useChatStore.getState().citationTexts[selectionKey]
+      if (paragraphText == null) {
+        const citation =
+          'segment_id' in selection
+            ? await chatsApi.prepareParagraphCitation(selection)
+            : await chatsApi.prepareCitation(selection)
+        if (!current()) return
+        paragraphText = citation.context_text
+        chatDrafts.rememberCitation(selectionKey, paragraphText)
+      }
+      chatDrafts.completeCitation(cid, request, paragraphText)
+    } catch (error) {
+      if (current()) {
+        const message =
+          error instanceof ApiError && error.detail === 'inline_quote_too_large'
+            ? 'Цитата не помещается в сообщение. Сократите текст и попробуйте ещё раз.'
+            : error instanceof ApiError && error.detail === 'citation_too_large'
+              ? 'Абзац слишком большой для цитаты. Выберите более короткий абзац.'
+              : 'Не удалось приложить цитату. Попробуйте ещё раз.'
+        if (paragraph) setParagraphErrors((errors) => ({ ...errors, [selectionKey]: message }))
+        else if (visible()) setCitationError(message)
+        chatDrafts.cancelCitation(cid, request, error)
+      }
+    } finally {
+      chatDrafts.cancelCitation(cid, request)
+    }
   }
 
   function closeCard() {
@@ -371,6 +574,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
   }
 
   function toggleVocabularyPanel() {
+    setChatOpen(false)
     if (vocabularyPanelPinned) {
       hideVocabularyPanel()
       return
@@ -383,6 +587,10 @@ export function ReaderPage({ lang, lessonId }: Props) {
     // active drag; both fire on the same keypress, so without this bail-out
     // cancelling a drag would also navigate the user out of the reader.
     if (dragRange) return
+    if (chatOpen) {
+      returnToReader()
+      return
+    }
     if (selectedWord) {
       closeCard()
       return
@@ -611,7 +819,6 @@ export function ReaderPage({ lang, lessonId }: Props) {
     onToggleMode: toggleMode,
     onEscape: handleEscape,
     onUndo: lastBulkActionId ? handleUndo : undefined,
-    onToggleSidebar: mode === 'page' ? toggleSidebar : undefined,
   })
 
   const positionSegmentId =
@@ -774,23 +981,40 @@ export function ReaderPage({ lang, lessonId }: Props) {
 
   return (
     <div
+      ref={readerPage}
+      tabIndex={-1}
       data-testid="reader-page"
       onClick={handleReaderClick}
       className={cn(
-        'mx-auto min-h-[calc(100dvh-4rem)] max-w-screen-2xl px-6 pb-24',
+        'mx-auto min-h-[calc(100dvh-4rem)] max-w-screen-2xl px-6 pb-24 outline-none',
         panelVisible && 'lg:pr-[var(--reader-panel-reserve)]',
+        chatListOpen ? '2xl:pl-[284px]' : '2xl:pl-[72px]',
       )}
     >
       <ReaderTopBar
         lang={lang}
         progressPercent={progressPercent}
-        mode={mode}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={toggleSidebar}
         vocabularyPanelPinned={vocabularyPanelPinned}
         onToggleVocabularyPanel={toggleVocabularyPanel}
       />
 
+      {citationError && <p role="alert">{tr(citationError)}</p>}
+      {sourcePosition && content && content.source_version !== sourcePosition.sourceVersion && (
+        <p role="status">{tr('Позиция цитаты недоступна: материал изменился.')}</p>
+      )}
+      <aside
+        data-reader-panel
+        className={cn(
+          'fixed bottom-20 left-0 top-16 z-40 hidden border-r border-border/60 bg-background 2xl:block',
+          chatListOpen ? 'w-[260px]' : 'w-12',
+        )}
+      >
+        <ChatSidebar
+          collapsed={!chatListOpen}
+          onToggle={() => setChatListOpen(!chatListOpen)}
+          onSelect={openChat}
+        />
+      </aside>
       {content?.media && videoInterval && (
         <>
           <VideoPlayer
@@ -806,6 +1030,7 @@ export function ReaderPage({ lang, lessonId }: Props) {
                 : undefined
             }
             blocked={
+              chatOpen ||
               !!selectedWord ||
               !!dragRange ||
               confirmOpen ||
@@ -985,9 +1210,11 @@ export function ReaderPage({ lang, lessonId }: Props) {
         {!contentLoading && content && mode === 'page' && currentPage && (
           <div data-testid="page-view-slot">
             <PageView
+              onQuoteParagraph={addParagraphToChat}
+              paragraphAction={paragraphAction}
               activeSegment={activeSegment}
               followPlayback={videoPlaying}
-              playbackDisabled={busy || !!selectedWord || !!dragRange || confirmOpen}
+              playbackDisabled={chatOpen || busy || !!selectedWord || !!dragRange || confirmOpen}
               onSeek={
                 content.media
                   ? (sentence) =>
@@ -1007,6 +1234,12 @@ export function ReaderPage({ lang, lessonId }: Props) {
         {!contentLoading && content && mode === 'sentence' && currentSentence && (
           <div data-testid="sentence-view-slot">
             <SentenceView
+              onQuoteParagraph={addParagraphToChat}
+              paragraphAction={paragraphAction(
+                content.paragraphs.findIndex((p) =>
+                  p.sentences.some((s) => s.seg_id === currentSentence.seg_id),
+                ),
+              )}
               video={!!content.media}
               active={!!content.media && activeSegment === currentSentence.seg_id}
               lessonId={lessonId}
@@ -1034,7 +1267,10 @@ export function ReaderPage({ lang, lessonId }: Props) {
             }
             onClick={handlePrev}
             disabled={busy || (mode === 'sentence' ? !canPrevSentence : !canPrev)}
-            className="fixed left-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30"
+            className={cn(
+              'fixed left-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30',
+              chatListOpen ? '2xl:left-[268px]' : '2xl:left-14',
+            )}
           >
             ‹
           </button>
@@ -1083,8 +1319,33 @@ export function ReaderPage({ lang, lessonId }: Props) {
         selectedWord={selectedWord}
         onClearSelection={closeCard}
         onHide={hideVocabularyPanel}
+        chatOpen={chatOpen}
+        onChat={openChat}
+        onDictionary={() => {
+          setChatOpen(false)
+          if (!selectedWord) setVocabularyPanelPinned(true)
+        }}
+        chat={
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ChatWorkspace
+              lang={lang}
+              embedded
+              onReturn={returnToReader}
+              externalList={{
+                open: chatListOpen,
+                toggle: () => setChatListOpen(!chatListOpen),
+              }}
+            />
+          </div>
+        }
         card={
           <WordCard
+            onAddToChat={(fresh) => void addToChat(fresh)}
+            canAddToChat={
+              !pendingQuote &&
+              selectedWord?.i != null &&
+              (selectedWord.kind === 'token' || selectedWord.endOrdinal != null)
+            }
             word={selectedWord}
             lang={content?.language_code ?? lang}
             target={targetLanguage}

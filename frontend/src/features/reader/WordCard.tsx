@@ -25,6 +25,8 @@ interface Props {
   sentenceText: string | null
   embedded?: boolean
   closeLabel?: string
+  onAddToChat?: (newConversation: boolean) => void
+  canAddToChat?: boolean
 }
 
 export function WordCard({
@@ -38,6 +40,8 @@ export function WordCard({
   sentenceText,
   embedded = false,
   closeLabel,
+  onAddToChat,
+  canAddToChat,
 }: Props) {
   const tr = useTranslation()
   const expanded = useReaderStore((s) => s.wordCardExpanded)
@@ -211,6 +215,33 @@ export function WordCard({
       </button>
 
       <p className="text-2xl font-semibold">{word.t}</p>
+      {onAddToChat && (
+        <div className="mt-3 space-y-2 text-sm">
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={!canAddToChat}
+              className="text-primary underline disabled:opacity-50"
+              onClick={() => onAddToChat(false)}
+            >
+              {tr('Добавить в чат')}
+            </button>
+            <button
+              type="button"
+              disabled={!canAddToChat}
+              className="underline disabled:opacity-50"
+              onClick={() => onAddToChat(true)}
+            >
+              {tr('В новый разговор')}
+            </button>
+          </div>
+          {!canAddToChat && (
+            <p className="text-muted-foreground">
+              {tr('Выделите фрагмент в тексте, чтобы приложить точную цитату.')}
+            </p>
+          )}
+        </div>
+      )}
 
       {!isIgnored && (
         <>

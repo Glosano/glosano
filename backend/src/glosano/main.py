@@ -16,6 +16,7 @@ from loguru import logger
 from glosano import __version__
 from glosano.api.ai import router as ai_router
 from glosano.api.auth import router as auth_router
+from glosano.api.chats import router as chats_router
 from glosano.api.dictionary import router as dictionary_router
 from glosano.api.health import router as health_router
 from glosano.api.lessons import router as lessons_router
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(dictionary_router)
     app.include_router(vocabulary_router)
     app.include_router(ai_router)
+    app.include_router(chats_router)
 
     # Serve frontend static assets in production (see architecture §5.3).
     if settings.static_dir is not None and settings.static_dir.exists():

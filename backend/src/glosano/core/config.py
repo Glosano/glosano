@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     llm_timeout_seconds: int = 30
 
+    # Conservative character budgets, not exact tokenizer counts.
+    chat_context_char_budget: int = Field(default=24000, ge=4000, le=128000)
+    chat_answer_max_tokens: int = Field(default=1500, ge=128, le=8000)
+    chat_max_attachments: int = Field(default=4, ge=1, le=8)
+    chat_attachment_char_limit: int = Field(default=6000, ge=500, le=16000)
+
     # OCR service (optional external dependency, see architecture §5.1)
     ocr_enabled: bool = False
     ocr_base_url: str = ""

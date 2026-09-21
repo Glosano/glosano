@@ -64,6 +64,9 @@ async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fix
     from glosano.modules.ai_translation import (
         models as _ai_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
+    from glosano.modules.chat import (
+        models as _chat_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    )
     from glosano.modules.dictionary import (
         models as _dictionary_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
@@ -132,3 +135,14 @@ async def redis_client(_redis_container: RedisContainer) -> AsyncIterator[aiored
     yield client
     await client.flushdb()
     await client.aclose()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_chat_queue(monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
+    """InMemoryBroker runs inline; tests invoke workers explicitly with fake providers."""
+    from typing import Any
+
+    async def queued(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr("glosano.worker.tasks.chat_generation_task.kiq", queued)

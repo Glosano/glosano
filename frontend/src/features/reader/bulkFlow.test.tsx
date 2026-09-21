@@ -137,7 +137,6 @@ describe('bulk-known flow, undo, hotkeys', () => {
       mode: 'page',
       pageIndex: 0,
       sentenceFlatIndex: 0,
-      sidebarOpen: false,
       vocabularyPanelPinned: false,
       lastBulkActionId: null,
       font: { size: 1, lineHeight: 1, serif: false },

@@ -24,6 +24,41 @@ from glosano.core.db import Base
 
 # table -> ownership column, exported columns
 USER_TABLES: dict[str, tuple[str, str]] = {
+    "chat_conversations": (
+        "user_id",
+        "id user_id created_at title learning_language_code updated_at",
+    ),
+    "chat_drafts": (
+        "user_id",
+        "id user_id created_at conversation_id revision text citation_ids exercise_id "
+        "attempt_id answers",
+    ),
+    "chat_messages": (
+        "user_id",
+        "id user_id created_at conversation_id role text state ui_language exercise_id attempt_id",
+    ),
+    "chat_citations": (
+        "user_id",
+        "id user_id created_at conversation_id message_id lesson_id source_version title "
+        "language_code selected_text context_text from_ordinal to_ordinal start_offset "
+        "end_offset context_start_offset context_end_offset media_start_ms media_end_ms",
+    ),
+    "chat_exercises": (
+        "user_id",
+        "id user_id created_at conversation_id message_id kind prompt public_data grading_data",
+    ),
+    "chat_attempts": (
+        "user_id",
+        "id user_id created_at conversation_id exercise_id operation_id answer status "
+        "correct feedback",
+    ),
+    "chat_generations": (
+        "user_id",
+        "id user_id created_at conversation_id operation_id kind message_id attempt_id "
+        "request_message_id retry_of_id status partial_text heartbeat_at error_code "
+        "context_truncated exercise_kind "
+        "ui_language",
+    ),
     "lesson_segment_translations": (
         "user_id",
         "id user_id segment_id target_language_code translation_text source model created_at",

@@ -44,6 +44,14 @@ export function AppTopBar() {
           >
             {t('Словарь')}
           </Link>
+          <Link
+            to="/learn/$lang/chat"
+            params={{ lang }}
+            className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
+            activeProps={{ className: 'active' }}
+          >
+            {t('Чат')}
+          </Link>
         </nav>
         <div className="ml-auto flex items-center gap-1 md:gap-3">
           <StatisticsDropdown lang={lang} />

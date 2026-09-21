@@ -1,3 +1,4 @@
+import { ParagraphQuote, type ParagraphQuoteAction } from './ParagraphQuote'
 import { useTranslation, translate, type UiLanguage } from '@/lib/i18n'
 import { useState } from 'react'
 import { Play } from 'lucide-react'
@@ -19,6 +20,8 @@ interface SelectedWord {
 }
 
 interface Props {
+  onQuoteParagraph?: (segmentId: string) => void
+  paragraphAction?: ParagraphQuoteAction
   video?: boolean
   active?: boolean
   lessonId: string
@@ -57,6 +60,8 @@ function collectVocabWords(sentence: Sentence, statuses: StatusMap): WordToken[]
 
 export function SentenceView({
   video = false,
+  onQuoteParagraph,
+  paragraphAction,
   active = false,
   lessonId,
   sentence,
@@ -106,22 +111,27 @@ export function SentenceView({
         </div>
       )}
 
-      <div className="mt-10 px-4 sm:px-16">
-        <p
-          aria-current={active ? 'true' : undefined}
-          data-testid="learning-content"
-          dir={learningContentDirection(lang)}
-          className="text-xl leading-[1.8]"
+      <div className="mt-10 pl-8 pr-4 sm:px-16">
+        <ParagraphQuote
+          action={paragraphAction}
+          onQuote={onQuoteParagraph ? () => onQuoteParagraph(sentence.seg_id) : undefined}
         >
-          <SentenceTokens
-            sentence={sentence}
-            statuses={statuses}
-            phraseIndex={phraseIndex}
-            dragRange={dragRange}
-            onWordClick={onWordClick}
-            onPhraseClick={onPhraseClick}
-          />
-        </p>
+          <p
+            aria-current={active ? 'true' : undefined}
+            data-testid="learning-content"
+            dir={learningContentDirection(lang)}
+            className="text-xl leading-[1.8]"
+          >
+            <SentenceTokens
+              sentence={sentence}
+              statuses={statuses}
+              phraseIndex={phraseIndex}
+              dragRange={dragRange}
+              onWordClick={onWordClick}
+              onPhraseClick={onPhraseClick}
+            />
+          </p>
+        </ParagraphQuote>
 
         <div className="mt-4">
           <button

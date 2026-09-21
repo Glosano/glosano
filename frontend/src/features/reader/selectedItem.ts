@@ -6,6 +6,8 @@ export interface SelectedItem {
   n: string
   /** Ординал (первого) слова — для поиска предложения и позиционирования. */
   i: number | null
+  /** Inclusive last ordinal of a selection; never inferred from display text. */
+  endOrdinal?: number | null
   /** Explicit source segment for selections created outside the visible page. */
   segmentId?: string | null
   /** Для фразы контекст захватывается при выделении; для токена null

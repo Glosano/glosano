@@ -10,6 +10,7 @@ import { learnLibraryRoute } from './routes/learn.$lang.library'
 import { learnLessonRoute } from './routes/learn.$lang.lessons.$lessonId'
 import { learnLessonEditRoute } from './routes/learn.$lang.lessons.$lessonId.edit'
 import { learnVocabularyRoute } from './routes/learn.$lang.vocabulary'
+import { learnChatRoute } from './routes/learn.$lang.chat'
 import { learnReviewRoute } from './routes/learn.$lang.review'
 import {
   settingsRoute,
@@ -45,5 +46,6 @@ export const routeTree = rootRoute.addChildren([
     learnLessonEditRoute,
     learnVocabularyRoute,
     learnReviewRoute,
+    learnChatRoute,
   ]),
 ])

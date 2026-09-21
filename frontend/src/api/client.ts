@@ -17,6 +17,7 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly detail: string,
+    public readonly structuredDetail?: unknown,
   ) {
     super(detail)
     this.name = 'ApiError'
@@ -74,13 +75,24 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const text = await response.text()
     let detail = response.statusText
+    let structuredDetail: unknown
     try {
       const body = JSON.parse(text) as { detail?: unknown }
       if (typeof body.detail === 'string') detail = body.detail
+      else {
+        structuredDetail = body.detail
+        if (
+          body.detail &&
+          typeof body.detail === 'object' &&
+          'code' in body.detail &&
+          typeof body.detail.code === 'string'
+        )
+          detail = body.detail.code
+      }
     } catch {
       // body wasn't JSON; keep statusText
     }
-    throw new ApiError(response.status, detail)
+    throw new ApiError(response.status, detail, structuredDetail)
   }
 
   if (response.status === 204) return undefined as T

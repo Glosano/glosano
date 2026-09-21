@@ -9,6 +9,7 @@ if (typeof window !== 'undefined' && !window.PointerEvent) {
   window.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent
 }
 
+import { ChatWorkspace } from '@/features/chat/ChatWorkspace'
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
@@ -92,6 +93,8 @@ import { readerApi } from '@/api/reader'
 import { vocabularyApi } from '@/api/vocabulary'
 import { dictionaryApi } from '@/api/dictionary'
 import { aiApi } from '@/api/ai'
+import { chatsApi, type Citation } from '@/api/chats'
+import { chatDrafts } from '@/features/chat/chatStore'
 import { ApiError } from '@/api/client'
 
 import { useReaderStore } from './readerStore'
@@ -101,6 +104,7 @@ import { setUiLanguage } from '@/lib/i18n'
 afterEach(() => {
   vi.useRealTimers()
   setUiLanguage('ru')
+  chatDrafts.setUser(null)
 })
 
 const baseLesson: LessonDetail = {
@@ -157,10 +161,16 @@ const content: LessonContent = {
 function renderPage(
   lessonId = 'lesson-1',
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  sourcePosition?: {
+    sourceVersion: number
+    ordinal: number
+    paragraphIndex?: number
+    requestId?: string
+  },
 ) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <ReaderPage lang="en" lessonId={lessonId} />
+      <ReaderPage lang="en" lessonId={lessonId} sourcePosition={sourcePosition} />
     </QueryClientProvider>,
   )
 }
@@ -236,7 +246,6 @@ describe('ReaderPage', () => {
       mode: 'page',
       pageIndex: 0,
       sentenceFlatIndex: 0,
-      sidebarOpen: false,
       vocabularyPanelPinned: false,
       lastBulkActionId: null,
       font: { size: 1, lineHeight: 1, serif: false },
@@ -1382,5 +1391,692 @@ describe('ReaderPage', () => {
       },
       { timeout: 3000 },
     )
+  })
+
+  it('positions a current citation directly without promoting words to known', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.content).mockResolvedValue({
+      ...content,
+      word_count: 500,
+      paragraphs: [
+        {
+          sentences: [0, 1].map((n) => ({
+            ...content.paragraphs[0]!.sentences[0]!,
+            seg_id: `seg-${n}`,
+            tokens: Array.from({ length: 250 }, (_, i) => ({
+              t: `Word${n * 250 + i}`,
+              n: `word${n * 250 + i}`,
+              i: n * 250 + i,
+            })),
+          })),
+        },
+      ],
+    })
+    renderPage('lesson-1', undefined, { sourceVersion: 1, ordinal: 250 })
+    await screen.findByTestId('page-view-slot')
+    await waitFor(() => expect(useReaderStore.getState().pageIndex).toBe(1))
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+  it('refuses to apply source position from an older version', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.content).mockResolvedValue({ ...content, source_version: 2 })
+    renderPage('lesson-1', undefined, { sourceVersion: 1, ordinal: 250 })
+    await screen.findByText('Позиция цитаты недоступна: материал изменился.')
+    expect(useReaderStore.getState().pageIndex).toBe(0)
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+  it('opens chat from the left rail before any chat is open and returns to the same reading position', async () => {
+    videoLesson()
+    await startVideo()
+    const position = useReaderStore.getState().pageIndex
+    const conversations = screen.getByRole('navigation', { name: 'Разговоры' })
+    fireEvent.click(within(conversations).getByRole('button', { name: 'Новый разговор' }))
+    expect(video.state).toBe(2)
+    const panel = screen.getByRole('region', { name: 'AI-чат' })
+    expect(panel.closest('[data-reader-panel]')).not.toBeNull()
+    fireEvent.keyDown(panel, { key: 'ArrowRight' })
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Закрыть чат' }))
+    expect(useReaderStore.getState().pageIndex).toBe(position)
+    expect(screen.getByTestId('reader-page')).toHaveFocus()
+  })
+
+  it.each([false, true])(
+    'attaches an exact phrase to its original draft after a conversation switch (new=%s)',
+    async (fresh) => {
+      vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+      vi.mocked(readerApi.content).mockResolvedValue(content)
+      vi.mocked(readerApi.statuses).mockResolvedValue({})
+      vi.mocked(vocabularyApi.phrases).mockResolvedValue([
+        { item_id: 'phrase', phrase_text: 'hello world', status: 'tracked', confidence: 1 },
+      ])
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+        item_id: 'phrase',
+        status: 'tracked',
+        confidence: 1,
+        translations: { primary: null, all: [] },
+        note: null,
+        tags: [],
+      })
+      chatDrafts.setUser('reader-user')
+      chatDrafts.select('original')
+      vi.spyOn(chatsApi, 'draft').mockResolvedValue({
+        revision: 0,
+        text: 'Existing question',
+        citation_ids: [],
+        exercise_id: null,
+        attempt_id: null,
+        answers: {},
+      })
+      vi.spyOn(chatsApi, 'saveDraft').mockImplementation(async (_, d) => ({
+        ...d,
+        revision: d.revision + 1,
+      }))
+      let resolve!: (citation: Citation) => void
+      const prepare = vi.spyOn(chatsApi, 'prepareCitation').mockReturnValue(
+        new Promise<Citation>((r) => {
+          resolve = r
+        }),
+      )
+      const send = vi.spyOn(chatsApi, 'send')
+      renderPage()
+      fireEvent.click(await screen.findByTestId('phrase-span'))
+      fireEvent.click(
+        await screen.findByRole('button', { name: fresh ? 'В новый разговор' : 'Добавить в чат' }),
+      )
+      await waitFor(() =>
+        expect(prepare).toHaveBeenCalledWith({
+          lesson_id: 'lesson-1',
+          source_version: 1,
+          from_ordinal: 0,
+          to_ordinal: 1,
+          context: 'paragraph',
+        }),
+      )
+      act(() => chatDrafts.select('other'))
+      await act(async () =>
+        resolve({ id: 'prepared', context_text: 'Whole source paragraph' } as Citation),
+      )
+      expect(chatDrafts.get(fresh ? null : 'original').draft).toMatchObject({
+        text: 'Existing question\n\n```\nWhole source paragraph\n```\n\n',
+        citation_ids: [],
+      })
+      expect(chatDrafts.active()).toBe('other')
+      expect(send).not.toHaveBeenCalled()
+      expect(screen.getByRole('region', { name: 'AI-чат' })).toBeInTheDocument()
+    },
+  )
+
+  function chatSelectionSetup() {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    const paragraphs: LessonContent['paragraphs'] = [0, 1].map((paragraph) => ({
+      sentences: [
+        {
+          seg_id: `p${paragraph}`,
+          index: paragraph,
+          text: Array.from({ length: 6 }, (_, i) => `word${paragraph * 6 + i}`).join(' '),
+          normalized_text: '',
+          tokens: Array.from({ length: 6 }, (_, i) => ({
+            t: `word${paragraph * 6 + i}`,
+            n: `word${paragraph * 6 + i}`,
+            i: paragraph * 6 + i,
+          })),
+        },
+      ],
+    }))
+    for (const paragraph of paragraphs) {
+      for (const sentence of paragraph.sentences) {
+        sentence.tokens = sentence.tokens.flatMap((token, index) =>
+          index ? [{ ws: ' ' }, token] : [token],
+        )
+      }
+    }
+    vi.mocked(readerApi.content).mockResolvedValue({ ...content, paragraphs })
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    chatDrafts.setUser('reader-user')
+    vi.spyOn(chatsApi, 'list').mockResolvedValue({ items: [] })
+    vi.spyOn(chatsApi, 'capabilities').mockResolvedValue({
+      ai_enabled: true,
+      max_attachments: 4,
+      context_char_budget: 24000,
+      attachment_char_limit: 6000,
+      answer_max_tokens: 1500,
+      draft_text_char_limit: 16000,
+    })
+    vi.spyOn(chatsApi, 'draft').mockResolvedValue({
+      revision: 0,
+      text: '',
+      citation_ids: [],
+      exercise_id: null,
+      attempt_id: null,
+      answers: {},
+    })
+    vi.spyOn(chatsApi, 'saveDraft').mockImplementation(async (_, d) => ({
+      ...d,
+      revision: d.revision + 1,
+    }))
+    const citation = {
+      id: 'selected',
+      lesson_id: 'lesson-1',
+      source_version: 1,
+      paragraph_index: 0,
+      title: 'Lesson',
+      selected_text: 'word0 … word11',
+      context_text: 'Full paragraphs',
+      source_current: true,
+      source_available: true,
+    } as Citation
+    vi.spyOn(chatsApi, 'citation').mockResolvedValue(citation)
+    const prepare = vi.spyOn(chatsApi, 'prepareParagraphCitation').mockResolvedValue(citation)
+    const send = vi.spyOn(chatsApi, 'send')
+    return { citation, prepare, send }
+  }
+
+  function dragBetween(start: number, end: number) {
+    const from = screen.getByRole('button', { name: `word${start}` })
+    const to = screen.getByRole('button', { name: `word${end}` })
+    fireEvent(
+      from,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
+    )
+    fireEvent(
+      to,
+      new PointerEvent('pointerover', {
+        bubbles: true,
+        pointerType: 'mouse',
+        button: 0,
+        buttons: 1,
+      }),
+    )
+    fireEvent(
+      to,
+      new PointerEvent('pointerup', { bubbles: true, pointerType: 'mouse', button: 0, buttons: 0 }),
+    )
+  }
+
+  it('adds multiple whole paragraphs in order without sending or losing the question and restores added state', async () => {
+    const { citation, prepare, send } = chatSelectionSetup()
+    const second = {
+      ...citation,
+      id: 'second',
+      paragraph_index: 1,
+      selected_text: 'Entire second paragraph',
+      context_text: 'Entire second paragraph',
+    }
+    prepare.mockResolvedValueOnce(citation).mockResolvedValueOnce(second)
+    vi.mocked(chatsApi.citation).mockImplementation(async (id) =>
+      id === 'second' ? second : citation,
+    )
+    const view = renderPage()
+    await screen.findByRole('button', { name: 'word11' })
+    const actions = screen.getAllByRole('button', { name: 'Добавить абзац в чат' })
+    expect(actions).toHaveLength(2)
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'word0' }))
+    expect(screen.queryByRole('region', { name: 'AI-чат' })).not.toBeInTheDocument()
+    fireEvent.click(actions[0]!)
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+        '```\nFull paragraphs\n```\n\n',
+      ),
+    )
+    expect(prepare).toHaveBeenNthCalledWith(1, {
+      lesson_id: 'lesson-1',
+      source_version: 1,
+      segment_id: 'p0',
+    })
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Сообщение' }), {
+      target: { value: '```\nFull paragraphs\n```\n\nExplain these paragraphs' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить абзац в чат' }))
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+        '```\nFull paragraphs\n```\n\nExplain these paragraphs\n\n```\nEntire second paragraph\n```\n\n',
+      ),
+    )
+    expect(prepare).toHaveBeenNthCalledWith(2, {
+      lesson_id: 'lesson-1',
+      source_version: 1,
+      segment_id: 'p1',
+    })
+    expect(chatDrafts.get(null).draft.citation_ids).toEqual([])
+    expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+      '```\nFull paragraphs\n```\n\nExplain these paragraphs\n\n```\nEntire second paragraph\n```\n\n',
+    )
+    expect(screen.getAllByRole('button', { name: 'Абзац добавлен в чат' })).toHaveLength(2)
+    expect(send).not.toHaveBeenCalled()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+    expect(vocabularyApi.createItem).not.toHaveBeenCalled()
+    await act(async () => {
+      await chatDrafts.flush(null)
+    })
+    view.unmount()
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Абзац добавлен в чат' })).toHaveLength(2),
+    )
+    expect(prepare).toHaveBeenCalledTimes(2)
+    await act(async () => {
+      chatDrafts.edit(null, {
+        text: '```\nEntire second paragraph\n```\n\nExplain these paragraphs',
+      })
+      await chatDrafts.flush(null)
+    })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Добавить абзац в чат' })).toBeEnabled(),
+    )
+  })
+
+  it('restores bounded dictionary drag without opening or attaching chat', async () => {
+    const { prepare } = chatSelectionSetup()
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null,
+      status: 'new',
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    })
+    vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+    renderPage()
+    await screen.findByRole('button', { name: 'word11' })
+    dragBetween(0, 11)
+    await screen.findByTestId('word-card')
+    expect(screen.queryByRole('region', { name: 'AI-чат' })).not.toBeInTheDocument()
+    expect(prepare).not.toHaveBeenCalled()
+    expect(vocabularyApi.lookup).toHaveBeenCalledWith(
+      'en',
+      'word0 word1 word2 word3 word4 word5',
+      'ru',
+      'phrase',
+    )
+  })
+
+  it('uses one sentence gutter action to quote the whole parent paragraph', async () => {
+    const { citation, prepare } = chatSelectionSetup()
+    vi.mocked(readerApi.content).mockResolvedValue(content)
+    prepare.mockResolvedValue({
+      ...citation,
+      selected_text: 'Hello world. Goodbye now.',
+      context_text: 'Hello world. Goodbye now.',
+    })
+    renderPage()
+    await screen.findByRole('button', { name: 'Hello' })
+    act(() => useReaderStore.setState({ mode: 'sentence', sentenceFlatIndex: 1 }))
+    await screen.findByTestId('sentence-view-slot')
+    const actions = screen.getAllByRole('button', { name: 'Добавить абзац в чат' })
+    expect(actions).toHaveLength(1)
+    fireEvent.click(actions[0]!)
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+        '```\nHello world. Goodbye now.\n```\n\n',
+      ),
+    )
+    expect(prepare).toHaveBeenCalledWith({
+      lesson_id: 'lesson-1',
+      source_version: 1,
+      segment_id: 'seg-2',
+    })
+  })
+
+  it('quotes the full source paragraph from a later page containing only its final sentence', async () => {
+    const { citation, prepare } = chatSelectionSetup()
+    vi.mocked(readerApi.content).mockResolvedValue({
+      ...content,
+      paragraphs: [
+        {
+          sentences: [
+            {
+              ...content.paragraphs[0]!.sentences[0]!,
+              seg_id: 'long-start',
+              tokens: Array.from({ length: 250 }, (_, i) => ({ t: `long${i}`, n: `long${i}`, i })),
+            },
+            {
+              ...content.paragraphs[0]!.sentences[1]!,
+              seg_id: 'long-end',
+              tokens: [{ t: 'Tail', n: 'tail', i: 251 }],
+            },
+          ],
+        },
+      ],
+    })
+    const whole = {
+      ...citation,
+      selected_text: 'Whole long source paragraph including the hidden first page',
+      context_text: 'Whole long source paragraph including the hidden first page',
+    }
+    prepare.mockResolvedValue(whole)
+    vi.mocked(chatsApi.citation).mockResolvedValue(whole)
+    renderPage()
+    await screen.findByRole('button', { name: 'long0' })
+    act(() => useReaderStore.setState({ pageIndex: 1 }))
+    await screen.findByRole('button', { name: 'Tail' })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить абзац в чат' }))
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+        '```\nWhole long source paragraph including the hidden first page\n```\n\n',
+      ),
+    )
+    expect(prepare).toHaveBeenCalledWith({
+      lesson_id: 'lesson-1',
+      source_version: 1,
+      segment_id: 'long-end',
+    })
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it.each(['same chat', 'away and back'])(
+    'keeps the owning paragraph draft locked during delayed preparation after selecting %s',
+    async (navigation) => {
+      const { citation, prepare, send } = chatSelectionSetup()
+      chatDrafts.select('original')
+      vi.spyOn(chatsApi, 'detail').mockImplementation(async (id) => ({
+        id,
+        title: id,
+        learning_language_code: 'en',
+        created_at: '',
+        updated_at: '',
+        ai_enabled: true,
+        attempts: [],
+        generations: [],
+        messages: [],
+      }))
+      send.mockResolvedValue({
+        conversation_id: 'original',
+        generation: { id: 'generation' } as never,
+      })
+      let finish!: (value: Citation) => void
+      prepare.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+      )
+      renderPage()
+      await screen.findByRole('button', { name: 'word11' })
+      fireEvent.click(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })[0]!)
+      await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1))
+      const otherPlus = screen.getByRole('button', { name: 'Добавить абзац в чат' })
+      expect(otherPlus).toBeDisabled()
+      fireEvent.click(otherPlus)
+      expect(prepare).toHaveBeenCalledTimes(1)
+      fireEvent.change(screen.getByRole('textbox', { name: 'Сообщение' }), {
+        target: { value: 'Question for this quote' },
+      })
+      expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+      if (navigation === 'away and back') {
+        await act(async () => {
+          await chatDrafts.load('other')
+          chatDrafts.edit('other', { text: 'An unrelated question' })
+          chatDrafts.select('other')
+        })
+        await waitFor(() =>
+          expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+            'An unrelated question',
+          ),
+        )
+        expect(screen.getByRole('button', { name: 'Отправить' })).toBeEnabled()
+        expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      }
+      act(() => chatDrafts.select('original'))
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+          'Question for this quote',
+        ),
+      )
+      const button = screen.getByRole('button', { name: 'Отправить' })
+      expect(button).toBeDisabled()
+      expect(screen.getByRole('status')).toHaveTextContent('Загрузка…')
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'Сообщение' }), { key: 'Enter' })
+      expect(send).not.toHaveBeenCalled()
+      await act(async () => finish(citation))
+      await waitFor(() => expect(button).toBeEnabled())
+      expect(chatDrafts.get('original').draft.text).toBe(
+        'Question for this quote\n\n```\nFull paragraphs\n```\n\n',
+      )
+      expect(chatDrafts.get('original').draft.citation_ids).toEqual([])
+      expect(chatDrafts.get('other').draft.citation_ids).toEqual([])
+      fireEvent.click(button)
+      await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+      expect(chatsApi.saveDraft).toHaveBeenCalledWith(
+        'original',
+        expect.objectContaining({
+          text: 'Question for this quote\n\n```\nFull paragraphs\n```\n\n',
+          citation_ids: [],
+        }),
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+    },
+  )
+
+  it('fences a late paragraph response after a user switch', async () => {
+    const { citation, prepare } = chatSelectionSetup()
+    let finish!: (value: Citation) => void
+    prepare.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    renderPage()
+    await screen.findByRole('button', { name: 'word11' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })[0]!)
+    await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1))
+    act(() => chatDrafts.setUser('other-user'))
+    await act(async () => finish(citation))
+    expect(chatDrafts.get(null).draft.citation_ids).toEqual([])
+  })
+
+  it('opens a punctuation-only paragraph source on its actual page without bulk-known', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.content).mockResolvedValue({
+      ...content,
+      paragraphs: [
+        {
+          sentences: [
+            {
+              ...content.paragraphs[0]!.sentences[0]!,
+              tokens: Array.from({ length: 250 }, (_, i) => ({ t: `long${i}`, n: `long${i}`, i })),
+            },
+          ],
+        },
+        {
+          sentences: [
+            { seg_id: 'punct', index: 1, text: '!!!', normalized_text: '', tokens: [{ p: '!!!' }] },
+          ],
+        },
+        {
+          sentences: [
+            { ...content.paragraphs[0]!.sentences[1]!, tokens: [{ t: 'Tail', n: 'tail', i: 252 }] },
+          ],
+        },
+      ],
+    })
+    renderPage('lesson-1', undefined, { sourceVersion: 1, ordinal: 251, paragraphIndex: 1 })
+    await screen.findByText('!!!')
+    expect(screen.queryByRole('button', { name: 'long0' })).not.toBeInTheDocument()
+    expect(useReaderStore.getState().pageIndex).toBe(1)
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it('repositions a repeated citation link without applying bulk-known', async () => {
+    vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
+    vi.mocked(readerApi.statuses).mockResolvedValue({})
+    vi.mocked(readerApi.content).mockResolvedValue({
+      ...content,
+      word_count: 500,
+      paragraphs: [
+        {
+          sentences: [0, 1].map((n) => ({
+            ...content.paragraphs[0]!.sentences[0]!,
+            seg_id: `seg-${n}`,
+            tokens: Array.from({ length: 250 }, (_, i) => ({
+              t: `Word${n * 250 + i}`,
+              n: `word${n * 250 + i}`,
+              i: n * 250 + i,
+            })),
+          })),
+        },
+      ],
+    })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = renderPage('lesson-1', client, {
+      sourceVersion: 1,
+      ordinal: 250,
+      requestId: 'first',
+    })
+    await waitFor(() => expect(useReaderStore.getState().pageIndex).toBe(1))
+    act(() => useReaderStore.getState().setPageIndex(0))
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <ReaderPage
+          lang="en"
+          lessonId="lesson-1"
+          sourcePosition={{ sourceVersion: 1, ordinal: 250, requestId: 'second' }}
+        />
+      </QueryClientProvider>,
+    )
+    await waitFor(() => expect(useReaderStore.getState().pageIndex).toBe(1))
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+  it('keeps pending paragraph ownership after navigation to standalone chat', async () => {
+    const { citation, prepare, send } = chatSelectionSetup()
+    let finish!: (value: Citation) => void
+    prepare.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    const view = renderPage()
+    await screen.findByRole('button', { name: 'word11' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })[0]!)
+    await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Сообщение' }), {
+      target: { value: 'Explain the pending paragraph' },
+    })
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+    view.unmount()
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <ChatWorkspace lang="en" />
+      </QueryClientProvider>,
+    )
+    await screen.findByText('Лимит контекста: 24000 символов.')
+    expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
+      'Explain the pending paragraph',
+    )
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Сообщение' }), { key: 'Enter' })
+    expect(send).not.toHaveBeenCalled()
+    await act(async () => finish(citation))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Отправить' })).toBeEnabled())
+    expect(chatDrafts.get(null).draft.text).toBe(
+      'Explain the pending paragraph\n\n```\nFull paragraphs\n```\n\n',
+    )
+    expect(chatDrafts.get(null).draft.citation_ids).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(chatsApi.saveDraft).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        text: 'Explain the pending paragraph\n\n```\nFull paragraphs\n```\n\n',
+        citation_ids: [],
+      }),
+    )
+  })
+  it.each(['cancel', 'failure'] as const)(
+    'releases standalone preparation on %s without attaching a late quote',
+    async (outcome) => {
+      const { citation, prepare, send } = chatSelectionSetup()
+      let finish!: (value: Citation) => void
+      let fail!: (error: Error) => void
+      prepare.mockReturnValueOnce(
+        new Promise((resolve, reject) => {
+          finish = resolve
+          fail = reject
+        }),
+      )
+      const view = renderPage()
+      await screen.findByRole('button', { name: 'word11' })
+      fireEvent.click(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })[0]!)
+      await waitFor(() => expect(prepare).toHaveBeenCalledTimes(1))
+      fireEvent.change(screen.getByRole('textbox', { name: 'Сообщение' }), {
+        target: { value: 'My question' },
+      })
+      view.unmount()
+      render(
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <ChatWorkspace lang="en" />
+        </QueryClientProvider>,
+      )
+      await screen.findByText('Лимит контекста: 24000 символов.')
+      expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
+      expect(screen.getByRole('status')).toHaveTextContent('Загрузка…')
+      if (outcome === 'cancel')
+        fireEvent.click(screen.getByRole('button', { name: 'Отменить добавление цитаты' }))
+      else await act(async () => fail(new Error('Unavailable')))
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Отправить' })).toBeEnabled())
+      expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue('My question')
+      if (outcome === 'cancel') {
+        fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+        await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+        await act(async () => finish(citation))
+      } else expect(screen.getByRole('alert')).toBeInTheDocument()
+      expect(chatDrafts.get(chatDrafts.active()).draft.citation_ids).toEqual([])
+    },
+  )
+  it('sends only the user-edited inline quote and re-enables its original paragraph action', async () => {
+    const { prepare, send } = chatSelectionSetup()
+    send.mockResolvedValue({ conversation_id: 'sent', generation: { id: 'generation' } as never })
+    renderPage()
+    await screen.findByRole('button', { name: 'word11' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })[0]!)
+    const input = await screen.findByRole('textbox', { name: 'Сообщение' })
+    await waitFor(() => expect(input).toHaveValue('```\nFull paragraphs\n```\n\n'))
+    expect(input).toHaveFocus()
+    expect((input as HTMLTextAreaElement).selectionStart).toBe(
+      (input as HTMLTextAreaElement).value.length,
+    )
+    expect(screen.queryByRole('region', { name: 'Цитата' })).not.toBeInTheDocument()
+    const edited = '```\nMy edited paragraph\n```\n\nExplain my edit?'
+    fireEvent.change(input, { target: { value: edited } })
+    expect(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить' }))
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    expect(chatsApi.saveDraft).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ text: edited, citation_ids: [] }),
+    )
+    expect(prepare).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects an oversized insertion without losing the question or retaining hidden attachments', async () => {
+    chatSelectionSetup()
+    renderPage()
+    await screen.findByRole('button', { name: 'word11' })
+    fireEvent.click(screen.getByRole('button', { name: 'Показать словарь урока' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Чат' }))
+    const input = await screen.findByRole('textbox', { name: 'Сообщение' })
+    await waitFor(() => expect(input).toBeEnabled())
+    fireEvent.change(input, { target: { value: 'Q'.repeat(15990) } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Добавить абзац в чат' })[0]!)
+    await screen.findAllByText(
+      'Цитата не помещается в сообщение. Сократите текст и попробуйте ещё раз.',
+    )
+    expect(input).toHaveValue('Q'.repeat(15990))
+    expect(chatDrafts.get(null).draft.citation_ids).toEqual([])
+    expect(screen.getByRole('button', { name: 'Отправить' })).toBeEnabled()
   })
 })

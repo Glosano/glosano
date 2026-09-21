@@ -45,6 +45,7 @@ def init_engine(settings: Settings) -> AsyncEngine:
             settings.database_url,
             echo=settings.is_dev and settings.log_level == "DEBUG",
             pool_pre_ping=True,
+            hide_parameters=True,
         )
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False, class_=AsyncSession)
     return _engine

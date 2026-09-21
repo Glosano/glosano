@@ -1,3 +1,4 @@
+import { ParagraphQuote, type ParagraphQuoteAction } from './ParagraphQuote'
 import { Fragment, useEffect, useRef } from 'react'
 import { Play } from 'lucide-react'
 
@@ -13,6 +14,8 @@ import { useTranslation } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 interface Props {
+  onQuoteParagraph?: (segmentId: string) => void
+  paragraphAction?: (paragraphIndex: number) => ParagraphQuoteAction
   activeSegment?: string | null
   followPlayback?: boolean
   onSeek?: (sentence: Sentence) => void
@@ -28,6 +31,8 @@ interface Props {
 
 export function PageView({
   page,
+  onQuoteParagraph,
+  paragraphAction,
   statuses,
   phraseIndex,
   dragRange,
@@ -87,49 +92,60 @@ export function PageView({
   }
 
   return (
-    <div ref={root} className="mx-auto max-w-[720px]">
+    <div ref={root} className="mx-auto max-w-[720px] pl-8">
       <div data-testid="learning-content" dir={learningContentDirection(languageCode)}>
         {paragraphOrder.map((paragraphIndex) => (
-          <p key={paragraphIndex} className="mb-4">
-            {paragraphs.get(paragraphIndex)!.map((entry, sentenceIdx) => (
-              <Fragment key={entry.sentence.seg_id}>
-                {sentenceIdx > 0 && ' '}
-                <span
-                  data-segment-id={entry.sentence.seg_id}
-                  aria-current={activeSegment === entry.sentence.seg_id ? 'true' : undefined}
-                  className={cn(
-                    onSeek && 'block rounded-sm py-1',
-                    activeSegment === entry.sentence.seg_id &&
-                      'outline outline-2 outline-primary/70 outline-offset-4',
-                  )}
-                >
-                  {onSeek && entry.sentence.media_start_ms != null && (
-                    <button
-                      type="button"
-                      disabled={playbackDisabled}
-                      onClick={() => onSeek(entry.sentence)}
-                      aria-label={t('Воспроизвести с {{time}}', {
-                        time: mediaTime(entry.sentence.media_start_ms),
-                      })}
-                      className="me-2 inline-flex min-h-7 items-center gap-1 rounded-s-sm rounded-e-md bg-primary px-2 py-1 align-middle text-xs leading-none font-semibold text-white tabular-nums shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
-                      dir="ltr"
+          <div key={paragraphIndex} className="mb-4">
+            <ParagraphQuote
+              action={paragraphAction?.(paragraphIndex)}
+              onQuote={
+                onQuoteParagraph
+                  ? () => onQuoteParagraph(paragraphs.get(paragraphIndex)![0]!.sentence.seg_id)
+                  : undefined
+              }
+            >
+              <p>
+                {paragraphs.get(paragraphIndex)!.map((entry, sentenceIdx) => (
+                  <Fragment key={entry.sentence.seg_id}>
+                    {sentenceIdx > 0 && ' '}
+                    <span
+                      data-segment-id={entry.sentence.seg_id}
+                      aria-current={activeSegment === entry.sentence.seg_id ? 'true' : undefined}
+                      className={cn(
+                        onSeek && 'block rounded-sm py-1',
+                        activeSegment === entry.sentence.seg_id &&
+                          'outline outline-2 outline-primary/70 outline-offset-4',
+                      )}
                     >
-                      <Play className="size-3 fill-current" aria-hidden />
-                      {mediaTime(entry.sentence.media_start_ms)}
-                    </button>
-                  )}
-                  <SentenceTokens
-                    sentence={entry.sentence}
-                    statuses={statuses}
-                    phraseIndex={phraseIndex}
-                    dragRange={dragRange}
-                    onWordClick={onWordClick}
-                    onPhraseClick={onPhraseClick}
-                  />
-                </span>
-              </Fragment>
-            ))}
-          </p>
+                      {onSeek && entry.sentence.media_start_ms != null && (
+                        <button
+                          type="button"
+                          disabled={playbackDisabled}
+                          onClick={() => onSeek(entry.sentence)}
+                          aria-label={t('Воспроизвести с {{time}}', {
+                            time: mediaTime(entry.sentence.media_start_ms),
+                          })}
+                          className="me-2 inline-flex min-h-7 items-center gap-1 rounded-s-sm rounded-e-md bg-primary px-2 py-1 align-middle text-xs leading-none font-semibold text-white tabular-nums shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+                          dir="ltr"
+                        >
+                          <Play className="size-3 fill-current" aria-hidden />
+                          {mediaTime(entry.sentence.media_start_ms)}
+                        </button>
+                      )}
+                      <SentenceTokens
+                        sentence={entry.sentence}
+                        statuses={statuses}
+                        phraseIndex={phraseIndex}
+                        dragRange={dragRange}
+                        onWordClick={onWordClick}
+                        onPhraseClick={onPhraseClick}
+                      />
+                    </span>
+                  </Fragment>
+                ))}
+              </p>
+            </ParagraphQuote>
+          </div>
         ))}
       </div>
     </div>

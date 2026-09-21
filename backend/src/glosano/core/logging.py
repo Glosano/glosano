@@ -35,7 +35,7 @@ def configure_logging(settings: Settings) -> None:
             ),
             colorize=True,
             backtrace=True,
-            diagnose=True,
+            diagnose=False,
         )
     else:
         logger.add(
