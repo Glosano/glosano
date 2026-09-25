@@ -100,3 +100,9 @@ describe('VocabularyTable', () => {
     expect(screen.getByText(`«${truncated}…»`)).toBeInTheDocument()
   })
 })
+
+
+it("keeps AI provenance visible on saved tags", () => {
+  setup([{ ...enriched, ai_tags: ["verbs"] }])
+  expect(screen.getByText("AI")).toBeInTheDocument()
+})

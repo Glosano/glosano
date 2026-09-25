@@ -5,6 +5,7 @@ import { X, ChevronDown, ChevronUp } from 'lucide-react'
 
 import { useWordLookup, useWordCardMutations } from './useWordCard'
 import { TranslationFields } from './TranslationFields'
+import { WordTags, type WordTagsHandle } from './WordTags'
 import { useReaderStore } from './readerStore'
 import { dictionaryApi } from '@/api/dictionary'
 import { aiApi } from '@/api/ai'
@@ -105,7 +106,7 @@ export function WordCard({
 
   const [saveError, setSaveError] = useState(false)
 
-  const [tagDraft, setTagDraft] = useState('')
+  const tagsRef = useRef<WordTagsHandle>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const noteSavedRef = useRef<string>('')
   useEffect(() => {
@@ -151,14 +152,15 @@ export function WordCard({
   if (!word) return null
 
   async function ensureItem(nextStatus: 'tracked' | 'known' | 'ignored', conf: number | null) {
+    const tags = tagsRef.current
     const res = await m.setStatus.mutateAsync({ itemId, status: nextStatus, confidence: conf })
-    onStatusApplied?.()
+    if (!itemId) void tags?.saveForItem(res.item_id)
     return res.item_id
   }
 
   function applyStatus(nextStatus: 'tracked' | 'known' | 'ignored', conf: number | null) {
-    void m.setStatus.mutate({ itemId, status: nextStatus, confidence: conf })
     onStatusApplied?.()
+    void ensureItem(nextStatus, conf).catch(() => setSaveError(true))
   }
 
   async function withItem(fn: (id: string) => Promise<unknown>): Promise<void> {
@@ -215,6 +217,20 @@ export function WordCard({
       </button>
 
       <p className="text-2xl font-semibold">{word.t}</p>
+      {data && (
+        <WordTags
+          key={`${kind}:${lang}:${text}:${aiContext}`}
+          ref={tagsRef}
+          data={data}
+          kind={kind}
+          text={word.t}
+          lang={lang}
+          context={aiContext}
+          lessonId={lessonId}
+          ensureItem={() => ensureItem('tracked', 1)}
+        />
+      )}
+
       {onAddToChat && (
         <div className="mt-3 space-y-2 text-sm">
           <div className="flex flex-wrap gap-3">
@@ -268,10 +284,14 @@ export function WordCard({
           <div data-testid="word-card-suggestions" className="mt-4">
             {dict.data?.availability === 'not_installed' && (
               <p className="mb-2 text-sm text-muted-foreground">
-                {tr('Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.')}
+                {tr(
+                  'Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.',
+                )}
               </p>
             )}
-            {visibleSuggestions.length > 0 && <p className="text-sm font-medium">{tr('Подсказки')}</p>}
+            {visibleSuggestions.length > 0 && (
+              <p className="text-sm font-medium">{tr('Подсказки')}</p>
+            )}
             <ul className="mt-1 space-y-1">
               {visibleSuggestions.map((sug, idx) => (
                 <li
@@ -290,7 +310,10 @@ export function WordCard({
                     aria-label={
                       sug.source === 'ai'
                         ? tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
-                        : tr('Добавить перевод из {{value0}}: {{value1}}', { value0: sug.sourceLabel, value1: sug.text })
+                        : tr('Добавить перевод из {{value0}}: {{value1}}', {
+                            value0: sug.sourceLabel,
+                            value1: sug.text,
+                          })
                     }
                     onClick={() =>
                       void withItem((id) =>
@@ -356,35 +379,6 @@ export function WordCard({
       {expanded && !isIgnored && (
         <div data-testid="word-card-expanded" className="mt-4 space-y-4">
           <div>
-            <p className="text-sm font-medium">{tr('Теги')}</p>
-            <div className="mt-1 flex flex-wrap gap-2">
-              {(data?.tags ?? []).map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => itemId && m.removeTag.mutate({ itemId, tag })}
-                  className="rounded-full border border-border px-2 py-0.5 text-xs hover:bg-accent"
-                >
-                  {tag} ✕
-                </button>
-              ))}
-              <input
-                className="min-w-24 flex-1 rounded-md border border-border px-2 py-0.5 text-xs"
-                placeholder={tr('Тег+')}
-                value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === 'Enter' && tagDraft.trim()) {
-                    await withItem((id) =>
-                      m.addTag.mutateAsync({ itemId: id, tag: tagDraft.trim() }),
-                    )
-                    setTagDraft('')
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <div>
             <p className="text-sm font-medium">{tr('Заметки')}</p>
             <textarea
               className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
@@ -393,7 +387,9 @@ export function WordCard({
               onChange={(e) => setNoteDraft(e.target.value)}
               onBlur={() => void saveNote()}
             />
-            {saveError && <p className="mt-1 text-sm text-destructive">{tr('Не удалось сохранить')}</p>}
+            {saveError && (
+              <p className="mt-1 text-sm text-destructive">{tr('Не удалось сохранить')}</p>
+            )}
           </div>
         </div>
       )}

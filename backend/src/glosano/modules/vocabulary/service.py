@@ -71,6 +71,7 @@ class LookupResult:
     primary: PersonalTranslation | None
     note: str | None
     tags: list[str] = field(default_factory=list)
+    ai_tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -83,6 +84,7 @@ class VocabListItem:
     primary_translation_text: str | None
     primary_translation_target: str | None
     tags: list[str] = field(default_factory=list)
+    ai_tags: list[str] = field(default_factory=list)
     pos: str | None = None
     context: str | None = None
     created_at: datetime | None = None
@@ -492,6 +494,18 @@ async def lookup(
         )
     ).scalar_one_or_none()
     tags = await _list_tags(session, user_id=user_id, kind=kind, item_id=item.id)
+    ai_tags = list(
+        await session.scalars(
+            select(ItemTag.tag_name)
+            .where(
+                ItemTag.owner_user_id == user_id,
+                ItemTag.item_kind == kind,
+                ItemTag.item_id == item.id,
+                ItemTag.source_type == "ai",
+            )
+            .order_by(ItemTag.tag_name)
+        )
+    )
     return LookupResult(
         item_id=item.id,
         status=item.status,
@@ -500,6 +514,7 @@ async def lookup(
         primary=primary,
         note=note_row.note_text if note_row else None,
         tags=tags,
+        ai_tags=ai_tags,
     )
 
 
@@ -664,21 +679,47 @@ async def add_tag(
     kind: str,
     item_id: uuid.UUID,
     tag_name: str,
+    source_type: str = "user",
+) -> list[str]:
+    return await add_tags(
+        session,
+        user_id=user_id,
+        kind=kind,
+        item_id=item_id,
+        tags=[tag_name],
+        source_type=source_type,
+    )
+
+
+async def add_tags(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    kind: str,
+    item_id: uuid.UUID,
+    tags: list[str],
+    source_type: str = "user",
 ) -> list[str]:
     _check_kind(kind)
     item = await _owned_item(session, user_id=user_id, kind=kind, item_id=item_id)
     _promote_to_user(item)
-    await session.execute(
-        pg_insert(ItemTag)
-        .values(
+    for tag_name in dict.fromkeys(tags):
+        stmt = pg_insert(ItemTag).values(
             id=uuid.uuid4(),
             owner_user_id=user_id,
             item_kind=kind,
             item_id=item_id,
             tag_name=tag_name,
+            source_type=source_type,
         )
-        .on_conflict_do_nothing(constraint="uq_item_tags")
-    )
+        # Explicit manual input wins; AI can only add missing names.
+        if source_type == "user":
+            stmt = stmt.on_conflict_do_update(
+                constraint="uq_item_tags", set_={"source_type": "user"}
+            )
+        else:
+            stmt = stmt.on_conflict_do_nothing(constraint="uq_item_tags")
+        await session.execute(stmt)
     await session.commit()
     return await _list_tags(session, user_id=user_id, kind=kind, item_id=item_id)
 
@@ -829,6 +870,7 @@ async def list_items(
 
     primary_map: dict[tuple[str, uuid.UUID], PersonalTranslation] = {}
     tags_map: dict[tuple[str, uuid.UUID], list[str]] = {}
+    ai_tags_map: dict[tuple[str, uuid.UUID], list[str]] = {}
     for row_kind, ids in ids_by_kind.items():
         for t in (
             await session.execute(
@@ -842,9 +884,9 @@ async def list_items(
             )
         ).scalars():
             primary_map[(row_kind, t.item_id)] = t
-        for item_id, tag_name in (
+        for item_id, tag_name, source_type in (
             await session.execute(
-                select(ItemTag.item_id, ItemTag.tag_name)
+                select(ItemTag.item_id, ItemTag.tag_name, ItemTag.source_type)
                 .where(
                     ItemTag.owner_user_id == user_id,
                     ItemTag.item_kind == row_kind,
@@ -854,6 +896,8 @@ async def list_items(
             )
         ).all():
             tags_map.setdefault((row_kind, item_id), []).append(tag_name)
+            if source_type == "ai":
+                ai_tags_map.setdefault((row_kind, item_id), []).append(tag_name)
 
     texts = [r.text for r in rows if r.kind == "token"]
 
@@ -921,6 +965,7 @@ async def list_items(
                 primary_translation_text=primary.translation_text if primary else None,
                 primary_translation_target=(primary.target_language_code if primary else None),
                 tags=tags_map.get((r.kind, r.id), []),
+                ai_tags=ai_tags_map.get((r.kind, r.id), []),
                 pos=pos_map.get(r.text) if is_token else None,
                 context=context_map.get(r.text) if is_token else None,
                 created_at=r.created_at,

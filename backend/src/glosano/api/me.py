@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glosano.core.config import get_settings
 from glosano.core.db import get_session
 from glosano.modules.identity import service
 from glosano.modules.identity.export import export_user_data
@@ -37,6 +38,7 @@ async def get_me(
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     return MeResponse(
+        ai_enabled=get_settings().llm_enabled,
         id=user.id,
         email=user.email,
         role=user.role,

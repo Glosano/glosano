@@ -17,7 +17,7 @@ vi.mock('@/api/vocabulary', () => ({
   },
 }))
 vi.mock('@/api/dictionary', () => ({ dictionaryApi: { lookup: vi.fn() } }))
-vi.mock('@/api/ai', () => ({ aiApi: { translate: vi.fn() } }))
+vi.mock('@/api/ai', () => ({ aiApi: { translate: vi.fn(), wordTags: vi.fn().mockResolvedValue({ tags: [], model: '', latency_ms: 0 }) } }))
 
 import { vocabularyApi } from '@/api/vocabulary'
 import { dictionaryApi } from '@/api/dictionary'
@@ -643,10 +643,10 @@ describe('WordCard core', () => {
     })
     const { unmount } = renderCard()
     fireEvent.click(await screen.findByRole('button', { name: 'Развернуть' }))
-    await screen.findByText('Теги')
+    await screen.findByText('Заметки')
     unmount()
     renderCard()
-    expect(await screen.findByText('Теги')).toBeInTheDocument()
+    expect(await screen.findByText('Заметки')).toBeInTheDocument()
     // restore the default for other tests
     fireEvent.click(screen.getByRole('button', { name: 'Свернуть' }))
   })

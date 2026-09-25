@@ -189,7 +189,9 @@ class ItemTag(Base):
     item_kind: Mapped[str] = mapped_column(String(16))
     item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     tag_name: Mapped[str] = mapped_column(String(64))
+    source_type: Mapped[str] = mapped_column(String(16), server_default="user", default="user")
 
     __table_args__ = (
         UniqueConstraint("owner_user_id", "item_kind", "item_id", "tag_name", name="uq_item_tags"),
+        CheckConstraint("source_type IN ('user', 'ai')", name="ck_item_tags_source_type"),
     )

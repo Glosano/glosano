@@ -83,3 +83,9 @@ describe('VocabularyCardList', () => {
     expect(onToggleSelected).toHaveBeenCalledWith('i1')
   })
 })
+
+
+it("keeps AI provenance visible on saved tags", () => {
+  setup([{ ...enriched, ai_tags: ["verbs"] }])
+  expect(screen.getByText("AI")).toBeInTheDocument()
+})

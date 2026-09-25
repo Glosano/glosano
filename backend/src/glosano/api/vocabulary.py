@@ -15,6 +15,7 @@ from glosano.modules.vocabulary import service
 from glosano.modules.vocabulary.models import PersonalTranslation
 from glosano.modules.vocabulary.schemas import (
     AddTagRequest,
+    AddTagsRequest,
     AddTranslationRequest,
     BulkActionRequest,
     BulkActionResponse,
@@ -87,6 +88,7 @@ async def lookup(
         ),
         note=res.note,
         tags=res.tags,
+        ai_tags=res.ai_tags,
     )
 
 
@@ -270,6 +272,30 @@ async def add_tag(
             kind=kind,
             item_id=item_id,
             tag_name=body.tag_name,
+            source_type=body.source_type,
+        )
+    except service.ItemNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from None
+    return TagsResponse(tags=tags)
+
+
+@router.post("/items/{kind}/{item_id}/tags/batch", response_model=TagsResponse)
+async def add_tags(
+    request: Request,
+    kind: Kind,
+    item_id: uuid.UUID,
+    body: AddTagsRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TagsResponse:
+    user_id = _require_user(request)
+    try:
+        tags = await service.add_tags(
+            session,
+            user_id=user_id,
+            kind=kind,
+            item_id=item_id,
+            tags=body.tags,
+            source_type=body.source_type,
         )
     except service.ItemNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None
@@ -378,6 +404,7 @@ async def list_vocabulary(
                     else None
                 ),
                 tags=i.tags,
+                ai_tags=i.ai_tags,
                 pos=i.pos,
                 context=i.context,
                 created_at=cast(datetime, i.created_at),

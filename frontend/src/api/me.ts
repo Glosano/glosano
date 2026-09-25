@@ -4,6 +4,7 @@ import type { LearningLanguageCode } from '@/lib/languages'
 export type UserRole = 'learner' | 'admin'
 
 export interface MeResponse {
+  ai_enabled?: boolean
   id: string
   email: string
   role: UserRole

@@ -73,6 +73,7 @@ class AddLearningLanguageRequest(BaseModel):
 
 
 class MeResponse(BaseModel):
+    ai_enabled: bool = True
     id: uuid.UUID
     email: str
     role: Literal["learner", "admin"]

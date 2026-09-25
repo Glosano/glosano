@@ -299,3 +299,67 @@ async def translate_sentence(
         latency_ms,
     )
     return SentenceTranslationResult(text=text, model=settings.llm_model, latency_ms=latency_ms)
+
+
+@dataclass(frozen=True)
+class WordTagsResult:
+    tags: list[str]
+    model: str
+    latency_ms: int
+
+
+async def suggest_word_tags(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    surface_text: str,
+    context_text: str,
+    language_code: str,
+    ui_language: str,
+    lesson_id: uuid.UUID | None = None,
+    provider: LLMProvider | None = None,
+) -> WordTagsResult:
+    from pydantic import ValidationError
+
+    from glosano.modules.ai_translation.grammar import build_grammar_prompt, parse_grammar_tags
+
+    settings = get_settings()
+    if not settings.llm_enabled:
+        raise AIDisabled
+    provider = provider or _default_provider()
+    system, user = build_grammar_prompt(
+        surface_text=surface_text, context_text=context_text, language_code=language_code
+    )
+    started = time.monotonic()
+    completion = None
+    error_code = None
+    try:
+        completion = await provider.complete(system=system, user=user, max_tokens=250)
+        tags = parse_grammar_tags(completion.text, ui_language=ui_language)
+    except ProviderUnavailable:
+        error_code = "provider_unavailable"
+        raise
+    except ProviderRejected:
+        error_code = "provider_rejected"
+        raise
+    except ValidationError:
+        error_code = "invalid_grammar"
+        raise AIEmptyResponse from None
+    finally:
+        await write_audit(
+            session,
+            request_id=uuid.uuid4(),
+            user_id=user_id,
+            lesson_id=lesson_id,
+            settings=settings,
+            prompt_hash=_sha256(system + "\n" + user),
+            selected_text_hash=_sha256(normalize_ai_text(surface_text)),
+            started=started,
+            success=error_code is None,
+            error_code=error_code,
+            input_tokens=completion.input_tokens if completion else None,
+            output_tokens=completion.output_tokens if completion else None,
+        )
+    return WordTagsResult(
+        tags=tags, model=settings.llm_model, latency_ms=int((time.monotonic() - started) * 1000)
+    )

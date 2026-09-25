@@ -57,11 +57,11 @@ async def test_chat_migration_graphs_roundtrip(tmp_path: Path, feature_only: boo
                 (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalars()
             )
             if feature_only:
-                assert revisions == ["0022_chat_citation_offsets"]
+                assert revisions == ["0023_item_tag_source"]
             elif (migration_dir / "versions/0021_local_chat_numeric_merge.py").exists():
                 assert revisions == ["0021_local_chat_numeric_merge"]
             else:
-                assert "0022_chat_citation_offsets" in revisions
+                assert "0023_item_tag_source" in revisions
         migrate("downgrade", "0019_youtube_materials")
         async with engine.connect() as conn:
             tables = await conn.run_sync(lambda c: inspect(c).get_table_names())

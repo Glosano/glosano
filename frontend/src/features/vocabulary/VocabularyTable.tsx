@@ -11,12 +11,15 @@ interface Props {
   onToggleSelected: (id: string) => void
   onSelectPage: (ids: string[]) => void
   onClearSelection: () => void
-  onPick: (itemId: string, status: 'tracked' | 'known' | 'ignored', confidence: number | null) => void
+  onPick: (
+    itemId: string,
+    status: 'tracked' | 'known' | 'ignored',
+    confidence: number | null,
+  ) => void
   onOpenTerm: (item: VocabListItem) => void
 }
 
-const GRID_COLS =
-  'grid-cols-[40px_minmax(240px,1fr)_minmax(200px,0.8fr)_minmax(240px,1fr)_260px]'
+const GRID_COLS = 'grid-cols-[40px_minmax(240px,1fr)_minmax(200px,0.8fr)_minmax(240px,1fr)_260px]'
 
 function truncateContext(context: string): string {
   return context.length > CONTEXT_MAX ? `${context.slice(0, CONTEXT_MAX)}…` : context
@@ -91,29 +94,39 @@ export function VocabularyTable({
                       className="h-5 rounded px-1.5 text-[11px] leading-5 bg-[var(--vocab-chip-gram-bg)]"
                     >
                       {tag}
+                      {item.ai_tags?.includes(tag) && (
+                        <span
+                          className="ml-1 text-[10px] text-muted-foreground"
+                          aria-label={tr('Создано AI')}
+                        >
+                          AI
+                        </span>
+                      )}
                     </span>
                   ))}
                 </div>
               )}
             </div>
             <div>
-              {item.primary_translation !== null
-                ? (
-                  <span className="flex items-center gap-1.5 text-[var(--vocab-translation-fg)]">
-                    <span aria-hidden="true">{learningLanguageFlag(item.primary_translation.target_language_code)}</span>
-                    <span>{item.primary_translation.text}</span>
+              {item.primary_translation !== null ? (
+                <span className="flex items-center gap-1.5 text-[var(--vocab-translation-fg)]">
+                  <span aria-hidden="true">
+                    {learningLanguageFlag(item.primary_translation.target_language_code)}
                   </span>
-                  )
-                : <span className="text-[var(--vocab-muted-fg)]">—</span>}
+                  <span>{item.primary_translation.text}</span>
+                </span>
+              ) : (
+                <span className="text-[var(--vocab-muted-fg)]">—</span>
+              )}
             </div>
             <div>
-              {item.context !== null
-                ? (
-                  <span className="line-clamp-2 text-[13px] italic text-[var(--vocab-muted-fg)]">
-                    «{truncateContext(item.context)}»
-                  </span>
-                  )
-                : <span className="text-[var(--vocab-muted-fg)]">—</span>}
+              {item.context !== null ? (
+                <span className="line-clamp-2 text-[13px] italic text-[var(--vocab-muted-fg)]">
+                  «{truncateContext(item.context)}»
+                </span>
+              ) : (
+                <span className="text-[var(--vocab-muted-fg)]">—</span>
+              )}
             </div>
             <div>
               <ConfidencePicker

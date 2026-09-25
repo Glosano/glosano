@@ -10,7 +10,11 @@ interface Props {
   onToggleSelected: (id: string) => void
   onSelectPage: (ids: string[]) => void
   onClearSelection: () => void
-  onPick: (itemId: string, status: 'tracked' | 'known' | 'ignored', confidence: number | null) => void
+  onPick: (
+    itemId: string,
+    status: 'tracked' | 'known' | 'ignored',
+    confidence: number | null,
+  ) => void
   onOpenTerm: (item: VocabListItem) => void
 }
 
@@ -51,9 +55,11 @@ export function VocabularyCardList({
               {item.text}
             </button>
             <span className="text-right text-sm text-[var(--vocab-translation-fg)]">
-              {item.primary_translation !== null
-                ? item.primary_translation.text
-                : <span className="text-[var(--vocab-muted-fg)]">—</span>}
+              {item.primary_translation !== null ? (
+                item.primary_translation.text
+              ) : (
+                <span className="text-[var(--vocab-muted-fg)]">—</span>
+              )}
             </span>
           </div>
           {(item.pos !== null || item.tags.length > 0) && (
@@ -69,6 +75,14 @@ export function VocabularyCardList({
                   className="h-5 rounded px-1.5 text-[11px] leading-5 bg-[var(--vocab-chip-gram-bg)]"
                 >
                   {tag}
+                  {item.ai_tags?.includes(tag) && (
+                    <span
+                      className="ml-1 text-[10px] text-muted-foreground"
+                      aria-label={tr('Создано AI')}
+                    >
+                      AI
+                    </span>
+                  )}
                 </span>
               ))}
             </div>

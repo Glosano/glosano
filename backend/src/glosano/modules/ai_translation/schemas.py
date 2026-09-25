@@ -24,3 +24,16 @@ class TranslateResponse(BaseModel):
     hints: list[HintOut]
     model: str
     latency_ms: int
+
+
+class WordTagsRequest(BaseModel):
+    surface_text: str = Field(min_length=1, max_length=256)
+    context_text: str = Field(min_length=1, max_length=1000)
+    language_code: LearningLanguageCode
+    lesson_id: uuid.UUID | None = None
+
+
+class WordTagsResponse(BaseModel):
+    tags: list[str]
+    model: str
+    latency_ms: int

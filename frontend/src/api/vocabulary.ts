@@ -20,6 +20,7 @@ export interface WordLookup {
   translations: { primary: TranslationOut | null; all: TranslationOut[] }
   note: string | null
   tags: string[]
+  ai_tags?: string[]
 }
 
 export interface PhraseListEntry {
@@ -43,6 +44,7 @@ export interface VocabListItem {
   confidence: number | null
   primary_translation: { text: string; target_language_code: string } | null
   tags: string[]
+  ai_tags?: string[]
   pos: string | null
   context: string | null
   created_at: string
@@ -119,6 +121,10 @@ export const vocabularyApi = {
   addTag: (kind: ItemKind, id: string, tag_name: string) =>
     api<{ tags: string[] }>(`/api/vocabulary/items/${kind}/${id}/tags`, {
       method: 'POST', body: JSON.stringify({ tag_name }),
+    }),
+  addTags: (kind: ItemKind, id: string, tags: string[], source_type: 'user' | 'ai') =>
+    api<{ tags: string[] }>(`/api/vocabulary/items/${kind}/${id}/tags/batch`, {
+      method: 'POST', body: JSON.stringify({ tags, source_type }),
     }),
   removeTag: (kind: ItemKind, id: string, tag: string) =>
     api<{ tags: string[] }>(`/api/vocabulary/items/${kind}/${id}/tags/${encodeURIComponent(tag)}`, {

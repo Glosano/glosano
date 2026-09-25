@@ -11,7 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from glosano.core.db import get_session
 from glosano.modules.ai_translation import service
 from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
-from glosano.modules.ai_translation.schemas import HintOut, TranslateRequest, TranslateResponse
+from glosano.modules.ai_translation.schemas import (
+    HintOut,
+    TranslateRequest,
+    TranslateResponse,
+    WordTagsRequest,
+    WordTagsResponse,
+)
 from glosano.modules.identity.service import translation_target
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -51,3 +57,29 @@ async def translate(
         model=result.model,
         latency_ms=result.latency_ms,
     )
+
+
+@router.post("/word-tags", response_model=WordTagsResponse)
+async def word_tags(
+    request: Request,
+    body: WordTagsRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> WordTagsResponse:
+    user_id = _require_user(request)
+    try:
+        result = await service.suggest_word_tags(
+            session,
+            user_id=user_id,
+            surface_text=body.surface_text,
+            context_text=body.context_text,
+            language_code=body.language_code,
+            ui_language=await translation_target(session, user_id),
+            lesson_id=body.lesson_id,
+        )
+    except service.AIDisabled:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="ai_disabled") from None
+    except (ProviderUnavailable, ProviderRejected):
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="ai_provider_error") from None
+    except service.AIEmptyResponse:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="ai_invalid_grammar") from None
+    return WordTagsResponse(tags=result.tags, model=result.model, latency_ms=result.latency_ms)

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from glosano.core.languages import LearningLanguageCode
 
@@ -34,6 +34,7 @@ class LookupResponse(BaseModel):
     translations: TranslationsBlock
     note: str | None
     tags: list[str]
+    ai_tags: list[str] = Field(default_factory=list)
 
 
 class CreateItemRequest(BaseModel):
@@ -93,8 +94,17 @@ class NoteResponse(BaseModel):
     note: str
 
 
+TagName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+
+
 class AddTagRequest(BaseModel):
-    tag_name: str = Field(min_length=1, max_length=64)
+    tag_name: TagName
+    source_type: Literal["user", "ai"] = "user"
+
+
+class AddTagsRequest(BaseModel):
+    tags: list[TagName] = Field(min_length=1, max_length=20)
+    source_type: Literal["user", "ai"] = "user"
 
 
 class TagsResponse(BaseModel):
@@ -125,6 +135,7 @@ class VocabListItemOut(BaseModel):
     confidence: int | None
     primary_translation: PrimaryTranslationOut | None
     tags: list[str]
+    ai_tags: list[str] = Field(default_factory=list)
     pos: str | None
     context: str | None
     created_at: datetime
