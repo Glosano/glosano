@@ -3,6 +3,14 @@
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 services:
+  postgres:
+    # Expose Postgres on host 5433 for locally-run tooling (`glosano serve`,
+    # alembic, psql). 5432 is left free to avoid clashing with other local
+    # Postgres instances. Point host tools at it via GLOSANO_DATABASE_URL /
+    # backend/.env (see backend/.env for the connection string).
+    ports:
+      - "5433:5432"
+
   app-api:
     build:
       target: dev
@@ -21,15 +29,23 @@ services:
       GLOSANO_LOG_LEVEL: DEBUG
     volumes:
       - ./backend:/app/backend
-    command: ["uv", "run", "taskiq", "worker", "glosano.worker.broker:broker", "--reload"]
+    command: ["uv", "run", "glosano", "worker"]
 
   frontend-dev:
     image: node:22-alpine
     working_dir: /app
     volumes:
       - ./frontend:/app
+      - type: volume
+        source: frontend_node_modules
+        target: /app/node_modules
+        volume:
+          nocopy: true
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: http://app-api:8000
     ports:
       - "5173:5173"
     command: ["sh", "-c", "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"]
+
+volumes:
+  frontend_node_modules:

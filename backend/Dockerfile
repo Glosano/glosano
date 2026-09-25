@@ -32,18 +32,19 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app/backend
 
-# Install dependencies only (leverage Docker layer caching)
-COPY backend/pyproject.toml backend/uv.lock* ./
+# Install dependencies only (leverage Docker layer caching).
+COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev 2>/dev/null || \
-    uv sync --no-install-project --no-dev
+    uv sync --frozen --no-install-project --no-dev
 
 # Copy source and install project
 COPY backend/src ./src
 COPY backend/migrations ./migrations
 COPY backend/alembic.ini ./
+COPY backend/README.md ./
+COPY LICENSE /app/LICENSE
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-dev
+    uv sync --frozen --no-dev
 
 # ──────────────────────────────────────────────────────────
 # 2. Frontend build
@@ -54,8 +55,8 @@ WORKDIR /app/frontend
 
 RUN corepack enable
 
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY frontend/ ./
 RUN pnpm build
@@ -77,6 +78,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app/LICENSE /app/LICENSE
 
 WORKDIR /app/backend
 
@@ -106,6 +108,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=builder --chown=glosano:glosano /opt/venv /opt/venv
 COPY --from=builder --chown=glosano:glosano /app/backend /app/backend
+COPY --from=builder --chown=glosano:glosano /app/LICENSE /app/LICENSE
 COPY --from=frontend-build --chown=glosano:glosano /app/frontend/dist /app/frontend/dist
 
 USER glosano
