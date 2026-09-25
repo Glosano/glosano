@@ -30,7 +30,14 @@ class PunctToken(BaseModel):
     p: str
 
 
-Token = WordToken | WhitespaceToken | PunctToken
+class NumberToken(PunctToken):
+    """Displayed as plain text; identity retained solely for phrase matching."""
+
+    n: str
+    i: int
+
+
+Token = WordToken | WhitespaceToken | NumberToken | PunctToken
 
 
 class LessonMedia(BaseModel):

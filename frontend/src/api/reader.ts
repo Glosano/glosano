@@ -13,7 +13,11 @@ export interface WhitespaceToken {
 export interface PunctToken {
   p: string
 }
-export type Token = WordToken | WhitespaceToken | PunctToken
+export interface NumberToken extends PunctToken {
+  n: string
+  i: number
+}
+export type Token = WordToken | WhitespaceToken | NumberToken | PunctToken
 export const isWord = (tok: Token): tok is WordToken => 't' in tok
 
 export interface Sentence {

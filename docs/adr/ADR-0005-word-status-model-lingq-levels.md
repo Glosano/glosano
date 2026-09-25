@@ -1,6 +1,6 @@
 # ADR-0005 — Word status model: LingQ-style with confidence levels
 
-- Статус: Accepted
+- Статус: Accepted; Superseded by ADR-0017 в части чисел без букв (они исключены из учебных слов автоматически).
 - Дата: 2026-04-11
 - Амендмент: 2026-07-12 — bulk-known распространён на sentence mode («next sentence» = «next page» для текущего предложения); уточнена семантика `confidence 0` (floor SRS, при создании не используется — новые items стартуют с `1`)
 - Амендмент: 2026-07-20 — FLQ-20: самооценка 0..5 заменяет бинарный ответ ревью; правило confidence: q≤2 → −1, q=3 → 0, q≥4 → +1; graduation: q≥4 при confidence 5. Источник правил — docs/superpowers/specs/2026-07-20-word-trainer-design.md §3.

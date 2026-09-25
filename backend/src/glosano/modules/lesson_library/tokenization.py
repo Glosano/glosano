@@ -28,8 +28,8 @@ class Token:
 
 
 def is_word_like(surface: str) -> bool:
-    """True if the token contains at least one word character."""
-    return bool(_WORD_CHAR_RE.search(unicodedata.normalize("NFC", surface)))
+    """Learning words require a Unicode letter; numbers remain display tokens."""
+    return any(char.isalpha() for char in unicodedata.normalize("NFC", surface))
 
 
 def _word_char(char: str) -> bool:
@@ -162,18 +162,17 @@ def tokenize(
 
 
 def normalize_phrase(surface: str, *, language_code: str | None = None) -> str:
-    """Phrase join key (ADR-0001): normalized word tokens joined by single spaces.
+    """Phrase join key: normalized lexical tokens joined by single spaces.
 
     Uses the same tokenizer as lesson import, so the result always matches the
-    `normalized_text` sequence of lesson tokens. Punctuation tokens are dropped,
-    as are word-like tokens whose normalized form is empty (e.g. "_", which is
-    word-like but normalizes to "") — otherwise they would inject bogus empty
-    "words" into the join key.
+    `normalized_text` sequence of lesson tokens. Punctuation tokens are dropped.
+    Numbers remain part of phrase identity even though they are not standalone
+    learning words (ADR-0017). Empty normalized forms, such as "_", are dropped.
     """
     return " ".join(
         t.normalized_text
         for t in tokenize(surface, language_code=language_code)
-        if t.is_word_like and t.normalized_text
+        if t.normalized_text and _WORD_CHAR_RE.search(t.surface_text)
     )
 
 

@@ -9,6 +9,19 @@ const ws: Token = { ws: ' ' }
 const w = (t: string, i: number, n = t.toLowerCase()): Token => ({ t, n, i })
 const p = (s: string): Token => ({ p: s })
 
+const numericTokens = [w('in', 0), ws, { p: '2020', n: '2020', i: 1 }, ws, w('alone', 2)]
+
+it('keeps numbers in phrase identity without treating them as learning words', () => {
+  const matches = matchPhrases(numericTokens, buildPhraseIndex([
+    entry('wrong', 'in alone'), entry('year', 'in 2020 alone'), entry('other', 'in 2021 alone'),
+  ]))
+  expect(matches.map((match) => match.entry.itemId)).toEqual(['year'])
+  expect(buildSelection({
+    seg_id: 'numbers', index: 0, text: 'in 2020 alone',
+    normalized_text: 'in 2020 alone', tokens: numericTokens,
+  }, 0, 2)).toEqual({ text: 'in 2020 alone', displayText: 'in 2020 alone', firstOrdinal: 0 })
+})
+
 const entry = (
   id: string,
   phrase_text: string,

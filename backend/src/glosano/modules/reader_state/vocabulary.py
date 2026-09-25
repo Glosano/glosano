@@ -18,6 +18,7 @@ from glosano.modules.reader_state.schemas import (
     LessonVocabularyContext,
     LessonVocabularyItem,
     LessonVocabularyResponse,
+    NumberToken,
     SentenceOut,
     WordToken,
 )
@@ -33,7 +34,12 @@ def _sentences(content: LessonContentResponse) -> Iterator[SentenceOut]:
 
 
 def _words(sentence: SentenceOut) -> list[WordToken]:
-    return [token for token in sentence.tokens if isinstance(token, WordToken)]
+    # Numeric components belong to phrase identity, not the standalone word list.
+    return [
+        token if isinstance(token, WordToken) else WordToken(t=token.p, n=token.n, i=token.i)
+        for token in sentence.tokens
+        if isinstance(token, (WordToken, NumberToken))
+    ]
 
 
 def _matches_at(words: list[WordToken], start: int, phrase_words: tuple[str, ...]) -> bool:

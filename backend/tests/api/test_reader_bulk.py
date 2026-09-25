@@ -13,7 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from glosano.core.db import session_scope
 from glosano.main import create_app
 from glosano.modules.identity.repo import UserRepo
+from glosano.modules.lesson_library.models import Lesson
+from glosano.modules.reader_state.content import build_lesson_content
 from glosano.modules.reader_state.models import BulkAction
+from glosano.modules.reader_state.vocabulary import find_phrase_context
+from glosano.modules.statistics.models import DailyUserStats
 from glosano.modules.vocabulary.models import TokenItem
 from tests.api._reader_helpers import register_and_onboard as _register_and_onboard
 from tests.api._reader_helpers import seed_ready_lesson as _seed_ready_lesson
@@ -22,6 +26,48 @@ from tests.api._reader_helpers import seed_ready_lesson as _seed_ready_lesson
 # Distinct word-like texts (casefolded by the tokenizer): o, edifício, antigo, fica, na,
 # praça, eu, gosto, dele, segundo, parágrafo, aqui — 12 distinct new words.
 TEXT = "O edifício antigo fica na praça. Eu gosto dele.\n\nSegundo parágrafo aqui."
+
+
+async def test_numeric_tokens_are_visible_but_not_learned_or_counted(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with AsyncClient(transport=ASGITransport(app=create_app()), base_url="http://test") as c:
+        email = "bulk-numbers@example.com"
+        csrf = await _register_and_onboard(c, email, lang="en")
+        lesson_id = await _seed_ready_lesson(
+            c,
+            csrf,
+            monkeypatch,
+            text="It's 2020. You're the most senior person on your team",
+            language_code="en",
+        )
+        content = (await c.get(f"/api/lessons/{lesson_id}/content")).json()
+        assert content["word_count"] == 9
+        tokens = content["paragraphs"][0]["sentences"][0]["tokens"]
+        assert any(t.get("p") == "2020" for t in tokens)
+        assert not any(t.get("t") == "2020" for t in tokens)
+        lesson = await db_session.get(Lesson, lesson_id)
+        assert lesson is not None and lesson.word_count == 9
+        model = await build_lesson_content(db_session, lesson)
+        assert find_phrase_context(model, "it's 2020") is not None
+        assert find_phrase_context(model, "it's 2021") is None
+        r = await c.post(
+            "/api/reader/bulk-known",
+            json={"lesson_id": str(lesson_id), "from_ordinal": 0, "to_ordinal": 1000},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert r.status_code == 200
+        assert r.json()["created_count"] == 9
+        statuses = (await c.get(f"/api/lessons/{lesson_id}/token-statuses")).json()["statuses"]
+        assert len(statuses) == 9 and "2020" not in statuses
+        user = await UserRepo(db_session).get_by_email(email)
+        assert user is not None
+        assert (
+            await db_session.scalar(
+                select(DailyUserStats.tokens_read).where(DailyUserStats.user_id == user.id)
+            )
+            == 9
+        )
 
 
 @pytest.fixture(autouse=True)

@@ -1,6 +1,9 @@
+# ruff: noqa: RUF001 -- Unicode numeric forms are intentional regression fixtures.
 """Unit tests for tokenization primitives (AC#2). No DB."""
 
 from __future__ import annotations
+
+import pytest
 
 from glosano.modules.lesson_library.tokenization import (
     Token,
@@ -36,9 +39,35 @@ def test_normalize_punctuation_only_is_empty() -> None:
 def test_is_word_like() -> None:
     assert is_word_like("mundo") is True
     assert is_word_like("co-op") is True
-    assert is_word_like("3.14") is True
+    assert is_word_like("3.14") is False
     assert is_word_like(".") is False
     assert is_word_like("—") is False
+
+
+@pytest.mark.parametrize(
+    "surface",
+    ["2020", "3.14", "1,000", "-42", "٢٠٢٠", "२०२०", "２０２０", "²", "Ⅷ", "___", "\u0301"],
+)
+def test_numbers_and_non_letters_are_not_words(surface: str) -> None:
+    assert not is_word_like(surface)
+
+
+@pytest.mark.parametrize(
+    "surface", ["B2B", "COVID-19", "3D", "It's", "café", "год", "中文", "日本語", "أُحِبُّ", "हिन्दी"]
+)
+def test_words_with_letters_remain_learnable(surface: str) -> None:
+    assert is_word_like(surface)
+
+
+def test_year_stays_in_text_without_counting_as_a_word() -> None:
+    text = "It's 2020. You're the most senior person on your team"
+    tokens = tokenize(text, language_code="en", base_offset=7)
+    assert sum(t.is_word_like for t in tokens) == 9
+    year = tokens[1]
+    assert year.surface_text == year.normalized_text == "2020"
+    assert not year.is_word_like
+    for token in tokens:
+        assert text[token.start_char_offset - 7 : token.end_char_offset - 7] == token.surface_text
 
 
 def test_tokenize_splits_words_and_punctuation_with_offsets() -> None:

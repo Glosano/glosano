@@ -41,7 +41,7 @@ function tryMatch(tokens: Token[], startIdx: number, words: string[]): number | 
   let last = startIdx
   for (let ti = startIdx; ti < tokens.length && wi < words.length; ti++) {
     const tok = tokens[ti]
-    if (!tok || !isWord(tok)) continue
+    if (!tok || !('n' in tok)) continue
     const expectedWord = words[wi]
     if (!expectedWord || tok.n !== expectedWord) return null
     last = ti
@@ -56,7 +56,7 @@ export function matchPhrases(tokens: Token[], index: PhraseIndex): PhraseMatch[]
   let i = 0
   while (i < tokens.length) {
     const tok = tokens[i]
-    if (!tok || !isWord(tok)) {
+    if (!tok || !('n' in tok)) {
       i++
       continue
     }
@@ -111,6 +111,7 @@ export function buildSelection(
     .map((t) => ('t' in t ? t.t : 'p' in t ? t.p : t.ws))
     .join('')
     .trim()
-  const text = words.map((x) => x.tok.n).join(' ')
+  const text = sentence.tokens.slice(startIdx, endIdx + 1)
+    .flatMap((tok) => 'n' in tok ? [tok.n] : []).join(' ')
   return { text, displayText, firstOrdinal: firstWord.tok.i }
 }

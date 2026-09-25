@@ -22,6 +22,7 @@ from glosano.modules.lesson_library.video_import import current_media
 from glosano.modules.reader_state.schemas import (
     LessonContentResponse,
     LessonMedia,
+    NumberToken,
     ParagraphOut,
     PunctToken,
     SentenceOut,
@@ -69,6 +70,10 @@ async def build_lesson_content(session: AsyncSession, lesson: Lesson) -> LessonC
             if occ.is_word_like:
                 out.append(
                     WordToken(t=occ.surface_text, n=occ.normalized_text, i=occ.ordinal_in_lesson)
+                )
+            elif occ.normalized_text:
+                out.append(
+                    NumberToken(p=occ.surface_text, n=occ.normalized_text, i=occ.ordinal_in_lesson)
                 )
             else:
                 out.append(PunctToken(p=occ.surface_text))

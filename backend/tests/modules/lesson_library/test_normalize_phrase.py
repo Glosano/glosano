@@ -41,3 +41,8 @@ def test_word_like_tokens_with_empty_normalization_dropped() -> None:
 
 def test_idempotent_on_normalized_text() -> None:
     assert normalize_phrase("so far so good") == "so far so good"
+
+
+def test_numbers_remain_part_of_phrase_identity() -> None:
+    assert normalize_phrase("in 2020 alone") == "in 2020 alone"
+    assert normalize_phrase("in 2021 alone") == "in 2021 alone"
