@@ -20,6 +20,7 @@ import { chatDrafts, useChatStore } from '@/features/chat/chatStore'
 import { ApiError } from '@/api/client'
 
 import { isWord, type LessonVocabularyItem, type Sentence } from '@/api/reader'
+import { randomId } from '@/lib/randomId'
 import { cn } from '@/lib/utils'
 
 import { CompletionScreen } from './CompletionScreen'
@@ -294,7 +295,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
 
   function bulkRequestId(from: number, to: number) {
     const key = `${content?.source_version}:${from}:${to}`
-    if (!manualRequests.current.has(key)) manualRequests.current.set(key, crypto.randomUUID())
+    if (!manualRequests.current.has(key)) manualRequests.current.set(key, randomId())
     return manualRequests.current.get(key)!
   }
 
@@ -714,6 +715,16 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       return
     }
 
+    // Build the request before taking the lock: a throw between the two would
+    // leave mutationLock set forever and freeze every navigation in the lesson.
+    let requestId: string
+    try {
+      requestId = bulkRequestId(currentPage.fromOrdinal, currentPage.toOrdinal)
+    } catch {
+      setBulkErrorVisible(true)
+      return
+    }
+
     mutationLock.current = true
     bulkKnown.mutate(
       {
@@ -721,7 +732,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         from_ordinal: currentPage.fromOrdinal,
         source_version: content?.source_version ?? 1,
         to_ordinal: currentPage.toOrdinal,
-        request_id: bulkRequestId(currentPage.fromOrdinal, currentPage.toOrdinal),
+        request_id: requestId,
       },
       {
         onSettled: () => {
@@ -776,6 +787,15 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       return
     }
 
+    // Same ordering as handleNextPage: never take the lock before the request exists.
+    let requestId: string
+    try {
+      requestId = bulkRequestId(firstWord.i, lastWord.i)
+    } catch {
+      setBulkErrorVisible(true)
+      return
+    }
+
     mutationLock.current = true
     bulkKnown.mutate(
       {
@@ -783,7 +803,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         from_ordinal: firstWord.i,
         source_version: content?.source_version ?? 1,
         to_ordinal: lastWord.i,
-        request_id: bulkRequestId(firstWord.i, lastWord.i),
+        request_id: requestId,
       },
       {
         onSettled: () => {

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LessonDetail } from '@/api/lessons'
 import type { LessonContent, Sentence, Token } from '@/api/reader'
@@ -381,5 +381,63 @@ describe('bulk-known flow, undo, hotkeys', () => {
 
     await waitFor(() => expect(firstCallArg(vi.mocked(readerApi.undoBulk))).toEqual('action-9'))
     await waitFor(() => expect(screen.queryByTestId('undo-toast')).not.toBeInTheDocument())
+  })
+
+  // http://<lan-ip> is not a secure context: crypto.randomUUID is undefined
+  // there, while getRandomValues still works.
+  describe('in a non-secure context', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('advances the page via bulk-known without crypto.randomUUID', async () => {
+      vi.mocked(readerApi.bulkKnown).mockResolvedValue({ action_id: 'action-1', created_count: 2 })
+
+      renderPage()
+      await screen.findByTestId('page-view-slot')
+      const real = globalThis.crypto
+      vi.stubGlobal('crypto', { getRandomValues: real.getRandomValues.bind(real) })
+      fireEvent.click(screen.getByRole('button', { name: 'Следующая страница' }))
+
+      await waitFor(() =>
+        expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toMatchObject({
+          request_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+          from_ordinal: 0,
+          to_ordinal: 249,
+        }),
+      )
+      await waitFor(() => expect(screen.getByTestId('page-view-slot')).toHaveTextContent('w250'))
+    })
+
+    it('stays navigable when the bulk-known request cannot be prepared', async () => {
+      vi.mocked(readerApi.content).mockResolvedValue({
+        ...content,
+        paragraphs: [{ sentences: [sentence1, sentence2, makeSentence('seg-3', 2, 260, 5)] }],
+      })
+      vi.mocked(lessonsApi.get).mockResolvedValue({
+        ...baseLesson,
+        reader_position: {
+          view_mode: 'sentence',
+          current_segment_id: 'seg-2',
+          current_token_ordinal: 250,
+        },
+      })
+
+      renderPage()
+      await waitFor(() => expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('w250'))
+      vi.stubGlobal('crypto', {
+        getRandomValues: () => {
+          throw new Error('no entropy source')
+        },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Следующее предложение' }))
+
+      await screen.findByTestId('bulk-error')
+      expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+      expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('w250')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Предыдущее предложение' }))
+      await waitFor(() => expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('w0'))
+    })
   })
 })

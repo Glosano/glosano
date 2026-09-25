@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { videoImportError, VIDEO_IMPORT_ERRORS } from './videoImportErrors'
+import { randomId } from '@/lib/randomId'
 
 interface Props {
   open: boolean
@@ -57,7 +58,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
   const create = useMutation({
     mutationFn: () => {
       if (tab === 'youtube') {
-        requestId.current ??= crypto.randomUUID()
+        requestId.current ??= randomId()
         return lessonsApi.importYouTube({
           url: url.trim(),
           language_code: lang,

@@ -3,6 +3,7 @@ import { ApiError } from '@/api/client'
 import { chatsApi, type ChatDraft, type ExerciseKind, type SendCommand } from '@/api/chats'
 import { appendQuotes, questionOutsideQuotes } from './inlineQuotes'
 import { useUserStore } from '@/stores/userStore'
+import { randomId } from '@/lib/randomId'
 
 export const MAX_UNFINISHED_ANSWERS = 30
 
@@ -159,7 +160,7 @@ export const chatDrafts = {
   operation(name: string, answer = '') {
     let operation = useChatStore.getState().operations[name]
     if (!operation) {
-      operation = { id: crypto.randomUUID(), answer }
+      operation = { id: randomId(), answer }
       useChatStore.setState((s) => ({ operations: { ...s.operations, [name]: operation! } }))
       persist()
     }
@@ -255,7 +256,7 @@ export const chatDrafts = {
     const state = useChatStore.getState()
     const entry = this.get(id)
     if (!state.userId || state.preparations[key(id)] || entry.sending || entry.pending) return null
-    const token = crypto.randomUUID()
+    const token = randomId()
     // Transient, owned by the draft rather than the route that started the request.
     useChatStore.setState({
       preparations: { ...state.preparations, [key(id)]: { ...preview, token } },
@@ -469,7 +470,7 @@ export const chatDrafts = {
             selectionVersion,
             snapshot,
             command: {
-              operation_id: crypto.randomUUID(),
+              operation_id: randomId(),
               conversation_id: id,
               draft_revision: snapshot.revision,
               kind,

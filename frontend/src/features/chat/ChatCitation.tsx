@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { chatsApi, type Citation } from '@/api/chats'
 import { useTranslation } from '@/lib/i18n'
+import { randomId } from '@/lib/randomId'
 import { chatDrafts, useChatStore } from './chatStore'
 
 export function ChatCitation({
@@ -46,7 +47,7 @@ export function ChatCitation({
               sourceVersion: source.source_version,
               ordinal: source.from_ordinal,
               ...(source.paragraph_index != null ? { paragraphIndex: source.paragraph_index } : {}),
-              sourceRequest: crypto.randomUUID(),
+              sourceRequest: randomId(),
             }
           : {},
       })

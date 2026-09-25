@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useBulkKnown } from '../useReaderQueries'
 import type { BulkKnownResult, readerApi } from '@/api/reader'
+import { randomId } from '@/lib/randomId'
 
 type Request = Parameters<typeof readerApi.bulkKnown>[0]
 interface Options {
@@ -54,7 +55,7 @@ export function useVideoPageTransitions(options: Options) {
         source_version: options.sourceVersion,
         from_ordinal: from,
         to_ordinal: to,
-        request_id: crypto.randomUUID(),
+        request_id: randomId(),
       }
       request.current = body
       options.onPage(nextPage)
