@@ -2,7 +2,7 @@
 
 Self-hosted content-driven language learning platform — a LingQ-style reader, personal vocabulary, SRS and AI-assisted translation, designed for personal and small-team installations.
 
-**Status:** pre-implementation. This repository currently contains specifications, architectural decision records (ADRs) and a project skeleton. No application logic yet.
+**Status:** MVP in development. Working today: email/password accounts and onboarding; `.txt`/`.md` and YouTube-caption imports into a private or shared library; the interactive reader (page and sentence modes, per-page bulk-known with undo, lesson completion); word and phrase cards with Wiktionary data, contextual AI translation and grammar tags; the personal vocabulary, SRS review and statistics; a contextual AI chat; JSON export and account deletion. Ten learning languages, English and Russian UI. Still ahead: the admin panel and full touch support on phones and tablets.
 
 ## Documentation
 
@@ -22,7 +22,6 @@ Glosano/
 ├── backend/          # Python 3.13 + FastAPI + SQLAlchemy + Taskiq
 ├── frontend/         # React 19 + TypeScript + Vite + Tailwind v4
 ├── docs/             # Product and architecture docs
-├── scripts/          # Dev and build helper scripts
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 └── .github/workflows/
@@ -32,7 +31,7 @@ See [ADR-0006](docs/adr/ADR-0006-tech-stack.md) for the full tech stack.
 
 ## Quick start (development)
 
-Requirements: Docker, `uv` (backend deps), `pnpm` (frontend deps).
+Requirements: Docker, `uv` (backend deps), Node.js with `corepack` enabled for `pnpm`.
 
 ```bash
 # 1. Copy env template
@@ -42,7 +41,7 @@ cp .env.example .env
 cd backend && uv sync && cd ..
 
 # 3. Install frontend deps
-cd frontend && pnpm install && cd ..
+cd frontend && corepack pnpm install && cd ..
 
 # 4. Bring up the dev stack (Postgres, Redis, API, worker, frontend dev server)
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
@@ -81,12 +80,12 @@ uv run alembic revision --autogenerate -m "message"  # create a migration
 
 ```bash
 cd frontend
-pnpm install                     # install deps
-pnpm dev                         # start Vite dev server
-pnpm build                       # production 80build
-pnpm test                        # run Vitest
-pnpm lint                        # ESLint
-pnpm format                      # Prettier
+corepack pnpm install            # install deps
+corepack pnpm dev                # start Vite dev server
+corepack pnpm build              # production build
+corepack pnpm test               # run Vitest
+corepack pnpm lint               # ESLint
+corepack pnpm format             # Prettier
 ```
 
 ## License

@@ -248,3 +248,103 @@ Final schema will be recorded in an ADR before migrations are written.
 8. **Do not introduce dependencies on morphological analyzers** (`pymorphy3`, `spaCy`, `stanza`) in core code without an ADR. ADR-0001 explicitly rejected this class of dependency for the learning pipeline.
 9. **CC-BY-SA attribution for dictionary data is not optional.** Any card rendering must include the Wiktionary attribution.
 10. **Ask before destructive actions.** No force-pushing, no rewriting merged commits, no deleting branches or volumes without explicit user approval.
+
+## Git conventions
+
+### Формат сообщения
+
+- Conventional commits: `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, `perf`
+- Язык — английский (см. «Language conventions» выше), subject в императиве (`add`, `fix`)
+- Не указывать соавторство (Co-Authored-By)
+- Subject — одно предложение до 72 символов. Если нужна запятая или союз «и» — разбей на отдельные коммиты
+    
+### Привязка к задачам
+
+- Номер задачи указывать в scope: `feat(FLQ-XXXXX): ...`, `fix(FLQ-XXXXX): ...`
+- Для подзадач: `FLQ-{id}.{sub_id}` — например `feat(FLQ-32.1): ...`
+- Не дублировать номер задачи в body или footer — scope достаточно
+- Формат единый: всегда `FLQ-N`, как ID задачи в backlog, — не `flq-N`, не `task-N`
+
+### Body коммита
+
+- Body отвечает на вопрос **«зачем»**, а не **«что»** — diff покажет «что» сам
+- Не писать changelog-style списки изменённых файлов или модулей
+- Допустимо: контекст проблемы, причина выбранного решения, что **не** сделано и почему
+- `BREAKING CHANGE:` в footer, если ломается публичный API
+
+### Один коммит = одно логическое изменение
+
+- Правило действует **внутри фичеветки во время разработки**: каждый коммит атомарен
+- Не смешивать в одном коммите: фичу + рефакторинг + правку багов + обновление примеров
+- Тесты коммитить вместе с кодом, который они тестируют (один `feat` коммит), либо отдельным коммитом `test:` перед реализацией (TDD red phase)
+- Зависимости (`uv.lock`, `pyproject.toml`) коммитить отдельно, если они не часть фичи
+- При мёрже эти атомарные коммиты схлопываются в один (см. «Слияние со сквошем») — противоречия нет: атомарность нужна для ревью ветки, сквош — для чистой истории целевой ветки
+
+### Слияние со сквошем
+- Фичеветки вливаются в `main`/`dev` **только со сквошем** — одна задача = один коммит в целевой ветке (нет merge-коммитов, история линейна)
+- Итоговое сообщение **обязательно** переписать вручную: один заголовок `feat(FLQ-XXXXX): ...` + описание с «зачем» по всей задаче
+- Не оставлять имя ветки (`fix/task-33`) или дефолтный список коммитов как сообщение
+- Убирать автоматически добавленный `Co-authored-by`
+- Итоговое сообщение должно следовать всем правилам выше (формат, привязка к задаче, описание)
+- Локально без PR всегда делать слияние со сквошем явным сценарием:
+
+```bash
+git checkout main
+git pull --ff-only
+git merge --squash feature/...
+# запустить тесты и линтер
+git commit -m "feat(FLQ-XXXXX): add new feature"
+```
+
+- Не использовать обычное слияние для фичеветок:
+
+```bash
+git merge feature/...
+```
+
+- После успешных проверок и коммита со сквошем удалить локальную фичеветку:
+
+```bash
+git branch -d feature/...
+```
+
+- Если Git отказывается удалить ветку, потому что слияние со сквошем не сохраняет хэши исходных коммитов в истории `main`/`dev`, использовать `git branch -D feature/...` только после проверки, что squash-коммит создан и тесты прошли
+- Через GitLab использовать опцию «Squash commits» в MR
+
+<!-- BACKLOG.MD MCP GUIDELINES START -->
+
+<CRITICAL_INSTRUCTION>
+
+## BACKLOG WORKFLOW INSTRUCTIONS
+
+This project uses Backlog.md MCP for all task and project management activities.
+
+**CRITICAL GUIDANCE**
+
+- If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
+- If your client only supports tools or the above request fails, call `backlog.get_workflow_overview()` tool to load the tool-oriented overview (it lists the matching guide tools).
+
+- **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
+- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
+- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+
+These guides cover:
+- Decision framework for when to create tasks
+- Search-first workflow to avoid duplicates
+- Links to detailed guides for task creation, execution, and finalization
+- MCP tools reference
+
+You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
+
+</CRITICAL_INSTRUCTION>
+
+<!-- BACKLOG.MD MCP GUIDELINES END -->
+
+## Superpowers workflow docs and plans
+
+Save plans to docs/superpowers/plans/
+Save specs to docs/superpowers/specs/
+
+Имя файла привязываем к задаче (FLQ-id), а не к дате:
+- спека: `docs/superpowers/specs/FLQ-<id>-<slug>-design.md`
+- план:  `docs/superpowers/plans/FLQ-<id>-<slug>-plan.md`

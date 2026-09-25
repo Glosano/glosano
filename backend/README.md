@@ -52,7 +52,7 @@ uv run alembic revision --autogenerate -m "describe change"
 
 ## Environment variables
 
-See [`../.env.example`](../.env.example) at the repo root.
+Settings load the repo-root `.env` by default. See [`../.env.example`](../.env.example).
 
 ## YouTube materials
 

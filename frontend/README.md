@@ -38,12 +38,12 @@ frontend/
 
 ```bash
 corepack enable                   # one-time
-pnpm install
-pnpm dev                          # Vite on :5173, proxies /api and /health to :8000
-pnpm test                         # Vitest
-pnpm lint                         # ESLint
-pnpm format                       # Prettier
-pnpm build                        # Production build → dist/
+corepack pnpm install
+corepack pnpm dev                 # Vite on :5173, proxies backend routes to :8000
+corepack pnpm test                # Vitest
+corepack pnpm lint                # ESLint
+corepack pnpm format              # Prettier
+corepack pnpm build               # Production build → dist/
 ```
 
 ## Production build
