@@ -92,9 +92,13 @@ CMD ["uv", "run", "uvicorn", "glosano.main:app", "--host", "0.0.0.0", "--port", 
 # ──────────────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
 
+# The venv from the builder is complete and frozen: never let uv re-sync it
+# at runtime (a bare `uv run` would pull the dev group over the network).
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_NO_SYNC=1 \
+    UV_FROZEN=1 \
     PATH="/opt/venv/bin:$PATH" \
     GLOSANO_STATIC_DIR=/app/frontend/dist
 
@@ -116,4 +120,4 @@ WORKDIR /app/backend
 
 EXPOSE 8000
 
-CMD ["uv", "run", "glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]

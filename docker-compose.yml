@@ -59,7 +59,7 @@ services:
       - app_data:/var/lib/glosano
     ports:
       - "8000:8000"
-    command: ["uv", "run", "glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]
 
   app-worker:
     build:
@@ -87,7 +87,7 @@ services:
       GLOSANO_OCR_API_KEY: ${GLOSANO_OCR_API_KEY:-}
     volumes:
       - app_data:/var/lib/glosano
-    command: ["uv", "run", "glosano", "worker"]
+    command: ["glosano", "worker"]
 
 volumes:
   postgres_data:
