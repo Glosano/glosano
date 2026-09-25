@@ -1,0 +1,143 @@
+.chat-markdown {
+  min-width: 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.chat-markdown > * + * {
+  margin-top: 0.75rem;
+}
+
+.chat-markdown p {
+  white-space: pre-wrap;
+}
+
+.chat-markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.chat-markdown h1 {
+  font-size: 1.5em;
+}
+
+.chat-markdown h2 {
+  font-size: 1.25em;
+}
+
+.chat-markdown h3 {
+  font-size: 1.125em;
+}
+
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown :is(ul, ol) {
+  padding-inline-start: 1.5rem;
+  white-space: normal;
+}
+
+.chat-markdown ul {
+  list-style-type: disc;
+}
+
+.chat-markdown ol {
+  list-style-type: decimal;
+}
+
+.chat-markdown :is(li + li, li > p + p, li > ul, li > ol) {
+  margin-top: 0.375rem;
+}
+
+.chat-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.chat-markdown code {
+  border-radius: 0.25rem;
+  background: var(--muted);
+  padding: 0.1em 0.3em;
+  font-size: 0.875em;
+}
+
+.chat-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--muted);
+  padding: 0.75rem 1rem;
+  white-space: pre;
+  overflow-wrap: normal;
+  line-height: 1.5;
+}
+
+.chat-markdown pre code {
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+/* Reader excerpts are stored as unlabelled fences in user messages (ADR-0020). */
+.chat-markdown blockquote,
+[data-message-role='user'] .chat-markdown pre:not(:has(code[class*='language-'])) {
+  border: 0;
+  border-inline-start: 3px solid var(--border);
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: color-mix(in srgb, var(--muted) 60%, transparent);
+  padding: 0.75rem 1rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  line-height: 1.65;
+}
+
+[data-message-role='user'] .chat-markdown pre:not(:has(code[class*='language-'])) {
+  white-space: pre-wrap;
+}
+
+[data-message-role='user'] .chat-markdown pre:not(:has(code[class*='language-'])) code {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.chat-markdown blockquote > * + * {
+  margin-top: 0.5rem;
+}
+
+.chat-markdown hr {
+  border-color: var(--border);
+}
+
+.chat-markdown-table {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875em;
+}
+
+.chat-markdown :is(th, td) {
+  min-width: 6rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+}
+
+.chat-markdown th {
+  background: var(--muted);
+  font-weight: 600;
+}
+
+.chat-markdown tr:last-child td {
+  border-bottom: 0;
+}

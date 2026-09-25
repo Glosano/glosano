@@ -57,6 +57,7 @@ type TranscriptMessageProps = Pick<
 > &
   Readonly<{
     messageId: string
+    role: string
     status?: MessageStatus
     t: Translator
   }>
@@ -64,6 +65,7 @@ type TranscriptMessageProps = Pick<
 function TranscriptMessage({
   conversationId,
   messageId,
+  role,
   renderExercise,
   renderText,
   renderMessageMeta,
@@ -72,7 +74,10 @@ function TranscriptMessage({
 }: TranscriptMessageProps) {
   return (
     <MessagePrimitive.Root asChild>
-      <article className="mb-4 space-y-2 rounded-xl border border-border p-4">
+      <article
+        data-message-role={role}
+        className="mb-4 min-w-0 space-y-2 rounded-xl border border-border p-4"
+      >
         {renderMessageMeta?.(messageId)}
         <MessagePrimitive.Parts>
           {({ part }) => {
@@ -158,6 +163,7 @@ function ChatTranscriptRuntime({
               <TranscriptMessage
                 conversationId={conversationId}
                 messageId={message.id}
+                role={message.role}
                 renderExercise={renderExercise}
                 renderText={renderText}
                 renderMessageMeta={renderMessageMeta}

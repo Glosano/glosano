@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
 import { chatsApi, type Generation } from '@/api/chats'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
@@ -12,6 +11,7 @@ import { useChatLayoutStore } from './chatLayoutStore'
 import { ChatTranscript } from './ChatTranscript'
 import { ChatComposer } from './ChatComposer'
 import { ChatCitation } from './ChatCitation'
+import { ChatMarkdown } from './ChatMarkdown'
 
 export function ChatWorkspace({
   lang,
@@ -180,23 +180,7 @@ export function ChatWorkspace({
             conversationId={id ?? 'new'}
             messages={mapped}
             showComposer={false}
-            renderText={(text) => (
-              <div className="space-y-2 whitespace-pre-wrap break-words [&_a]:text-primary [&_a]:underline [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5">
-                <ReactMarkdown
-                  skipHtml
-                  components={{
-                    img: ({ alt }) => <span>{alt}</span>,
-                    a: ({ href, children }) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer">
-                        {children}
-                      </a>
-                    ),
-                  }}
-                >
-                  {text}
-                </ReactMarkdown>
-              </div>
-            )}
+            renderText={(text) => <ChatMarkdown text={text} />}
             renderMessageMeta={(messageId) => {
               const message = messages.find((m) => m.id === messageId)
               return message ? (

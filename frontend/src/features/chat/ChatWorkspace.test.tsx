@@ -192,6 +192,25 @@ it('renders safe Markdown without raw HTML, unsafe links or remote images', asyn
   expect(document.querySelector('script')).toBeNull()
   expect(screen.getByText('unsafe')).not.toHaveAttribute('href', 'javascript:alert(1)')
 })
+it('renders tables and strikethrough in chat replies', async () => {
+  chatDrafts.select('a')
+  const detail = await chatsApi.detail('a')
+  vi.mocked(chatsApi.detail).mockResolvedValue({
+    ...detail,
+    messages: [
+      {
+        ...detail.messages[0]!,
+        text: '## Vocabulary\n\n| Word | Meaning |\n| --- | --- |\n| way | путь |\n\n~~old meaning~~',
+      },
+    ],
+  })
+  show()
+  expect(await screen.findByRole('heading', { name: 'Vocabulary' })).toBeInTheDocument()
+  expect(screen.getByRole('table')).toHaveTextContent('way')
+  expect(screen.getByRole('cell', { name: 'путь' })).toBeInTheDocument()
+  expect(screen.getByText('old meaning').tagName).toBe('DEL')
+})
+
 it('loads older transcript pages rather than treating the latest window as complete history', async () => {
   chatDrafts.select('a')
   const detail = await chatsApi.detail('a')
