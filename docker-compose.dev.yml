@@ -4,12 +4,12 @@
 
 services:
   postgres:
-    # Expose Postgres on host 5433 for locally-run tooling (`glosano serve`,
+    # Expose Postgres on host loopback 5433 for locally-run tooling (`glosano serve`,
     # alembic, psql). 5432 is left free to avoid clashing with other local
     # Postgres instances. Point host tools at it via GLOSANO_DATABASE_URL /
     # backend/.env (see backend/.env for the connection string).
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
 
   app-api:
     build:
