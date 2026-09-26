@@ -1,34 +1,50 @@
 import { useRef } from 'react'
 import type { TouchEvent } from 'react'
 
-const SWIPE_THRESHOLD_PX = 60
+import { createSwipeTracker, SWIPE_CONTROL_SELECTOR } from './swipeGesture'
 
 interface Params {
   onSwipeLeft: () => void
   onSwipeRight: () => void
 }
 
+/** Feeds touch events into the page-turn recogniser; see swipeGesture.ts for the rules. */
 export function useSwipe({ onSwipeLeft, onSwipeRight }: Params) {
-  const startXRef = useRef<number | null>(null)
+  const tracker = useRef(createSwipeTracker())
 
   const onTouchStart = (event: TouchEvent) => {
-    startXRef.current = event.touches[0]?.clientX ?? null
+    const first = event.touches[0]
+    if (!first) return
+    const target = event.target
+    tracker.current.start({
+      x: first.clientX,
+      y: first.clientY,
+      touches: event.touches.length,
+      onControl: target instanceof Element && target.closest(SWIPE_CONTROL_SELECTOR) !== null,
+      viewportWidth: window.innerWidth,
+      zoomScale: window.visualViewport?.scale ?? 1,
+    })
+  }
+
+  const onTouchMove = (event: TouchEvent) => {
+    const first = event.touches[0]
+    if (!first) return
+    tracker.current.move(first.clientX, first.clientY, event.touches.length)
   }
 
   const onTouchEnd = (event: TouchEvent) => {
-    const startX = startXRef.current
-    startXRef.current = null
-    if (startX == null) return
-
-    const endX = event.changedTouches[0]?.clientX ?? startX
-    const deltaX = endX - startX
-
-    if (deltaX <= -SWIPE_THRESHOLD_PX) {
-      onSwipeLeft()
-    } else if (deltaX >= SWIPE_THRESHOLD_PX) {
-      onSwipeRight()
+    const last = event.changedTouches[0]
+    if (!last) {
+      tracker.current.cancel()
+      return
     }
+    const hasSelection = !!window.getSelection()?.toString()
+    const direction = tracker.current.end(last.clientX, last.clientY, hasSelection)
+    if (direction === 'left') onSwipeLeft()
+    else if (direction === 'right') onSwipeRight()
   }
 
-  return { onTouchStart, onTouchEnd }
+  const onTouchCancel = () => tracker.current.cancel()
+
+  return { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel }
 }

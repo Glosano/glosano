@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LessonDetail } from '@/api/lessons'
@@ -26,6 +26,7 @@ vi.mock('@/api/reader', () => ({
     statuses: vi.fn(),
     putPosition: vi.fn(),
     bulkKnown: vi.fn(),
+    complete: vi.fn(),
     undoBulk: vi.fn(),
     segmentTranslation: vi.fn(),
     vocabulary: vi.fn(),
@@ -381,6 +382,79 @@ describe('bulk-known flow, undo, hotkeys', () => {
 
     await waitFor(() => expect(firstCallArg(vi.mocked(readerApi.undoBulk))).toEqual('action-9'))
     await waitFor(() => expect(screen.queryByTestId('undo-toast')).not.toBeInTheDocument())
+  })
+
+  // jsdom viewport is 1024px wide, so the swipe threshold is 0.18 * 1024 ≈ 184px.
+  describe('touch swipes', () => {
+    function touch(x: number, y: number) {
+      return { clientX: x, clientY: y }
+    }
+    function swipe(target: Element, points: Array<[number, number]>, fingers = 1) {
+      const [first, ...rest] = points
+      const last = points.at(-1)!
+      fireEvent.touchStart(target, {
+        touches: Array.from({ length: fingers }, () => touch(...first!)),
+        changedTouches: [touch(...first!)],
+      })
+      for (const point of rest) {
+        fireEvent.touchMove(target, {
+          touches: Array.from({ length: fingers }, () => touch(...point)),
+          changedTouches: [touch(...point)],
+        })
+      }
+      fireEvent.touchEnd(target, { touches: [], changedTouches: [touch(...last)] })
+    }
+
+    it('turns the page on a left swipe that starts on a word', async () => {
+      vi.mocked(readerApi.bulkKnown).mockResolvedValue({ action_id: 'action-1', created_count: 2 })
+      renderPage()
+      const slot = await screen.findByTestId('page-view-slot')
+      swipe(within(slot).getByText('w5'), [[600, 300], [580, 302], [300, 310]])
+      await waitFor(() =>
+        expect(firstCallArg(vi.mocked(readerApi.bulkKnown))).toMatchObject({
+          from_ordinal: 0,
+          to_ordinal: 249,
+        }),
+      )
+      await waitFor(() => expect(screen.getByTestId('page-view-slot')).toHaveTextContent('w250'))
+    })
+
+    it('does not turn the page on a vertical scroll that drifts sideways', async () => {
+      renderPage()
+      const slot = await screen.findByTestId('page-view-slot')
+      swipe(within(slot).getByText('w5'), [[600, 300], [600, 320], [300, 340]])
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+      expect(slot).toHaveTextContent('w0')
+    })
+
+    it('does not turn the page on a two-finger gesture', async () => {
+      renderPage()
+      const slot = await screen.findByTestId('page-view-slot')
+      swipe(within(slot).getByText('w5'), [[600, 300], [580, 300], [300, 300]], 2)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+    })
+
+    it('opens the end page on the last page and swipes back to the text', async () => {
+      vi.mocked(lessonsApi.get).mockResolvedValue({
+        ...baseLesson,
+        reader_position: {
+          view_mode: 'page',
+          current_segment_id: 'seg-2',
+          current_token_ordinal: 259,
+        },
+      })
+      renderPage()
+      const slot = await screen.findByTestId('page-view-slot')
+      await waitFor(() => expect(slot).toHaveTextContent('w250'))
+      swipe(within(slot).getByText('w251'), [[600, 300], [580, 300], [300, 300]])
+      const heading = await screen.findByRole('heading', { name: 'Вы всё прочитали' })
+      swipe(heading, [[300, 300], [320, 300], [600, 300]])
+      expect(await screen.findByTestId('page-view-slot')).toHaveTextContent('w250')
+      expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+      expect(readerApi.complete).not.toHaveBeenCalled()
+    })
   })
 
   // http://<lan-ip> is not a secure context: crypto.randomUUID is undefined

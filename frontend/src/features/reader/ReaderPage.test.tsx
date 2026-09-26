@@ -263,7 +263,7 @@ describe('ReaderPage', () => {
     expect(video.state).toBe(2)
     expect(screen.getByText('Word0')).toBeVisible()
     expect(readerApi.bulkKnown).not.toHaveBeenCalled()
-    expect(screen.queryByRole('dialog', { name: 'Завершить материал?' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('end-of-material')).not.toBeInTheDocument()
   })
 
   it('starts playback at a clicked timestamp and can restart at another timestamp', async () => {
@@ -397,8 +397,8 @@ describe('ReaderPage', () => {
       vi.advanceTimersByTime(100)
     })
     expect(video.state).toBe(2)
-    expect(screen.getByRole('button', { name: 'Завершить материал' })).toBeEnabled()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Следующая страница' })).toBeEnabled()
+    expect(screen.queryByTestId('end-of-material')).not.toBeInTheDocument()
     expect(readerApi.bulkKnown).not.toHaveBeenCalled()
   })
 
@@ -451,7 +451,7 @@ describe('ReaderPage', () => {
     fireEvent.click(await screen.findByText('Hello'))
     await screen.findByDisplayValue('My translation')
     expect(screen.getByRole('button', { name: 'Close card' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Finish material' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
     await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'en', 'hello'))
     await waitFor(() =>
       expect(aiApi.translate).toHaveBeenCalledWith(
@@ -631,7 +631,7 @@ describe('ReaderPage', () => {
 
     fireEvent.click(next)
     await waitFor(() => expect(slot).toHaveTextContent('Goodbye now.'))
-    expect(screen.getByRole('button', { name: 'Завершить материал' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Следующее предложение' })).toBeEnabled()
   })
 
   it('shows an error state and does not spin forever when the lesson fetch fails', async () => {

@@ -1,4 +1,3 @@
-import userEvent from '@testing-library/user-event'
 import { setUiLanguage } from '@/lib/i18n'
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -185,58 +184,98 @@ beforeEach(() => {
   vi.mocked(readerApi.undoBulk).mockResolvedValue({ undone_count: 10 })
 })
 
-describe('lesson completion', () => {
-  it('replaces the final arrow, confirms before writing, and keeps undo available', async () => {
+const finishBody = {
+  lesson_id: 'lesson-1',
+  source_version: 1,
+  view_mode: 'page',
+  last_segment_id: 'seg-2',
+  from_ordinal: 250,
+  to_ordinal: 259,
+}
+
+async function openEndPage() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Следующая страница' }))
+  return screen.findByRole('heading', { name: 'Вы всё прочитали' })
+}
+
+describe('end-of-material page (ADR-0023)', () => {
+  it('opens from the last page without writing and returns without side effects', async () => {
     renderPage()
-    const finish = await screen.findByRole('button', { name: 'Завершить материал' })
-    expect(screen.queryByRole('button', { name: 'Следующая страница' })).not.toBeInTheDocument()
-    fireEvent.click(finish)
-    expect(await screen.findByRole('dialog', { name: 'Завершить материал?' })).toBeInTheDocument()
-    expect(readerApi.complete).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Нет' }))
-    expect(readerApi.complete).not.toHaveBeenCalled()
-    fireEvent.click(finish)
-    fireEvent.click(screen.getByRole('button', { name: 'Да' }))
-    await waitFor(() =>
-      expect(firstCallArg(vi.mocked(readerApi.complete))).toEqual({
-        lesson_id: 'lesson-1',
-        source_version: 1,
-        view_mode: 'page',
-        last_segment_id: 'seg-2',
-        from_ordinal: 250,
-        to_ordinal: 259,
-      }),
-    )
-    expect(await screen.findByText('Материал завершён')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Продолжить чтение' })).toBeInTheDocument()
+    await openEndPage()
+    expect(screen.queryByTestId('page-view-slot')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(readerApi.complete).not.toHaveBeenCalled()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+    expect(useReaderStore.getState().pageIndex).toBe(1)
+    expect(screen.getByRole('button', { name: 'Следующая страница' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуться к тексту' }))
+    expect(await screen.findByTestId('page-view-slot')).toHaveTextContent('w250')
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(await screen.findByRole('heading', { name: 'Вы всё прочитали' })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(await screen.findByTestId('page-view-slot')).toHaveTextContent('w250')
+    fireEvent.click(screen.getByRole('button', { name: 'Предыдущая страница' }))
+    await waitFor(() => expect(screen.getByTestId('page-view-slot')).toHaveTextContent('w0'))
+    expect(readerApi.complete).not.toHaveBeenCalled()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it('opens once on a double press and never writes', async () => {
+    renderPage()
+    const next = await screen.findByRole('button', { name: 'Следующая страница' })
+    fireEvent.click(next)
+    fireEvent.click(next)
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(await screen.findAllByRole('heading', { name: 'Вы всё прочитали' })).toHaveLength(1)
+    expect(readerApi.complete).not.toHaveBeenCalled()
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it('finishes from the end page and restores the last page after undo', async () => {
+    renderPage()
+    await openEndPage()
+    expect(screen.getByText('Новые слова последней страницы будут отмечены как известные')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Вы всё прочитали' })).toHaveFocus(),
+    )
+    const finish = screen.getByRole('button', { name: 'Завершить материал' })
+    fireEvent.click(finish)
+    await waitFor(() => expect(firstCallArg(vi.mocked(readerApi.complete))).toEqual(finishBody))
+    expect(await screen.findByTestId('completion-screen')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Продолжить чтение' }))
     expect(screen.queryByTestId('completion-screen')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('end-of-material')).not.toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('status')).toHaveFocus())
     fireEvent.click(screen.getByRole('button', { name: 'Итоги чтения' }))
-    expect(screen.getByTestId('completion-screen')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Отменить завершение' }))
     await waitFor(() => expect(firstCallArg(vi.mocked(readerApi.undoBulk))).toBe('completion-1'))
-    await waitFor(() => expect(screen.queryByText('Материал завершён')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByTestId('completion-screen')).not.toBeInTheDocument())
+    expect(screen.getByTestId('page-view-slot')).toHaveTextContent('w250')
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Завершить материал' })).toHaveFocus(),
+      expect(screen.getByRole('button', { name: 'Следующая страница' })).toHaveFocus(),
     )
   })
 
-  it('allows retry after a failure and suppresses navigation while confirming', async () => {
+  it('keeps the end page and allows retry after a failure', async () => {
     vi.mocked(readerApi.complete).mockRejectedValueOnce(new Error('network'))
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Завершить материал' }))
-    fireEvent.keyDown(window, { key: 'ArrowLeft' })
-    fireEvent.keyDown(window, { key: 'm' })
-    expect(useReaderStore.getState().pageIndex).toBe(1)
-    expect(useReaderStore.getState().mode).toBe('page')
-    fireEvent.click(screen.getByRole('button', { name: 'Да' }))
+    await openEndPage()
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить материал' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось завершить материал')
-    expect(screen.queryByText('Материал завершён')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Да' }))
-    expect(await screen.findByText('Материал завершён')).toBeInTheDocument()
+    expect(screen.getByTestId('end-of-material')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить материал' }))
+    expect(await screen.findByTestId('completion-screen')).toBeInTheDocument()
     expect(readerApi.complete).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves the end page when the view mode is toggled', async () => {
+    renderPage()
+    await openEndPage()
+    fireEvent.keyDown(window, { key: 'm' })
+    expect(await screen.findByTestId('sentence-view-slot')).toBeInTheDocument()
+    expect(screen.queryByTestId('end-of-material')).not.toBeInTheDocument()
   })
 
   it('completes the final sentence with its own range', async () => {
@@ -249,21 +288,17 @@ describe('lesson completion', () => {
       },
     })
     renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Следующее предложение' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Завершить материал' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Да' }))
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.complete))).toEqual({
-        lesson_id: 'lesson-1',
-        source_version: 1,
+        ...finishBody,
         view_mode: 'sentence',
-        last_segment_id: 'seg-2',
-        from_ordinal: 250,
-        to_ordinal: 259,
       }),
     )
   })
 
-  it('completes an empty material and offers undo even when no words were added', async () => {
+  it('completes an empty material without the new-words note', async () => {
     vi.mocked(readerApi.content).mockResolvedValue({ ...content, word_count: 0, paragraphs: [] })
     vi.mocked(readerApi.complete).mockResolvedValue({
       action_id: 'empty',
@@ -271,42 +306,23 @@ describe('lesson completion', () => {
       completed_at: '2026-09-13T00:00:00Z',
     })
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Завершить материал' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Да' }))
+    await openEndPage()
+    expect(screen.queryByText(/будут отмечены как известные/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить материал' }))
     await waitFor(() =>
       expect(firstCallArg(vi.mocked(readerApi.complete))).toEqual({
-        lesson_id: 'lesson-1',
-        source_version: 1,
-        view_mode: 'page',
+        ...finishBody,
         last_segment_id: null,
         from_ordinal: null,
         to_ordinal: null,
       }),
     )
-    expect(await screen.findByText('Материал завершён')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Отменить завершение' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Отменить завершение' })).toBeInTheDocument()
   })
 })
 
-describe('completion keyboard and persistence', () => {
-  it('returns focus on cancel and to the completion status after confirmation', async () => {
-    const user = userEvent.setup()
-    vi.mocked(lessonsApi.get).mockResolvedValue({ ...baseLesson, reader_position: null })
-    vi.mocked(readerApi.content).mockResolvedValue({
-      ...content,
-      paragraphs: [{ sentences: [sentence2] }],
-    })
-    renderPage()
-    const finish = await screen.findByRole('button', { name: 'Завершить материал' })
-    await user.click(finish)
-    await user.keyboard('{Escape}')
-    await waitFor(() => expect(finish).toHaveFocus())
-    await user.keyboard('{Enter}')
-    await user.click(screen.getByRole('button', { name: 'Да' }))
-    await waitFor(() => expect(screen.getByRole('status')).toHaveFocus())
-  })
-
-  it('loads completed state on reopening, including undo and 100 percent', async () => {
+describe('completed material', () => {
+  beforeEach(() => {
     vi.mocked(lessonsApi.get).mockResolvedValue({
       ...baseLesson,
       reader_position: {
@@ -317,6 +333,9 @@ describe('completion keyboard and persistence', () => {
         completion_action_id: 'restored-completion',
       },
     })
+  })
+
+  it('loads completed state on reopening, including undo', async () => {
     renderPage()
     expect(await screen.findByText('Материал завершён')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Отменить завершение' }))
@@ -324,4 +343,26 @@ describe('completion keyboard and persistence', () => {
       expect(vi.mocked(readerApi.undoBulk).mock.calls.at(-1)?.[0]).toBe('restored-completion'),
     )
   })
+
+  it('shows the completed end page with library and review actions', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Продолжить чтение' }))
+    expect(screen.getByRole('button', { name: 'Итоги чтения' })).toBeInTheDocument()
+    await openEndPageCompleted()
+    // The completed banner is hidden on the end page, so results cannot be opened
+    // from there and later return the reader to the end page instead of the text.
+    expect(screen.queryByRole('button', { name: 'Итоги чтения' })).not.toBeInTheDocument()
+    expect(screen.getAllByText('Материал завершён')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Завершить материал' })).not.toBeInTheDocument()
+    expect(screen.getByText('Повторить лексику урока')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуться к тексту' }))
+    expect(await screen.findByTestId('page-view-slot')).toHaveTextContent('w250')
+    expect(screen.getByRole('button', { name: 'Итоги чтения' })).toBeInTheDocument()
+    expect(readerApi.complete).not.toHaveBeenCalled()
+  })
 })
+
+async function openEndPageCompleted() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Следующая страница' }))
+  return screen.findByRole('heading', { name: 'Материал завершён' })
+}

@@ -111,7 +111,7 @@ export function SentenceView({
         </div>
       )}
 
-      <div className="mt-10 pl-8 pr-4 sm:px-16">
+      <div className="mt-10 pl-8 pr-0 sm:px-16">
         <ParagraphQuote
           action={paragraphAction}
           onQuote={onQuoteParagraph ? () => onQuoteParagraph(sentence.seg_id) : undefined}

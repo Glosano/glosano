@@ -4,13 +4,6 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { chatsApi } from '@/api/chats'
 import { containsQuote } from '@/features/chat/inlineQuotes'
 import { ChatWorkspace } from '@/features/chat/ChatWorkspace'
@@ -24,6 +17,7 @@ import { randomId } from '@/lib/randomId'
 import { cn } from '@/lib/utils'
 
 import { CompletionScreen } from './CompletionScreen'
+import { EndOfMaterial } from './EndOfMaterial'
 import { BottomToolbar } from './BottomToolbar'
 import { LessonVocabularyList } from './LessonVocabularyList'
 import { LessonVocabularyPanel } from './LessonVocabularyPanel'
@@ -100,7 +94,8 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   // (дальше слово помечает статусный цвет).
   const [selectionRange, setSelectionRange] = useState<DragRange | null>(null)
   const [toastCount, setToastCount] = useState<number | null>(null)
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  // ADR-0023: UI-only end-of-material page; page/sentence index stays on the last fragment.
+  const [atEnd, setAtEnd] = useState(false)
   const [resultsDismissed, setResultsDismissed] = useState(false)
   const [completionError, setCompletionError] = useState(false)
   const mutationLock = useRef(false)
@@ -153,7 +148,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     setLastBulkActionId(null)
     setToastCount(null)
     setBulkErrorVisible(false)
-    setConfirmOpen(false)
+    setAtEnd(false)
     setCompletionError(false)
     setResultsDismissed(false)
     mutationLock.current = false
@@ -276,7 +271,8 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     setVideoReset((value) => value + 1)
   }
   function toggleMode() {
-    if (busy || confirmOpen) return
+    if (busy) return
+    setAtEnd(false)
     const focus =
       flatSentences.find((sentence) => sentence.seg_id === activeSegment) ??
       (mode === 'sentence' ? currentSentence : currentPage?.sentences[0]?.sentence)
@@ -310,6 +306,10 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     return words.length > 0 ? (words[words.length - 1]?.i ?? null) : null
   }, [mode, currentPage, currentSentence])
 
+  const lastFragmentWords =
+    mode === 'page'
+      ? (currentPage?.sentences.flatMap(({ sentence }) => sentence.tokens.filter(isWord)) ?? [])
+      : (currentSentence?.tokens.filter(isWord) ?? [])
   const completedAt = lessonDetail?.reader_position?.completed_at
   const completionActionId = lessonDetail?.reader_position?.completion_action_id
   const showResults = !!completedAt && !!completionActionId && !resultsDismissed
@@ -322,7 +322,6 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       }
     }
   })
-  const isFinal = mode === 'page' ? !canNext : !canNextSentence
   const busy =
     bulkKnown.isPending || completeLesson.isPending || undoBulk.isPending || autoTransition.locked
 
@@ -628,24 +627,23 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     handleUndoAction(lastBulkActionId)
   }
 
-  function requestCompletion() {
-    if (
-      !readyForInteraction ||
-      !isFinal ||
-      completedAt ||
-      confirmOpen ||
-      mutationLock.current ||
-      busy
-    )
-      return
+  function openEndPage() {
+    if (!readyForInteraction || atEnd || mutationLock.current || busy) return
     closeCard()
     setCompletionError(false)
     videoControls.current?.pause()
-    setConfirmOpen(true)
+    setAtEnd(true)
+  }
+
+  function leaveEndPage() {
+    if (busy) return
+    setCompletionError(false)
+    restoreReaderFocus.current = true
+    setAtEnd(false)
   }
 
   function handleComplete() {
-    if (!confirmOpen || mutationLock.current || busy || !content) return
+    if (!atEnd || mutationLock.current || busy || !content) return
     mutationLock.current = true
     setCompletionError(false)
     const words = currentSentence?.tokens.filter(isWord) ?? []
@@ -676,7 +674,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       {
         onSuccess: (result) => {
           if (activeLesson.current !== lessonId) return
-          setConfirmOpen(false)
+          setAtEnd(false)
           setResultsDismissed(false)
           setLastBulkActionId(result.action_id)
           setToastCount(null)
@@ -692,17 +690,21 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   }
 
   function handlePrevPage() {
-    if (!canPrev || confirmOpen || mutationLock.current || busy) return
+    if (atEnd) {
+      leaveEndPage()
+      return
+    }
+    if (!canPrev || mutationLock.current || busy) return
     resetVideo()
     closeCard()
     setPageIndex(Math.max(0, pageIndex - 1))
   }
 
   function handleNextPage() {
-    if (confirmOpen || mutationLock.current || busy) return
+    if (atEnd || mutationLock.current || busy) return
     resetVideo()
     if (!canNext) {
-      requestCompletion()
+      openEndPage()
       return
     }
     if (!currentPage) return
@@ -762,17 +764,21 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   }
 
   function handlePrevSentence() {
-    if (!canPrevSentence || confirmOpen || mutationLock.current || busy) return
+    if (atEnd) {
+      leaveEndPage()
+      return
+    }
+    if (!canPrevSentence || mutationLock.current || busy) return
     resetVideo()
     closeCard()
     setSentenceFlatIndex(Math.max(0, clampedSentenceIndex - 1))
   }
 
   function handleNextSentence() {
-    if (confirmOpen || mutationLock.current || busy) return
+    if (atEnd || mutationLock.current || busy) return
     resetVideo()
     if (!canNextSentence) {
-      requestCompletion()
+      openEndPage()
       return
     }
     if (!currentSentence) return
@@ -833,7 +839,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const handleNext = mode === 'page' ? handleNextPage : handleNextSentence
 
   useReaderHotkeys({
-    enabled: readyForInteraction && !confirmOpen && !busy && !showResults,
+    enabled: readyForInteraction && !busy && !showResults,
     onPrev: handlePrev,
     onNext: handleNext,
     onToggleMode: toggleMode,
@@ -1006,7 +1012,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       data-testid="reader-page"
       onClick={handleReaderClick}
       className={cn(
-        'mx-auto min-h-[calc(100dvh-4rem)] max-w-screen-2xl px-6 pb-24 outline-none',
+        'mx-auto min-h-[calc(100dvh-4rem)] max-w-screen-2xl px-4 pb-24 outline-none sm:px-6',
         panelVisible && 'lg:pr-[var(--reader-panel-reserve)]',
         chatListOpen ? '2xl:pl-[284px]' : '2xl:pl-[72px]',
       )}
@@ -1053,7 +1059,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
               chatOpen ||
               !!selectedWord ||
               !!dragRange ||
-              confirmOpen ||
+              atEnd ||
               bulkKnown.isPending ||
               completeLesson.isPending ||
               undoBulk.isPending ||
@@ -1150,7 +1156,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         </>
       )}
 
-      {completedAt && (
+      {/* Hidden on the end page, which shows its own completed state; opening results
+          from here would bring the reader back to the end page instead of the text. */}
+      {completedAt && !atEnd && (
         <div
           ref={completionStatus}
           tabIndex={-1}
@@ -1178,47 +1186,13 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         </div>
       )}
 
-      <Dialog
-        open={confirmOpen}
-        onOpenChange={(open) => {
-          if (!busy) setConfirmOpen(open)
-        }}
-      >
-        <DialogContent
-          showCloseButton={!busy}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault()
-            const target = completedAt ? completionStatus.current : finishButton.current
-            target?.focus()
-          }}
-        >
-          <DialogTitle>{tr('Завершить материал?')}</DialogTitle>
-          <DialogDescription>
-            {tr(
-              'Оставшиеся новые слова текущего фрагмента будут отмечены как известные. Урок будет считаться пройденным.',
-            )}
-          </DialogDescription>
-          {completionError && (
-            <p role="alert" className="text-destructive">
-              {tr('Не удалось завершить материал. Попробуйте ещё раз.')}
-            </p>
-          )}
-          <DialogFooter>
-            <Button variant="outline" disabled={busy} onClick={() => setConfirmOpen(false)}>
-              {tr('Нет')}
-            </Button>
-            <Button disabled={busy} onClick={handleComplete}>
-              {tr('Да')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <div
         className={cn('py-6', fontClass)}
         onPointerDownCapture={() => videoControls.current?.pause()}
         onTouchStart={swipeHandlers.onTouchStart}
+        onTouchMove={swipeHandlers.onTouchMove}
         onTouchEnd={swipeHandlers.onTouchEnd}
+        onTouchCancel={swipeHandlers.onTouchCancel}
         {...containerProps}
       >
         {contentLoading && (
@@ -1227,14 +1201,26 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             className="h-64 w-full animate-pulse rounded-md bg-muted"
           />
         )}
-        {!contentLoading && content && mode === 'page' && currentPage && (
+        {!contentLoading && content && atEnd && (
+          <EndOfMaterial
+            lang={lang}
+            lessonId={lessonId}
+            completed={!!completedAt}
+            showNewWordsNote={lastFragmentWords.some((word) => !statusMap[word.n])}
+            busy={busy}
+            error={completionError}
+            onFinish={handleComplete}
+            onBack={leaveEndPage}
+          />
+        )}
+        {!contentLoading && content && !atEnd && mode === 'page' && currentPage && (
           <div data-testid="page-view-slot">
             <PageView
               onQuoteParagraph={addParagraphToChat}
               paragraphAction={paragraphAction}
               activeSegment={activeSegment}
               followPlayback={videoPlaying}
-              playbackDisabled={chatOpen || busy || !!selectedWord || !!dragRange || confirmOpen}
+              playbackDisabled={chatOpen || busy || !!selectedWord || !!dragRange || atEnd}
               onSeek={
                 content.media
                   ? (sentence) =>
@@ -1251,7 +1237,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             />
           </div>
         )}
-        {!contentLoading && content && mode === 'sentence' && currentSentence && (
+        {!contentLoading && content && !atEnd && mode === 'sentence' && currentSentence && (
           <div data-testid="sentence-view-slot">
             <SentenceView
               onQuoteParagraph={addParagraphToChat}
@@ -1286,9 +1272,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
                 : tr('Предыдущая страница')
             }
             onClick={handlePrev}
-            disabled={busy || (mode === 'sentence' ? !canPrevSentence : !canPrev)}
+            disabled={busy || (!atEnd && (mode === 'sentence' ? !canPrevSentence : !canPrev))}
             className={cn(
-              'fixed left-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30',
+              'fixed left-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30 sm:block',
               chatListOpen ? '2xl:left-[268px]' : '2xl:left-14',
             )}
           >
@@ -1297,29 +1283,26 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           <button
             type="button"
             aria-label={
-              isFinal
-                ? tr('Завершить материал')
-                : mode === 'sentence'
-                  ? tr(content?.media ? 'Следующий фрагмент' : 'Следующее предложение')
-                  : tr('Следующая страница')
+              mode === 'sentence'
+                ? tr(content?.media ? 'Следующий фрагмент' : 'Следующее предложение')
+                : tr('Следующая страница')
             }
             ref={finishButton}
-            title={isFinal ? tr('Завершить материал') : undefined}
             onClick={handleNext}
-            disabled={busy || (isFinal && !!completedAt)}
+            disabled={busy || atEnd}
             className={cn(
-              'fixed right-2 top-1/2 z-10 -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30',
+              'fixed right-2 top-1/2 z-10 hidden -translate-y-1/2 rounded-md px-2 py-1 text-3xl text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-30 sm:block',
               panelVisible && 'lg:right-[var(--reader-panel-reserve)]',
             )}
           >
-            {isFinal ? <Check aria-hidden="true" className="size-7" /> : '›'}
+            ›
           </button>
         </>
       )}
 
       <BottomToolbar
         video={!!content?.media}
-        disabled={busy || confirmOpen}
+        disabled={busy}
         mode={mode}
         onToggleMode={toggleMode}
         panelOpen={panelVisible}

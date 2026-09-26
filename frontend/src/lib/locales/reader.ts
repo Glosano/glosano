@@ -34,13 +34,13 @@ export const readerMessages: Record<string, string> = {
     'Could not undo completion. Please try again.',
 
   'Завершить материал': 'Finish material',
-  'Завершить материал?': 'Finish this material?',
   'Материал завершён': 'Material completed',
+  'Вы всё прочитали': 'You have read everything',
+  'Новые слова последней страницы будут отмечены как известные':
+    'New words on the last page will be marked as known',
+  'Вернуться к тексту': 'Back to the text',
+  'Повторить лексику урока': 'Review lesson vocabulary',
   'Отменить завершение': 'Undo completion',
-  Да: 'Yes',
-  Нет: 'No',
-  'Оставшиеся новые слова текущего фрагмента будут отмечены как известные. Урок будет считаться пройденным.':
-    'Remaining new words in the current section will be marked as known. The lesson will be marked as completed.',
   'Не удалось завершить материал. Попробуйте ещё раз.':
     'Could not complete the material. Please try again.',
 
