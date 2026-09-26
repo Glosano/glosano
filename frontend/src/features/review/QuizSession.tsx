@@ -2,9 +2,15 @@ import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
-import { reviewApi, type ClozeExercise, type ReverseExercise } from '@/api/review'
+import {
+  reviewApi,
+  type ClozeExercise,
+  type ReverseExercise,
+  type ReviewItemKind,
+} from '@/api/review'
 import { GradeBar } from './GradeBar'
 import { SessionShell, SessionStates } from './sessionUi'
+import { sessionSubtitle } from './sessionSubtitle'
 import { useReviewSession } from './useReviewSession'
 
 type QuizKind = 'cloze' | 'reverse'
@@ -19,21 +25,22 @@ interface QuizSessionProps {
   lang: string
   kind: QuizKind
   lessonId?: string
+  itemKind?: ReviewItemKind
 }
 
 export function QuizSession(props: QuizSessionProps) {
   const { language } = useI18n()
   return (
     <QuizSessionContent
-      key={`${language}:${props.kind}:${props.lang}:${props.lessonId ?? ''}`}
+      key={`${language}:${props.kind}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
       {...props}
     />
   )
 }
 
-function QuizSessionContent({ lang, kind, lessonId }: QuizSessionProps) {
+function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps) {
   const { language, t } = useI18n()
-  const s = useReviewSession(lang, { serverMode: 'due', lessonId })
+  const s = useReviewSession(lang, { serverMode: 'due', lessonId, itemKind })
   const [picked, setPicked] = useState<number | null>(null)
 
   const exercise = useQuery({
@@ -61,9 +68,7 @@ function QuizSessionContent({ lang, kind, lessonId }: QuizSessionProps) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const subtitle = lessonId
-    ? t('{{value0}} · Слова урока', { value0: t(SUBTITLES[kind]) })
-    : t(SUBTITLES[kind])
+  const subtitle = sessionSubtitle(t, { title: SUBTITLES[kind], lessonId, itemKind })
 
   const states = SessionStates(s, subtitle, { lessonId, showWriting: true, lang })
   if (states) return states

@@ -29,6 +29,8 @@ from glosano.modules.review.schemas import (
 router = APIRouter(prefix="/api/review", tags=["review"])
 
 LangCode = LearningLanguageCode
+# Вид лексики для повтора из вкладок словаря (FLQ-34); "all" — слова и фразы вместе.
+ReviewKind = Literal["token", "phrase", "all"]
 
 
 def _require_user(request: Request) -> uuid.UUID:
@@ -45,11 +47,17 @@ async def queue(
     session: Annotated[AsyncSession, Depends(get_session)],
     mode: Literal["due", "new", "practice"] = "due",
     lesson_id: uuid.UUID | None = None,
+    kind: ReviewKind = "all",
 ) -> QueueResponse:
     user_id = _require_user(request)
     try:
         items, daily = await service.get_queue(
-            session, user_id=user_id, language_code=lang, mode=mode, lesson_id=lesson_id
+            session,
+            user_id=user_id,
+            language_code=lang,
+            mode=mode,
+            lesson_id=lesson_id,
+            kind=kind,
         )
     except service.LessonNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None
@@ -103,11 +111,12 @@ async def counts(
     lang: LangCode,
     session: Annotated[AsyncSession, Depends(get_session)],
     lesson_id: uuid.UUID | None = None,
+    kind: ReviewKind = "all",
 ) -> CountsResponse:
     user_id = _require_user(request)
     try:
         c = await service.get_counts(
-            session, user_id=user_id, language_code=lang, lesson_id=lesson_id
+            session, user_id=user_id, language_code=lang, lesson_id=lesson_id, kind=kind
         )
     except service.LessonNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None

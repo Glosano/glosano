@@ -48,7 +48,7 @@ describe('TranslationSession', () => {
   it('shows sentence, sends user translation, renders feedback, no SRS writes', async () => {
     renderSession()
     expect(await screen.findByText('Каждый день уникален.')).toBeTruthy()
-    expect(reviewApi.queue).toHaveBeenCalledWith('pt', undefined, 'practice')
+    expect(reviewApi.queue).toHaveBeenCalledWith('pt', undefined, 'practice', undefined)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Cada dia e unico.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Проверить' }))
     await waitFor(() =>
@@ -66,7 +66,7 @@ describe('TranslationSession', () => {
 
   it('в скоупе урока показывает подзаголовок "Слова урока" и передаёт lessonId в очередь', async () => {
     renderSession('L1')
-    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice'))
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice', undefined))
     expect(await screen.findByText(/Слова урока/)).toBeTruthy()
   })
 

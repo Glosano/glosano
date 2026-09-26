@@ -83,11 +83,11 @@ function resetStore() {
   })
 }
 
-function renderPage() {
+function renderPage(tab: 'all' | 'words' | 'phrases' | 'due' = 'all') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <VocabularyPage lang="pt" tab="all" />
+      <VocabularyPage lang="pt" tab={tab} />
     </QueryClientProvider>,
   )
 }
@@ -284,7 +284,7 @@ describe('VocabularyPage states', () => {
     })
   })
 
-  it('renders the tabs as a segmented control with the active tab styled and disabled placeholders', async () => {
+  it('renders the tabs as a segmented control with the active tab styled and the due placeholder', async () => {
     vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 25 })
 
     renderPage()
@@ -295,10 +295,8 @@ describe('VocabularyPage states', () => {
     expect(allLink).toBeInTheDocument()
     expect(allLink.className).toContain('font-semibold')
     expect(screen.getByRole('link', { name: 'Слова' })).toBeInTheDocument()
-
-    const phrasesButton = screen.getByRole('button', { name: 'Фразы' })
-    expect(phrasesButton).toBeDisabled()
-    expect(phrasesButton).toHaveAttribute('title', 'Появится позже')
+    expect(screen.getByRole('link', { name: 'Фразы' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Фразы' })).toBeNull()
 
     const dueButton = screen.getByRole('button', { name: 'К повторению' })
     expect(dueButton).toBeDisabled()
@@ -318,6 +316,35 @@ describe('VocabularyPage states', () => {
     expect(navigateMock).toHaveBeenCalledWith({
       to: '/learn/$lang/review',
       params: { lang: 'pt' },
+    })
+  })
+
+  it('lists only phrases on the phrases tab and highlights it', async () => {
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+
+    renderPage('phrases')
+
+    await waitFor(() => {
+      expect(vocabularyApi.list).toHaveBeenCalledWith(expect.objectContaining({ lang: 'pt', kind: 'phrase' }))
+    })
+    expect(screen.getByRole('link', { name: 'Фразы' }).className).toContain('font-semibold')
+    expect(screen.getByRole('link', { name: 'Все' }).className).not.toContain('font-semibold')
+  })
+
+  it.each([
+    ['phrases', 'phrase'],
+    ['words', 'token'],
+  ] as const)('starts a review of the %s tab kind only', async (tab, kind) => {
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+
+    renderPage(tab)
+
+    fireEvent.click(screen.getByRole('button', { name: '⟳ Повтор лексики' }))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/learn/$lang/review',
+      params: { lang: 'pt' },
+      search: { kind },
     })
   })
 })

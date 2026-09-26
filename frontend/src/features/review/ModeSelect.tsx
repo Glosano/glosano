@@ -2,7 +2,8 @@ import { useTranslation } from '@/lib/i18n'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
-import { reviewApi, type ReviewMode } from '@/api/review'
+import { reviewApi, type ReviewItemKind, type ReviewMode } from '@/api/review'
+import { sessionSubtitle } from './sessionSubtitle'
 
 const MODES: {
   mode: ReviewMode
@@ -48,13 +49,22 @@ const MODES: {
   },
 ]
 
-export function ModeSelect({ lang, lessonId }: { lang: string; lessonId?: string }) {
+export function ModeSelect({
+  lang,
+  lessonId,
+  itemKind,
+}: {
+  lang: string
+  lessonId?: string
+  itemKind?: ReviewItemKind
+}) {
   const t = useTranslation()
   const navigate = useNavigate()
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ['review-counts', lang, lessonId ?? null],
-    queryFn: () => reviewApi.counts(lang, lessonId),
+    queryKey: ['review-counts', lang, lessonId ?? null, itemKind ?? null],
+    queryFn: () => reviewApi.counts(lang, lessonId, itemKind),
   })
+  const scope = sessionSubtitle(t, { lessonId, itemKind })
 
   if (isPending) return <p className="p-8 text-center">{t('Загрузка…')}</p>
   if (isError)
@@ -69,12 +79,10 @@ export function ModeSelect({ lang, lessonId }: { lang: string; lessonId?: string
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
-      <h1 className={`${lessonId ? 'mb-1' : 'mb-6'} text-center text-xl font-semibold`}>
+      <h1 className={`${scope ? 'mb-1' : 'mb-6'} text-center text-xl font-semibold`}>
         {t('Повторение')}
       </h1>
-      {lessonId && (
-        <p className="mb-6 text-center text-sm text-muted-foreground">{t('Слова урока')}</p>
-      )}
+      {scope && <p className="mb-6 text-center text-sm text-muted-foreground">{scope}</p>}
       <div className="grid gap-3">
         {MODES.map((m) => {
           const aiOff = m.needsAi && !data.ai_enabled
@@ -87,7 +95,11 @@ export function ModeSelect({ lang, lessonId }: { lang: string; lessonId?: string
                 void navigate({
                   to: '/learn/$lang/review',
                   params: { lang },
-                  search: { mode: m.mode, ...(lessonId ? { lessonId } : {}) },
+                  search: {
+                    mode: m.mode,
+                    ...(lessonId ? { lessonId } : {}),
+                    ...(itemKind ? { kind: itemKind } : {}),
+                  },
                 })
               }
               className="flex items-center justify-between rounded-lg border border-border bg-card p-4 text-left hover:bg-accent disabled:opacity-50"

@@ -106,6 +106,12 @@ VOCAB_MODEL_BY_KIND: dict[str, type[TokenItem] | type[PhraseItem]] = {
 }
 
 
+def _vocab_models(kind: str) -> list[tuple[str, type[TokenItem] | type[PhraseItem]]]:
+    """Виды лексики, попадающие в очередь/счётчики: kind="all" — слова и фразы
+    вместе, иначе только выбранный вид (вкладки словаря, FLQ-34)."""
+    return [(k, m) for k, m in VOCAB_MODEL_BY_KIND.items() if kind in ("all", k)]
+
+
 class LessonNotFound(Exception):  # noqa: N818 -- matches vocabulary exception naming
     """Lesson does not exist or is not owned by the user."""
 
@@ -253,6 +259,7 @@ async def get_queue(
     language_code: str,
     mode: str = "due",
     lesson_id: uuid.UUID | None = None,
+    kind: str = "all",
     now: datetime | None = None,
 ) -> tuple[list[QueueItem], DailyInfo]:
     now = now or datetime.now(UTC)
@@ -264,13 +271,13 @@ async def get_queue(
         if lesson is None or lesson.owner_user_id != user_id:
             raise LessonNotFound(str(lesson_id))
 
-    def _mode_stmt(kind: str, model: type[TokenItem] | type[PhraseItem]):
+    def _mode_stmt(item_kind: str, model: type[TokenItem] | type[PhraseItem]):
         stmt = (
             select(ReviewItem, model)
             .join(model, ReviewItem.item_id == model.id)
             .where(
                 ReviewItem.user_id == user_id,
-                ReviewItem.item_kind == kind,
+                ReviewItem.item_kind == item_kind,
                 ReviewItem.language_code == language_code,
                 ReviewItem.is_active.is_(True),
                 model.status == "tracked",
@@ -290,9 +297,9 @@ async def get_queue(
                 return [], daily
             fetch = min(NEW_SESSION_LIMIT, max(0, daily.limit - daily.done_today))
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
-        for kind, model in VOCAB_MODEL_BY_KIND.items():
+        for item_kind, model in _vocab_models(kind):
             stmt = (
-                _mode_stmt(kind, model)
+                _mode_stmt(item_kind, model)
                 .where(ReviewItem.last_reviewed_at.is_(None))
                 .order_by(ReviewItem.created_at.desc())
                 .limit(fetch)
@@ -306,9 +313,9 @@ async def get_queue(
 
     if mode == "practice":
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
-        for kind, model in VOCAB_MODEL_BY_KIND.items():
+        for item_kind, model in _vocab_models(kind):
             stmt = (
-                _mode_stmt(kind, model)
+                _mode_stmt(item_kind, model)
                 .where(model.confidence >= 4)
                 .order_by(func.random())
                 .limit(PRACTICE_SESSION_LIMIT)
@@ -323,8 +330,8 @@ async def get_queue(
     if lesson_id is not None:
         assert lesson is not None
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
-        for kind, model in VOCAB_MODEL_BY_KIND.items():
-            stmt = _mode_stmt(kind, model)
+        for item_kind, model in _vocab_models(kind):
+            stmt = _mode_stmt(item_kind, model)
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
         # due первыми, внутри групп — по due_at
         pairs.sort(key=lambda p: (p[0].due_at > now, p[0].due_at))
@@ -340,13 +347,13 @@ async def get_queue(
     remaining = max(0, daily.limit - daily.done_today)
     fetch_limit = min(remaining, MAX_QUEUE_SIZE)
 
-    def _due_stmt(kind: str, model: type[TokenItem] | type[PhraseItem]):
+    def _due_stmt(item_kind: str, model: type[TokenItem] | type[PhraseItem]):
         return (
             select(ReviewItem, model)
             .join(model, ReviewItem.item_id == model.id)
             .where(
                 ReviewItem.user_id == user_id,
-                ReviewItem.item_kind == kind,
+                ReviewItem.item_kind == item_kind,
                 ReviewItem.language_code == language_code,
                 ReviewItem.is_active.is_(True),
                 ReviewItem.due_at <= now,
@@ -356,11 +363,11 @@ async def get_queue(
             .limit(fetch_limit)
         )
 
-    token_result = await session.execute(_due_stmt("token", TokenItem))
-    phrase_result = await session.execute(_due_stmt("phrase", PhraseItem))
-    token_pairs = [(ri, it) for ri, it in token_result.all()]
-    phrase_pairs = [(ri, it) for ri, it in phrase_result.all()]
-    pairs = sorted(token_pairs + phrase_pairs, key=lambda p: p[0].due_at)
+    pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
+    for item_kind, model in _vocab_models(kind):
+        result = await session.execute(_due_stmt(item_kind, model))
+        pairs.extend((ri, it) for ri, it in result.all())
+    pairs.sort(key=lambda p: p[0].due_at)
     pairs = pairs[:fetch_limit]
     return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
@@ -450,6 +457,7 @@ async def get_counts(
     user_id: uuid.UUID,
     language_code: str,
     lesson_id: uuid.UUID | None = None,
+    kind: str = "all",
     now: datetime | None = None,
 ) -> CountsInfo:
     now = now or datetime.now(UTC)
@@ -464,7 +472,7 @@ async def get_counts(
         extra_where: Callable[[type[TokenItem] | type[PhraseItem]], list[ColumnElement[bool]]],
     ) -> int:
         total = 0
-        for kind, model in VOCAB_MODEL_BY_KIND.items():
+        for item_kind, model in _vocab_models(kind):
             lesson_where = _lesson_scope(model, lesson) if lesson is not None else []
             stmt = (
                 select(func.count())
@@ -472,7 +480,7 @@ async def get_counts(
                 .join(model, ReviewItem.item_id == model.id)
                 .where(
                     ReviewItem.user_id == user_id,
-                    ReviewItem.item_kind == kind,
+                    ReviewItem.item_kind == item_kind,
                     ReviewItem.language_code == language_code,
                     ReviewItem.is_active.is_(True),
                     model.status == "tracked",

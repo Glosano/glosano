@@ -15,15 +15,19 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }))
 
-import type { ReviewMode } from '@/api/review'
+import type { ReviewItemKind, ReviewMode } from '@/api/review'
 import { reviewApi } from '@/api/review'
 import { ReviewPage } from './ReviewPage'
 
-function renderPage({ lessonId, mode }: { lessonId?: string; mode?: ReviewMode } = {}) {
+function renderPage({
+  lessonId,
+  mode,
+  itemKind,
+}: { lessonId?: string; mode?: ReviewMode; itemKind?: ReviewItemKind } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const result = render(
     <QueryClientProvider client={qc}>
-      <ReviewPage lang="pt" lessonId={lessonId} mode={mode} />
+      <ReviewPage lang="pt" lessonId={lessonId} mode={mode} itemKind={itemKind} />
     </QueryClientProvider>,
   )
   return { ...result, qc }
@@ -83,26 +87,40 @@ describe('ReviewPage queue states', () => {
   it('с lessonId и mode=cards грузит очередь урока', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
     renderPage({ lessonId: 'L1', mode: 'cards' })
-    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined))
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined, undefined))
     expect(await screen.findByText('Слова урока')).toBeTruthy()
+  })
+
+  it.each([
+    ['cards', undefined],
+    ['new', 'new'],
+    ['cloze', undefined],
+    ['translation', 'practice'],
+  ] as const)('в режиме %s с kind=phrase грузит только фразы и помечает сессию', async (mode, serverMode) => {
+    vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
+    renderPage({ mode, itemKind: 'phrase' })
+    await waitFor(() =>
+      expect(reviewApi.queue).toHaveBeenCalledWith('pt', undefined, serverMode, 'phrase'),
+    )
+    expect(await screen.findByText(/Фразы/)).toBeInTheDocument()
   })
 
   it('с lessonId и mode=new грузит очередь урока', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
     renderPage({ lessonId: 'L1', mode: 'new' })
-    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'new'))
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'new', undefined))
   })
 
   it('с lessonId и mode=cloze грузит очередь урока', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
     renderPage({ lessonId: 'L1', mode: 'cloze' })
-    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined))
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', undefined, undefined))
   })
 
   it('с lessonId и mode=translation грузит очередь урока', async () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [], daily: DAILY })
     renderPage({ lessonId: 'L1', mode: 'translation' })
-    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice'))
+    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice', undefined))
   })
 })
 

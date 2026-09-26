@@ -616,3 +616,84 @@ async def test_queue_context_sentence_comes_from_segment():
         await s.commit()
         items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
         assert [i.context_sentence for i in items] == ["cada mundo."]
+
+
+async def _tracked_phrase(s: AsyncSession, user_id: uuid.UUID, text: str) -> PhraseItem:
+    item = await vocab.create_item(
+        s,
+        user_id=user_id,
+        kind="phrase",
+        language_code="pt",
+        text=text,
+        status="tracked",
+        confidence=4,
+    )
+    assert isinstance(item, PhraseItem)
+    return item
+
+
+async def _token_and_phrase(s: AsyncSession, user_id: uuid.UUID) -> tuple[TokenItem, PhraseItem]:
+    """Слово и фраза: каждая из них due, новая и годится для practice."""
+    token = await vocab.create_item(
+        s,
+        user_id=user_id,
+        kind="token",
+        language_code="pt",
+        text="forte",
+        status="tracked",
+        confidence=4,
+    )
+    assert isinstance(token, TokenItem)
+    phrase = await _tracked_phrase(s, user_id, "bom dia")
+    await _set_due(s, token.id, NOW - timedelta(hours=1))
+    await _set_due(s, phrase.id, NOW - timedelta(hours=2))
+    return token, phrase
+
+
+@pytest.mark.parametrize("mode", ["due", "new", "practice"])
+async def test_queue_kind_filter_limits_items_to_kind(mode: str) -> None:
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        await _token_and_phrase(s, user_id)
+        phrases, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", mode=mode, kind="phrase", now=NOW
+        )
+        tokens, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", mode=mode, kind="token", now=NOW
+        )
+        both, _ = await get_queue(s, user_id=user_id, language_code="pt", mode=mode, now=NOW)
+        assert [(i.item_kind, i.text) for i in phrases] == [("phrase", "bom dia")]
+        assert [(i.item_kind, i.text) for i in tokens] == [("token", "forte")]
+        assert sorted(i.item_kind for i in both) == ["phrase", "token"]
+
+
+async def test_lesson_queue_kind_filter_combines_with_lesson_scope() -> None:
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        token, phrase = await _token_and_phrase(s, user_id)
+        other_phrase = await _tracked_phrase(s, user_id, "boa noite")
+        lesson = await _lesson_with_occurrence(s, user_id, "forte")
+        await _attach(s, token, lesson)
+        await _attach(s, phrase, lesson)
+        items, _ = await get_queue(
+            s, user_id=user_id, language_code="pt", lesson_id=lesson.id, kind="phrase", now=NOW
+        )
+        assert [i.text for i in items] == ["bom dia"]
+        assert other_phrase.created_from_lesson_id is None
+
+
+async def test_counts_kind_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "llm_enabled", False)
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        await _token_and_phrase(s, user_id)
+        await _tracked_phrase(s, user_id, "boa noite")  # новая, не due (due_at = real now)
+        phrase_counts = await get_counts(
+            s, user_id=user_id, language_code="pt", kind="phrase", now=NOW
+        )
+        token_counts = await get_counts(
+            s, user_id=user_id, language_code="pt", kind="token", now=NOW
+        )
+        assert (phrase_counts.new, phrase_counts.practice) == (2, 2)
+        assert (token_counts.due, token_counts.new, token_counts.practice) == (1, 1, 1)
+        assert phrase_counts.due == 1

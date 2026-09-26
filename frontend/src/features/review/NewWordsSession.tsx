@@ -2,21 +2,31 @@ import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
-import { reviewApi, type ExampleExercise } from '@/api/review'
+import { reviewApi, type ExampleExercise, type ReviewItemKind } from '@/api/review'
 import { GradeBar } from './GradeBar'
 import { useReviewSession } from './useReviewSession'
 import { SessionShell, SessionStates } from './sessionUi'
+import { sessionSubtitle } from './sessionSubtitle'
 
-export function NewWordsSession(props: { lang: string; lessonId?: string }) {
+interface NewWordsSessionProps {
+  lang: string
+  lessonId?: string
+  itemKind?: ReviewItemKind
+}
+
+export function NewWordsSession(props: NewWordsSessionProps) {
   const { language } = useI18n()
   return (
-    <NewWordsSessionContent key={`${language}:${props.lang}:${props.lessonId ?? ''}`} {...props} />
+    <NewWordsSessionContent
+      key={`${language}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
+      {...props}
+    />
   )
 }
 
-function NewWordsSessionContent({ lang, lessonId }: { lang: string; lessonId?: string }) {
+function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionProps) {
   const { language, t } = useI18n()
-  const s = useReviewSession(lang, { serverMode: 'new', lessonId })
+  const s = useReviewSession(lang, { serverMode: 'new', lessonId, itemKind })
   const [revealed, setRevealed] = useState(false)
 
   const exercise = useQuery({
@@ -49,7 +59,7 @@ function NewWordsSessionContent({ lang, lessonId }: { lang: string; lessonId?: s
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const subtitle = lessonId ? t('Новые слова · Слова урока') : t('Новые слова')
+  const subtitle = sessionSubtitle(t, { title: 'Новые слова', lessonId, itemKind })
 
   const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states

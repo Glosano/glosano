@@ -2,7 +2,12 @@ import { useI18n } from '@/lib/i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { reviewApi, type ReviewDaily, type ReviewQueueItem } from '@/api/review'
+import {
+  reviewApi,
+  type ReviewDaily,
+  type ReviewItemKind,
+  type ReviewQueueItem,
+} from '@/api/review'
 import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
 
 export interface ReviewSessionResult {
@@ -30,14 +35,15 @@ interface SessionState {
 
 export function useReviewSession(
   lang: string,
-  opts: { serverMode: 'due' | 'new' | 'practice'; lessonId?: string },
+  opts: { serverMode: 'due' | 'new' | 'practice'; lessonId?: string; itemKind?: ReviewItemKind },
 ): ReviewSessionResult {
   const { language, t } = useI18n()
-  const { serverMode, lessonId } = opts
+  const { serverMode, lessonId, itemKind } = opts
   const queryClient = useQueryClient()
   const { data, isPending, isError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ['review-queue', lang, serverMode, lessonId ?? null, language],
-    queryFn: () => reviewApi.queue(lang, lessonId, serverMode === 'due' ? undefined : serverMode),
+    queryKey: ['review-queue', lang, serverMode, lessonId ?? null, itemKind ?? null, language],
+    queryFn: () =>
+      reviewApi.queue(lang, lessonId, serverMode === 'due' ? undefined : serverMode, itemKind),
     staleTime: Infinity,
     gcTime: 0,
     refetchOnWindowFocus: false,

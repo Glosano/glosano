@@ -31,6 +31,9 @@ export interface ReviewAnswerResponse {
 
 export type ReviewMode = 'cards' | 'new' | 'cloze' | 'reverse' | 'translation'
 
+/** Повтор только слов или только фраз (вкладки словаря); без него — вперемешку. */
+export type ReviewItemKind = 'token' | 'phrase'
+
 export interface ReviewCounts {
   due: number
   new: number
@@ -68,10 +71,11 @@ export interface ExerciseResponse<P> {
 }
 
 export const reviewApi = {
-  queue: (lang: string, lessonId?: string, mode?: string) => {
+  queue: (lang: string, lessonId?: string, mode?: string, kind?: ReviewItemKind) => {
     const q = new URLSearchParams({ lang })
     if (lessonId) q.set('lesson_id', lessonId)
     if (mode) q.set('mode', mode)
+    if (kind) q.set('kind', kind)
     return api<ReviewQueueResponse>(`/api/review/queue?${q.toString()}`)
   },
   answer: (reviewItemId: string, quality: number) =>
@@ -79,9 +83,10 @@ export const reviewApi = {
       method: 'POST',
       body: JSON.stringify({ review_item_id: reviewItemId, quality }),
     }),
-  counts: (lang: string, lessonId?: string) => {
+  counts: (lang: string, lessonId?: string, kind?: ReviewItemKind) => {
     const q = new URLSearchParams({ lang })
     if (lessonId) q.set('lesson_id', lessonId)
+    if (kind) q.set('kind', kind)
     return api<ReviewCounts>(`/api/review/counts?${q.toString()}`)
   },
   exercise: <P,>(body: {

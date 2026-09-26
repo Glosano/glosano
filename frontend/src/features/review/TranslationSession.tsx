@@ -3,8 +3,9 @@ import { learningLanguageLabel } from '@/lib/languages'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
-import { reviewApi } from '@/api/review'
+import { reviewApi, type ReviewItemKind } from '@/api/review'
 import { LessonEmptyState, SessionShell } from './sessionUi'
+import { sessionSubtitle } from './sessionSubtitle'
 
 const SUBTITLE = 'Практика перевода'
 
@@ -12,23 +13,29 @@ interface TranslationTaskExercise {
   sentence_translation: string
 }
 
-export function TranslationSession(props: { lang: string; lessonId?: string }) {
+interface TranslationSessionProps {
+  lang: string
+  lessonId?: string
+  itemKind?: ReviewItemKind
+}
+
+export function TranslationSession(props: TranslationSessionProps) {
   const { language } = useI18n()
   return (
     <TranslationSessionContent
-      key={`${language}:${props.lang}:${props.lessonId ?? ''}`}
+      key={`${language}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
       {...props}
     />
   )
 }
 
-function TranslationSessionContent({ lang, lessonId }: { lang: string; lessonId?: string }) {
+function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSessionProps) {
   const { language, t } = useI18n()
-  const subtitle = lessonId ? t('{{value0}} · Слова урока', { value0: t(SUBTITLE) }) : t(SUBTITLE)
+  const subtitle = sessionSubtitle(t, { title: SUBTITLE, lessonId, itemKind })
 
   const queue = useQuery({
-    queryKey: ['review-queue', lang, 'practice', lessonId ?? null, language],
-    queryFn: () => reviewApi.queue(lang, lessonId, 'practice'),
+    queryKey: ['review-queue', lang, 'practice', lessonId ?? null, itemKind ?? null, language],
+    queryFn: () => reviewApi.queue(lang, lessonId, 'practice', itemKind),
     staleTime: Infinity,
     gcTime: 0,
   })

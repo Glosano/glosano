@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import type { ReviewItemKind } from '@/api/review'
 import type { VocabListItem } from '@/api/vocabulary'
 import { WordCard } from '@/features/reader/WordCard'
 import { BulkActionsMenu, type BulkAction } from './BulkActionsMenu'
@@ -29,7 +30,14 @@ interface Props {
 const LINK_TABS = [
   { id: 'all', label: 'Все' },
   { id: 'words', label: 'Слова' },
+  { id: 'phrases', label: 'Фразы' },
 ] as const
+
+/** Вид лексики вкладки: фильтрует список и скоуп кнопки повтора (FLQ-34). */
+const TAB_KINDS: Partial<Record<Props['tab'], ReviewItemKind>> = {
+  words: 'token',
+  phrases: 'phrase',
+}
 
 const PAGE_SIZES = [25, 50, 100] as const
 
@@ -97,7 +105,7 @@ export function VocabularyPage({ lang, tab }: Props) {
     sort_dir: sortDir,
     page,
     page_size: pageSize,
-    kind: tab === 'words' ? 'token' : 'all',
+    kind: TAB_KINDS[tab] ?? 'all',
     added_by: showAuto ? 'all' : 'user',
   })
   const patchItem = usePatchItem()
@@ -175,14 +183,6 @@ export function VocabularyPage({ lang, tab }: Props) {
             title={tr('Появится позже')}
             className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-0.5 py-1 text-center text-[12px] leading-tight hyphens-auto [overflow-wrap:anywhere] sm:h-8 sm:whitespace-nowrap sm:px-6 sm:text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
           >
-            {tr('Фразы')}
-          </button>
-          <button
-            type="button"
-            disabled
-            title={tr('Появится позже')}
-            className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-0.5 py-1 text-center text-[12px] leading-tight hyphens-auto [overflow-wrap:anywhere] sm:h-8 sm:whitespace-nowrap sm:px-6 sm:text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
-          >
             {tr('К повторению')}
           </button>
         </div>
@@ -216,7 +216,10 @@ export function VocabularyPage({ lang, tab }: Props) {
             type="button"
             size="lg"
             className="bg-[#45B082] text-[13px] font-medium text-white hover:bg-[#3da075]"
-            onClick={() => { navigate({ to: '/learn/$lang/review', params: { lang } }) }}
+            onClick={() => {
+              const kind = TAB_KINDS[tab]
+              navigate({ to: '/learn/$lang/review', params: { lang }, ...(kind ? { search: { kind } } : {}) })
+            }}
           >
             {tr('⟳ Повтор лексики')}
           </Button>

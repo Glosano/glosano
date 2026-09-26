@@ -15,11 +15,11 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 import { reviewApi } from '@/api/review'
 import { ModeSelect } from './ModeSelect'
 
-function renderModeSelect(lessonId?: string) {
+function renderModeSelect(lessonId?: string, itemKind?: 'token' | 'phrase') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <ModeSelect lang="pt" lessonId={lessonId} />
+      <ModeSelect lang="pt" lessonId={lessonId} itemKind={itemKind} />
     </QueryClientProvider>,
   )
 }
@@ -53,11 +53,22 @@ describe('ModeSelect', () => {
   it('в скоупе урока запрашивает счётчики урока и сохраняет lessonId при переходе', async () => {
     vi.mocked(reviewApi.counts).mockResolvedValue({ due: 2, new: 1, practice: 0, ai_enabled: true })
     renderModeSelect('L1')
-    await waitFor(() => expect(reviewApi.counts).toHaveBeenCalledWith('pt', 'L1'))
+    await waitFor(() => expect(reviewApi.counts).toHaveBeenCalledWith('pt', 'L1', undefined))
     expect(await screen.findByText('Слова урока')).toBeTruthy()
     screen.getByText('Карточки').closest('button')!.click()
     expect(navigateMock).toHaveBeenCalledWith(
       expect.objectContaining({ search: { mode: 'cards', lessonId: 'L1' } }),
+    )
+  })
+
+  it('с kind=phrase считает только фразы и сохраняет kind при переходе', async () => {
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 1, new: 1, practice: 0, ai_enabled: true })
+    renderModeSelect(undefined, 'phrase')
+    await waitFor(() => expect(reviewApi.counts).toHaveBeenCalledWith('pt', undefined, 'phrase'))
+    expect(await screen.findByText('Фразы')).toBeTruthy()
+    screen.getByText('Карточки').closest('button')!.click()
+    expect(navigateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ search: { mode: 'cards', kind: 'phrase' } }),
     )
   })
 })

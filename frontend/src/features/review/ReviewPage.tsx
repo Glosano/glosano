@@ -1,13 +1,14 @@
 import { useTranslation, useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 
-import type { ReviewMode } from '@/api/review'
+import type { ReviewItemKind, ReviewMode } from '@/api/review'
 import { GradeBar } from './GradeBar'
 import { ModeSelect } from './ModeSelect'
 import { NewWordsSession } from './NewWordsSession'
 import { QuizSession } from './QuizSession'
 import { ReviewCard } from './ReviewCard'
 import { GraduationToast, SessionShell, SessionStates } from './sessionUi'
+import { sessionSubtitle } from './sessionSubtitle'
 import { TranslationSession } from './TranslationSession'
 import { useReviewSession } from './useReviewSession'
 
@@ -15,24 +16,32 @@ interface Props {
   lang: string
   lessonId: string | undefined
   mode: ReviewMode | undefined
+  itemKind?: ReviewItemKind
 }
 
-export function ReviewPage({ lang, lessonId, mode }: Props) {
+export function ReviewPage({ lang, lessonId, mode, itemKind }: Props) {
   const { language } = useI18n()
-  if (!mode) return <ModeSelect lang={lang} lessonId={lessonId} />
+  const scope = { lang, lessonId, itemKind }
+  if (!mode) return <ModeSelect {...scope} />
   if (mode === 'cards')
-    return (
-      <CardsSession key={`${language}:${lang}:${lessonId ?? ''}`} lang={lang} lessonId={lessonId} />
-    )
-  if (mode === 'new') return <NewWordsSession lang={lang} lessonId={lessonId} />
-  if (mode === 'cloze') return <QuizSession lang={lang} kind="cloze" lessonId={lessonId} />
-  if (mode === 'reverse') return <QuizSession lang={lang} kind="reverse" lessonId={lessonId} />
-  return <TranslationSession lang={lang} lessonId={lessonId} />
+    return <CardsSession key={`${language}:${lang}:${lessonId ?? ''}:${itemKind ?? ''}`} {...scope} />
+  if (mode === 'new') return <NewWordsSession {...scope} />
+  if (mode === 'cloze') return <QuizSession kind="cloze" {...scope} />
+  if (mode === 'reverse') return <QuizSession kind="reverse" {...scope} />
+  return <TranslationSession {...scope} />
 }
 
-function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | undefined }) {
+function CardsSession({
+  lang,
+  lessonId,
+  itemKind,
+}: {
+  lang: string
+  lessonId: string | undefined
+  itemKind: ReviewItemKind | undefined
+}) {
   const t = useTranslation()
-  const s = useReviewSession(lang, { serverMode: 'due', lessonId })
+  const s = useReviewSession(lang, { serverMode: 'due', lessonId, itemKind })
   const { current, idx, total, answering, answerError, graduated, dismissGraduation, grade } = s
 
   const [flipped, setFlipped] = useState(false)
@@ -58,7 +67,7 @@ function CardsSession({ lang, lessonId }: { lang: string; lessonId: string | und
     return () => window.removeEventListener('keydown', onKey)
   }, [current, flipped, grade])
 
-  const subtitle = lessonId ? t('Слова урока') : undefined
+  const subtitle = sessionSubtitle(t, { lessonId, itemKind })
   const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
   if (!current) return <SessionShell subtitle={subtitle}>{t('Загрузка…')}</SessionShell>

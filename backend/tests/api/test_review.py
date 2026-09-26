@@ -11,14 +11,14 @@ from glosano.core.config import get_settings
 from glosano.core.db import session_scope
 from glosano.main import create_app
 from glosano.modules.review.models import ReviewEvent, ReviewItem
-from glosano.modules.vocabulary.models import TokenItem
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 
 @pytest.fixture(autouse=True)
 async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFunction]
     yield
     async with session_scope() as s:
-        for model in (ReviewEvent, ReviewItem, TokenItem):
+        for model in (ReviewEvent, ReviewItem, PhraseItem, TokenItem):
             await s.execute(delete(model))
 
 
@@ -41,12 +41,14 @@ async def _register(c: AsyncClient) -> str:
     return csrf
 
 
-async def _create_tracked(c: AsyncClient, csrf: str, text: str = "cada") -> None:
+async def _create_tracked(
+    c: AsyncClient, csrf: str, text: str = "cada", kind: str = "token"
+) -> None:
     r = await c.post(
         "/api/vocabulary/items",
         headers={"X-CSRF-Token": csrf},
         json={
-            "kind": "token",
+            "kind": kind,
             "language_code": "pt",
             "text": text,
             "status": "tracked",
@@ -214,3 +216,26 @@ async def test_feedback_returns_503_when_ai_disabled(monkeypatch: pytest.MonkeyP
             },
         )
         assert r.status_code == 503
+
+
+async def test_queue_and_counts_filter_by_kind(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(get_settings(), "llm_enabled", False)
+    async with await _client() as c:
+        csrf = await _register(c)
+        await _create_tracked(c, csrf)
+        await _create_tracked(c, csrf, text="bom dia", kind="phrase")
+        r = await c.get("/api/review/queue", params={"lang": "pt", "mode": "new", "kind": "phrase"})
+        assert r.status_code == 200
+        assert [(i["item_kind"], i["text"]) for i in r.json()["items"]] == [("phrase", "bom dia")]
+        r = await c.get("/api/review/counts", params={"lang": "pt", "kind": "token"})
+        assert r.status_code == 200
+        assert r.json()["new"] == 1
+        r = await c.get("/api/review/counts", params={"lang": "pt"})
+        assert r.json()["new"] == 2
+
+
+async def test_queue_rejects_unknown_kind():
+    async with await _client() as c:
+        await _register(c)
+        r = await c.get("/api/review/queue", params={"lang": "pt", "kind": "lemma"})
+        assert r.status_code == 422
