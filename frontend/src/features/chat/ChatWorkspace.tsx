@@ -98,7 +98,7 @@ export function ChatWorkspace({
       )}
       {!embedded && (!compact || listOpen) && (
         <aside
-          className={`shrink-0 border-r border-border/60 bg-background ${listOpen ? 'w-[260px] max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-xl' : 'w-12'}`}
+          className={`shrink-0 border-r border-border/60 bg-background ${listOpen ? 'w-[260px] max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-xl' : 'w-[52px]'}`}
         >
           <ChatSidebar
             collapsed={!listOpen}
