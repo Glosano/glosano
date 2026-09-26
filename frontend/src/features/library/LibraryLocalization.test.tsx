@@ -2,7 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@tanstack/react-router', () => ({ useParams: () => ({ lang: 'pt' }) }))
+vi.mock('@tanstack/react-router', async () => ({
+  Link: (await import('@/test/routerLinkMock')).MockLink,
+  useParams: () => ({ lang: 'pt' }),
+}))
 
 import { setUiLanguage } from '@/lib/i18n'
 import { FilterRow } from './FilterRow'

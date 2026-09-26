@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 
@@ -48,10 +49,13 @@ export function LessonActions({ lesson }: { lesson: LessonSummary }) {
           }}
         >
           <DropdownMenuItem asChild>
-            <a href={`/learn/${lesson.language_code}/lessons/${lesson.id}/edit`}>
+            <Link
+              to="/learn/$lang/lessons/$lessonId/edit"
+              params={{ lang: lesson.language_code, lessonId: lesson.id }}
+            >
               <Pencil aria-hidden="true" />
               {t('Редактировать')}
-            </a>
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
             <Trash2 aria-hidden="true" />

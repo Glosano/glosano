@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+
 import { useI18n } from '@/lib/i18n'
 import type { LessonSummary } from '@/api/lessons'
 import { LessonCover } from './LessonCover'
@@ -16,8 +18,9 @@ export function LessonCard({ lesson }: Props) {
   const newLabel = plurals.select(lesson.new_words_remaining) === 'one' ? 'новое' : 'новых'
   return (
     <article className="relative w-[220px] shrink-0 overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
-      <a
-        href={`/learn/${lesson.language_code}/lessons/${lesson.id}`}
+      <Link
+        to="/learn/$lang/lessons/$lessonId"
+        params={{ lang: lesson.language_code, lessonId: lesson.id }}
         className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <LessonCover title={lesson.title} languageCode={lesson.language_code} />
@@ -56,7 +59,7 @@ export function LessonCard({ lesson }: Props) {
             </p>
           </div>
         </div>
-      </a>
+      </Link>
       {lesson.can_manage && lesson.status === 'failed' && lesson.source_type === 'youtube' && (
         <RetryVideoImport lessonId={lesson.id} lang={lesson.language_code} />
       )}

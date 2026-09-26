@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from glosano import __version__
@@ -29,6 +28,7 @@ from glosano.core.config import get_settings
 from glosano.core.db import dispose_engine, init_engine
 from glosano.core.lesson_upload import LessonUploadMiddleware
 from glosano.core.logging import configure_logging
+from glosano.core.spa import SpaStaticFiles
 from glosano.modules.identity.middleware import CSRFMiddleware, SessionMiddleware
 
 
@@ -82,7 +82,7 @@ def create_app() -> FastAPI:
     if settings.static_dir is not None and settings.static_dir.exists():
         app.mount(
             "/",
-            StaticFiles(directory=str(settings.static_dir), html=True),
+            SpaStaticFiles(directory=str(settings.static_dir), html=True),
             name="frontend",
         )
 

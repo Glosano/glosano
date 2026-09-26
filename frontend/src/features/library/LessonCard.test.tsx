@@ -1,5 +1,9 @@
 import { act, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@tanstack/react-router', async () => ({
+  Link: (await import('@/test/routerLinkMock')).MockLink,
+}))
 
 import type { LessonSummary } from '@/api/lessons'
 
@@ -49,6 +53,14 @@ describe('LessonCard', () => {
     act(() => setUiLanguage('ru'))
     expect(screen.getByRole('progressbar', { name: 'Прочитано 42%' })).toBeInTheDocument()
     expect(screen.getByText(lesson.title)).toBeInTheDocument()
+  })
+
+  it('links the card to the reader of this lesson', () => {
+    render(<LessonCard lesson={lesson} />)
+    expect(screen.getByRole('link', { name: new RegExp(lesson.title) })).toHaveAttribute(
+      'href',
+      `/learn/pt/lessons/${lesson.id}`,
+    )
   })
 
   it('fills the progress bar to the read percentage', () => {

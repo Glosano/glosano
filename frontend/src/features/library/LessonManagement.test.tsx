@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
+vi.mock('@tanstack/react-router', async () => ({
+  Link: (await import('@/test/routerLinkMock')).MockLink,
+}))
+
 import { lessonsApi } from '@/api/lessons'
 import { setUiLanguage } from '@/lib/i18n'
 import { LessonCard } from './LessonCard'
