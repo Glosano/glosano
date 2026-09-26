@@ -17,6 +17,7 @@ from glosano.core.textnorm import normalize_token
 from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
 from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from glosano.modules.lesson_library.tokenization import normalize_phrase
+from glosano.modules.review.models import ReviewItem
 from glosano.modules.review.service import deactivate_review_items, sync_review_item
 from glosano.modules.vocabulary.models import (
     ItemTag,
@@ -746,6 +747,7 @@ def _branch_conditions(
     q: str | None,
     added_after: datetime | None,
     added_by: str,
+    due_before: datetime | None,
 ) -> list[Any]:
     text_col = _text_column(model)
     conditions: list[Any] = [
@@ -789,6 +791,20 @@ def _branch_conditions(
         )
     if added_after is not None:
         conditions.append(model.created_at >= added_after)
+    if due_before is not None:
+        # Фильтр due (FLQ-35) повторяет предикат due-очереди и due-счётчика
+        # повтора, иначе размер списка разойдётся и счётчик кнопки повтора соврёт.
+        conditions.append(model.status == "tracked")
+        conditions.append(
+            exists().where(
+                ReviewItem.user_id == user_id,
+                ReviewItem.item_kind == kind,
+                ReviewItem.item_id == model.id,
+                ReviewItem.language_code == language_code,
+                ReviewItem.is_active.is_(True),
+                ReviewItem.due_at <= due_before,
+            )
+        )
     return conditions
 
 
@@ -824,6 +840,7 @@ async def list_items(
     page: int,
     page_size: int,
     added_by: str = "user",
+    due_before: datetime | None = None,
 ) -> tuple[list[VocabListItem], int]:
     """Paginated vocabulary list (spec §3.1). `kind` selects `"token"` |
     `"phrase"` | `"all"` — token and phrase rows are combined via UNION ALL
@@ -839,6 +856,7 @@ async def list_items(
         "q": q,
         "added_after": added_after,
         "added_by": added_by,
+        "due_before": due_before,
     }
     branches: list[Select[Any]] = []
     if kind in ("token", "all"):

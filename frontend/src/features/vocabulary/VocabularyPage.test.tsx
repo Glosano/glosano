@@ -21,6 +21,7 @@ vi.mock('@/api/vocabulary', () => ({
   },
 }))
 vi.mock('@/api/dictionary', () => ({ dictionaryApi: { lookup: vi.fn() } }))
+vi.mock('@/api/review', () => ({ reviewApi: { counts: vi.fn() } }))
 vi.mock('@/api/ai', () => ({ aiApi: { translate: vi.fn() } }))
 
 // jsdom doesn't implement scrollIntoView, which the radix Select popup uses
@@ -30,6 +31,7 @@ Element.prototype.scrollIntoView = vi.fn()
 import { vocabularyApi } from '@/api/vocabulary'
 import { dictionaryApi } from '@/api/dictionary'
 import { aiApi } from '@/api/ai'
+import { reviewApi } from '@/api/review'
 import type { VocabListItem } from '@/api/vocabulary'
 
 import { addedAfterFromPreset, VocabularyPage } from './VocabularyPage'
@@ -80,10 +82,11 @@ function resetStore() {
     pageSize: 25,
     selection: [],
     showAuto: false,
+    dueOnly: false,
   })
 }
 
-function renderPage(tab: 'all' | 'words' | 'phrases' | 'due' = 'all') {
+function renderPage(tab: 'all' | 'words' | 'phrases' = 'all') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
@@ -101,6 +104,7 @@ describe('VocabularyPage states', () => {
       entries: [], attribution: { source: '', license: '', url: '' }, external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 0, new: 0, practice: 0, ai_enabled: true })
   })
 
   it('renders English controls and switches vocabulary and card targets without rewriting saved text', async () => {
@@ -284,7 +288,7 @@ describe('VocabularyPage states', () => {
     })
   })
 
-  it('renders the tabs as a segmented control with the active tab styled and the due placeholder', async () => {
+  it('renders the tabs as a segmented control with the active tab styled and no due tab', async () => {
     vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 25 })
 
     renderPage()
@@ -297,10 +301,7 @@ describe('VocabularyPage states', () => {
     expect(screen.getByRole('link', { name: 'Слова' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Фразы' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Фразы' })).toBeNull()
-
-    const dueButton = screen.getByRole('button', { name: 'К повторению' })
-    expect(dueButton).toBeDisabled()
-    expect(dueButton).toHaveAttribute('title', 'Появится позже')
+    expect(screen.queryByText('К повторению')).toBeNull()
   })
 
   it('renders the «⟳ Повтор лексики» button and navigates to the global review route on click', async () => {
@@ -346,5 +347,39 @@ describe('VocabularyPage states', () => {
       params: { lang: 'pt' },
       search: { kind },
     })
+  })
+
+  it('sends due=true when the «К повтору» filter is on', async () => {
+    useVocabularyStore.setState({ dueOnly: true })
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(vocabularyApi.list).toHaveBeenCalledWith(expect.objectContaining({ due: true }))
+    })
+  })
+
+  it.each([
+    ['all', undefined],
+    ['words', 'token'],
+    ['phrases', 'phrase'],
+  ] as const)('shows the due count of the %s tab on the review button', async (tab, kind) => {
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 12, new: 0, practice: 0, ai_enabled: true })
+
+    renderPage(tab)
+
+    expect(await screen.findByRole('button', { name: '⟳ Повтор лексики (12)' })).toBeInTheDocument()
+    expect(reviewApi.counts).toHaveBeenCalledWith('pt', undefined, kind)
+  })
+
+  it('hides the count when nothing is due', async () => {
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+
+    renderPage()
+
+    await waitFor(() => { expect(reviewApi.counts).toHaveBeenCalled() })
+    expect(screen.getByRole('button', { name: '⟳ Повтор лексики' })).toBeInTheDocument()
   })
 })

@@ -19,6 +19,7 @@ function resetStore() {
     pageSize: 25,
     selection: [],
     showAuto: false,
+    dueOnly: false,
   })
 }
 
@@ -130,5 +131,25 @@ describe('FilterPopover', () => {
     fireEvent.mouseDown(screen.getByTestId('outside'))
 
     expect(screen.queryByText('Уровень уверенности')).not.toBeInTheDocument()
+  })
+
+  it('checking «К повтору» limits the list to items due for review', () => {
+    render(<FilterPopover />)
+    fireEvent.click(screen.getByRole('button', { name: '⊟ Фильтры' }))
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /К повтору/ }))
+
+    expect(useVocabularyStore.getState().dueOnly).toBe(true)
+    expect(useVocabularyStore.getState().filtersAreDefault()).toBe(false)
+  })
+
+  it('«Сбросить» turns «К повтору» off', () => {
+    useVocabularyStore.setState({ dueOnly: true })
+    render(<FilterPopover />)
+    fireEvent.click(screen.getByRole('button', { name: '⊟ Фильтры' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }))
+
+    expect(useVocabularyStore.getState().dueOnly).toBe(false)
   })
 })

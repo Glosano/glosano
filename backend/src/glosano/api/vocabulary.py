@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -365,6 +365,7 @@ async def list_vocabulary(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query()] = 25,
     added_by: Literal["user", "all"] = "user",
+    due: bool = False,
 ) -> VocabListResponse:
     if page_size not in (25, 50, 100):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "page_size must be 25, 50 or 100")
@@ -386,6 +387,7 @@ async def list_vocabulary(
         page=page,
         page_size=page_size,
         added_by=added_by,
+        due_before=datetime.now(UTC) if due else None,
     )
     return VocabListResponse(
         items=[

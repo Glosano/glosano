@@ -4,7 +4,9 @@ import { VocabularyPage } from '@/features/vocabulary/VocabularyPage'
 
 import { learnLangRoute } from './learn.$lang'
 
-const TABS = ['all', 'words', 'phrases', 'due'] as const
+// Вкладку «К повторению» заменили фильтр и счётчик на кнопке повтора (FLQ-35);
+// старые ссылки ?tab=due открывают «Все».
+const TABS = ['all', 'words', 'phrases'] as const
 export type VocabTab = (typeof TABS)[number]
 
 export const learnVocabularyRoute = createRoute({

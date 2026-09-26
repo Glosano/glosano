@@ -22,7 +22,7 @@
 - Путь: `/learn/:lang/vocabulary`, где `:lang ∈ {en, ru, pt}` (decision log §10.1). Изучаемый язык — в path, не в фильтре.
 - Доступ: `learner` (требуется auth).
 - **Query-параметры:**
-  - `tab`: `all` (default) | `words` | `phrases` | `due` — единственный URL-state, deep-linkable.
+  - `tab`: `all` (default) | `words` | `phrases` — единственный URL-state, deep-linkable. `due` удалён в FLQ-35: старые ссылки `?tab=due` открывают `all`.
 - **Не URL, а client-state** (Zustand store страницы): `status` фильтр, search query, sort, page, pageSize. Default'ы: status = все три, sort = `created_at desc`, pageSize = 25.
 
 ## 3. Layout (desktop)
@@ -35,7 +35,7 @@
 │  └───────────────────────────────────────────────────────────────┘│
 │                                                                   │
 │  ┌─ Tabs ────────────────────────────────────────────────────────┐│
-│  │ ● Все   ○ Слова   ○ Фразы   ○ К повторению (12)              ││
+│  │ ● Все   ○ Слова   ○ Фразы                                    ││
 │  └───────────────────────────────────────────────────────────────┘│
 │                                                                   │
 │  ┌─ Toolbar ─────────────────────────────────────────────────────┐│
@@ -68,12 +68,19 @@
 > «Слова» → `/review?kind=token`, «Все» — смешанная очередь. `kind`
 > сохраняется во всех режимах тренажёра и сочетается с повтором урока.
 > «К повторению» по-прежнему disabled.
+>
+> **Ревизия 2026-09-26 (FLQ-35):** таб «К повторению» удалён. Его смысл —
+> сколько ждёт повторения и запуск due-очереди — уже покрыт экраном выбора
+> режима повтора (плитка «Карточки» со счётчиком due), а отдельный экран
+> дублировал бы его. Вместо таба: счётчик на кнопке «⟳ Повтор лексики (N)»
+> (due по активному табу, `GET /api/review/counts?kind=…`; при 0 скрыт) и
+> фильтр «К повтору» в поповере (§6.2) для просмотра и чистки очереди до сессии.
 
 - **Заголовок:** «Словарь» (i18n: `vocabulary.page.title`).
 - **Кнопки справа:**
   - **Импорт** (icon + label) — открывает modal импорта пользовательского словаря (CSV/JSON). MVP: спека импорта = open question, см. §11.
   - **Экспорт** — скачивает JSON со всеми items (формат — см. backend export endpoint).
-  - **Review** (primary) — переводит на `/review` с фильтром по текущим табам/языкам (если активна вкладка `due` — стартует именно очередь due items).
+  - **Review** (primary) — «⟳ Повтор лексики (N)»: переводит на `/review` со скоупом активного таба (`kind`); N — число due items этого таба, при 0 не показывается.
 
 ## 5. Tabs
 
@@ -82,9 +89,8 @@
 | `Все` | tokens + phrases, любой статус из {tracked, known, ignored} | без фильтра по `item_kind`, `status IN (...)` из URL |
 | `Слова` | только token_items | `item_kind = token` |
 | `Фразы` | только phrase_items | `item_kind = phrase` |
-| `К повторению` | только items с `review_items.due_at <= now()` | JOIN `review_items` ON active=true AND due_at<=now() |
 
-Бейдж с числом (`К повторению (12)`) обновляется по реальному count'у. Остальные табы без бейджей в MVP.
+Табы без бейджей; число due items показывает кнопка Review (§4). Прежний таб `К повторению` заменён фильтром «К повтору» (§6.2, FLQ-35).
 
 ## 6. Toolbar
 
@@ -103,6 +109,7 @@
 - **Confidence**: range slider `0..5`, активен только если в статусе выбран `tracked`.
 - **Тег**: chip-input с автодополнением по `item_tags`.
 - **Дата добавления**: presets «За 7 дней / 30 дней / Всё время» + custom range.
+- **К повтору** (FLQ-35): только tracked items с активным `review_items.due_at <= now()` — тот же предикат, что у due-очереди и счётчика на кнопке Review. API: `GET /api/vocabulary?due=true`.
 
 > Язык **не** в фильтрах — он уже в path (`/learn/:lang/vocabulary`). Бэкенд автоматически фильтрует `token_items.language_code = :lang`.
 
@@ -232,7 +239,7 @@
 - **Endpoint:** `POST /vocabulary/bulk` — bulk action (`{ ids: [...], action: 'set_known' | 'set_ignored' | 'delete' | 'add_tag', payload: ... }`).
 - **Endpoint:** `GET /vocabulary/export` — JSON dump.
 - **Endpoint:** `POST /vocabulary/import` — импорт.
-- Backend-модули: `Vocabulary` (основной) + `Review Engine` (для таба `due` и счётчика).
+- Backend-модули: `Vocabulary` (основной) + `Review Engine` (фильтр «К повтору» и счётчик на кнопке Review).
 
 ## 13. Не входит в MVP
 

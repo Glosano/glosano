@@ -72,6 +72,7 @@ export interface VocabListParams {
   page_size?: number
   kind?: 'token' | 'phrase' | 'all'
   added_by?: 'user' | 'all'
+  due?: boolean
 }
 
 export const vocabularyApi = {
@@ -146,6 +147,7 @@ export const vocabularyApi = {
     if (p.page_size) qp.set('page_size', String(p.page_size))
     if (p.kind) qp.set('kind', p.kind)
     if (p.added_by) qp.set('added_by', p.added_by)
+    if (p.due) qp.set('due', 'true')
     return api<VocabListResponse>(`/api/vocabulary?${qp.toString()}`)
   },
   bulk: (body: {

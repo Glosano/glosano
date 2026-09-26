@@ -46,6 +46,8 @@ export function FilterPopover() {
   const setAddedPreset = useVocabularyStore((s) => s.setAddedPreset)
   const showAuto = useVocabularyStore((s) => s.showAuto)
   const setShowAuto = useVocabularyStore((s) => s.setShowAuto)
+  const dueOnly = useVocabularyStore((s) => s.dueOnly)
+  const setDueOnly = useVocabularyStore((s) => s.setDueOnly)
   const resetFilters = useVocabularyStore((s) => s.resetFilters)
 
   useEffect(() => {
@@ -106,6 +108,21 @@ export function FilterPopover() {
               </label>
             ))}
           </fieldset>
+
+          <div className="mt-3">
+            <label className="flex items-start gap-2">
+              <Checkbox
+                checked={dueOnly}
+                onCheckedChange={() => { setDueOnly(!dueOnly) }}
+              />
+              <span className="leading-tight">
+                <span className="block">{tr('К повтору')}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {tr('срок повторения уже наступил')}
+                </span>
+              </span>
+            </label>
+          </div>
 
           <div className="mt-3 space-y-1.5">
             <span className="block text-xs font-medium text-muted-foreground">

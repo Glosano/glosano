@@ -1,5 +1,6 @@
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { ReviewItemKind } from '@/api/review'
+import { reviewApi, type ReviewItemKind } from '@/api/review'
 import type { VocabListItem } from '@/api/vocabulary'
 import { WordCard } from '@/features/reader/WordCard'
 import { BulkActionsMenu, type BulkAction } from './BulkActionsMenu'
@@ -24,7 +25,7 @@ import { VocabularyTable } from './VocabularyTable'
 
 interface Props {
   lang: string
-  tab: 'all' | 'words' | 'phrases' | 'due'
+  tab: 'all' | 'words' | 'phrases'
 }
 
 const LINK_TABS = [
@@ -81,6 +82,7 @@ export function VocabularyPage({ lang, tab }: Props) {
   const pageSize = useVocabularyStore((s) => s.pageSize)
   const selection = useVocabularyStore((s) => s.selection)
   const showAuto = useVocabularyStore((s) => s.showAuto)
+  const dueOnly = useVocabularyStore((s) => s.dueOnly)
   const toggleSelected = useVocabularyStore((s) => s.toggleSelected)
   const selectMany = useVocabularyStore((s) => s.selectMany)
   const clearSelection = useVocabularyStore((s) => s.clearSelection)
@@ -107,7 +109,16 @@ export function VocabularyPage({ lang, tab }: Props) {
     page_size: pageSize,
     kind: TAB_KINDS[tab] ?? 'all',
     added_by: showAuto ? 'all' : 'user',
+    due: dueOnly || undefined,
   })
+  // Счётчик на кнопке повтора: тот же ключ, что у плиток ModeSelect, — общий кэш
+  // и общая инвалидация после ответов и правок словаря (FLQ-35).
+  const reviewKind = TAB_KINDS[tab]
+  const { data: reviewCounts } = useQuery({
+    queryKey: ['review-counts', lang, null, reviewKind ?? null],
+    queryFn: () => reviewApi.counts(lang, undefined, reviewKind),
+  })
+  const dueCount = reviewCounts?.due ?? 0
   const patchItem = usePatchItem()
   const bulk = useBulkAction()
   const invalidateVocabList = useVocabInvalidate()
@@ -156,8 +167,8 @@ export function VocabularyPage({ lang, tab }: Props) {
       <div className="mx-auto max-w-screen-2xl px-6">
       <h1 className="py-6 text-2xl font-bold tracking-tight">{tr('Словарь')}</h1>
       <div className="flex flex-wrap items-center gap-3 pb-5">
-        {/* Below 640px the four tabs share the full width; long labels wrap (FLQ-32.3). */}
-        <div className="grid w-full grid-cols-4 rounded-lg bg-[var(--vocab-subtabs-track)] p-0.5 sm:inline-flex sm:w-auto">
+        {/* Below 640px the three tabs share the full width; long labels wrap (FLQ-32.3). */}
+        <div className="grid w-full grid-cols-3 rounded-lg bg-[var(--vocab-subtabs-track)] p-0.5 sm:inline-flex sm:w-auto">
           {LINK_TABS.map((t) => {
             const active = tab === t.id
             return (
@@ -177,14 +188,6 @@ export function VocabularyPage({ lang, tab }: Props) {
               </Link>
             )
           })}
-          <button
-            type="button"
-            disabled
-            title={tr('Появится позже')}
-            className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-0.5 py-1 text-center text-[12px] leading-tight hyphens-auto [overflow-wrap:anywhere] sm:h-8 sm:whitespace-nowrap sm:px-6 sm:text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
-          >
-            {tr('К повторению')}
-          </button>
         </div>
         {/* Below 1024px: search on its own row, then two rows of two controls pinned to
             the left and right edges, like the full-width tabs above (FLQ-32.3). */}
@@ -217,11 +220,15 @@ export function VocabularyPage({ lang, tab }: Props) {
             size="lg"
             className="bg-[#45B082] text-[13px] font-medium text-white hover:bg-[#3da075]"
             onClick={() => {
-              const kind = TAB_KINDS[tab]
-              navigate({ to: '/learn/$lang/review', params: { lang }, ...(kind ? { search: { kind } } : {}) })
+              navigate({
+                to: '/learn/$lang/review',
+                params: { lang },
+                ...(reviewKind ? { search: { kind: reviewKind } } : {}),
+              })
             }}
           >
             {tr('⟳ Повтор лексики')}
+            {dueCount > 0 && ` (${dueCount})`}
           </Button>
         </div>
       </div>

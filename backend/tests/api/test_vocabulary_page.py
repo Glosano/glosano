@@ -7,6 +7,7 @@ from sqlalchemy import delete
 
 from glosano.core.db import session_scope
 from glosano.main import create_app
+from glosano.modules.review.models import ReviewEvent, ReviewItem
 from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
@@ -14,7 +15,14 @@ from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTra
 async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFunction]
     yield
     async with session_scope() as s:
-        for model in (PersonalTranslation, PersonalNote, ItemTag, TokenItem):
+        for model in (
+            ReviewEvent,
+            ReviewItem,
+            PersonalTranslation,
+            PersonalNote,
+            ItemTag,
+            TokenItem,
+        ):
             await s.execute(delete(model))
 
 
@@ -165,3 +173,21 @@ async def test_list_added_by_param():
         assert r.status_code == 200 and r.json()["total"] == 1
         r = await c.get("/api/vocabulary", params={"lang": "pt", "added_by": "bogus"})
         assert r.status_code == 422
+
+
+async def test_list_due_filter_keeps_items_due_for_review():
+    async with await _client() as c:
+        csrf = await _register(c)
+        h = {"X-CSRF-Token": csrf}
+        await _create_item(c, h, "cada")  # tracked: срок повторения наступает сразу
+        r = await c.post(
+            "/api/vocabulary/items",
+            headers=h,
+            json={"kind": "token", "language_code": "pt", "text": "porta", "status": "known"},
+        )
+        assert r.status_code == 201
+        r = await c.get("/api/vocabulary", params={"lang": "pt", "due": "true"})
+        assert r.status_code == 200
+        assert [i["text"] for i in r.json()["items"]] == ["cada"]
+        r = await c.get("/api/vocabulary", params={"lang": "pt"})
+        assert r.json()["total"] == 2

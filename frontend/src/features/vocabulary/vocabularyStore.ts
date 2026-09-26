@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type VocabTab = 'all' | 'words' | 'phrases' | 'due'
+export type VocabTab = 'all' | 'words' | 'phrases'
 
 interface VocabularyState {
   q: string
@@ -14,6 +14,8 @@ interface VocabularyState {
   pageSize: 25 | 50 | 100
   selection: string[]
   showAuto: boolean
+  /** «К повтору»: только записи, срок повторения которых наступил (FLQ-35). */
+  dueOnly: boolean
   setQ: (q: string) => void
   setStatuses: (statuses: VocabularyState['statuses']) => void
   setConfidence: (confidence: VocabularyState['confidence']) => void
@@ -21,6 +23,7 @@ interface VocabularyState {
   setAddedPreset: (addedPreset: VocabularyState['addedPreset']) => void
   setSort: (sort: VocabularyState['sort'], sortDir: VocabularyState['sortDir']) => void
   setShowAuto: (showAuto: boolean) => void
+  setDueOnly: (dueOnly: boolean) => void
   setPage: (page: number) => void
   setPageSize: (pageSize: VocabularyState['pageSize']) => void
   toggleSelected: (id: string) => void
@@ -44,6 +47,7 @@ export const useVocabularyStore = create<VocabularyState>()((set, get) => ({
   pageSize: 25,
   selection: [],
   showAuto: false,
+  dueOnly: false,
   setQ: (q) => set({ q, page: 1, selection: [] }),
   setStatuses: (statuses) => set({ statuses, page: 1, selection: [] }),
   setConfidence: (confidence) => set({ confidence, page: 1, selection: [] }),
@@ -51,6 +55,7 @@ export const useVocabularyStore = create<VocabularyState>()((set, get) => ({
   setAddedPreset: (addedPreset) => set({ addedPreset, page: 1, selection: [] }),
   setSort: (sort, sortDir) => set({ sort, sortDir, page: 1, selection: [] }),
   setShowAuto: (showAuto) => set({ showAuto, page: 1, selection: [] }),
+  setDueOnly: (dueOnly) => set({ dueOnly, page: 1, selection: [] }),
   setPage: (page) => set({ page }),
   setPageSize: (pageSize) => set({ pageSize, page: 1, selection: [] }),
   toggleSelected: (id) => set((s) => ({
@@ -69,6 +74,7 @@ export const useVocabularyStore = create<VocabularyState>()((set, get) => ({
     page: 1,
     selection: [],
     showAuto: false,
+    dueOnly: false,
   }),
   filtersAreDefault: () => {
     const s = get()
@@ -79,7 +85,8 @@ export const useVocabularyStore = create<VocabularyState>()((set, get) => ({
       s.confidence === null &&
       s.tags.length === 0 &&
       s.addedPreset === 'all' &&
-      !s.showAuto
+      !s.showAuto &&
+      !s.dueOnly
     )
   },
 }))
