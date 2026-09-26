@@ -148,7 +148,8 @@ export function VocabularyPage({ lang, tab }: Props) {
       <div className="mx-auto max-w-screen-2xl px-6">
       <h1 className="py-6 text-2xl font-bold tracking-tight">{tr('Словарь')}</h1>
       <div className="flex flex-wrap items-center gap-3 pb-5">
-        <div className="inline-flex rounded-lg bg-[var(--vocab-subtabs-track)] p-0.5">
+        {/* Below 640px the four tabs share the full width; long labels wrap (FLQ-32.3). */}
+        <div className="grid w-full grid-cols-4 rounded-lg bg-[var(--vocab-subtabs-track)] p-0.5 sm:inline-flex sm:w-auto">
           {LINK_TABS.map((t) => {
             const active = tab === t.id
             return (
@@ -158,7 +159,7 @@ export function VocabularyPage({ lang, tab }: Props) {
                 params={{ lang }}
                 search={{ tab: t.id }}
                 className={[
-                  'flex h-8 items-center rounded-md px-6 text-[13px]',
+                  'flex min-h-8 min-w-0 items-center justify-center rounded-md px-0.5 py-1 text-center text-[12px] leading-tight hyphens-auto [overflow-wrap:anywhere] sm:h-8 sm:whitespace-nowrap sm:px-6 sm:text-[13px]',
                   active
                     ? 'border border-[#C7CCD4] bg-white font-semibold text-[var(--vocab-term-fg)] shadow-sm'
                     : 'text-[var(--vocab-muted-fg)]',
@@ -172,7 +173,7 @@ export function VocabularyPage({ lang, tab }: Props) {
             type="button"
             disabled
             title={tr('Появится позже')}
-            className="flex h-8 items-center rounded-md px-6 text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
+            className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-0.5 py-1 text-center text-[12px] leading-tight hyphens-auto [overflow-wrap:anywhere] sm:h-8 sm:whitespace-nowrap sm:px-6 sm:text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
           >
             {tr('Фразы')}
           </button>
@@ -180,13 +181,17 @@ export function VocabularyPage({ lang, tab }: Props) {
             type="button"
             disabled
             title={tr('Появится позже')}
-            className="flex h-8 items-center rounded-md px-6 text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
+            className="flex min-h-8 min-w-0 items-center justify-center rounded-md px-0.5 py-1 text-center text-[12px] leading-tight hyphens-auto [overflow-wrap:anywhere] sm:h-8 sm:whitespace-nowrap sm:px-6 sm:text-[13px] text-[var(--vocab-muted-fg)] cursor-not-allowed"
           >
             {tr('К повторению')}
           </button>
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          <SearchInput />
+        {/* Below 1024px: search on its own row, then two rows of two controls pinned to
+            the left and right edges, like the full-width tabs above (FLQ-32.3). */}
+        <div className="grid w-full grid-cols-2 items-center gap-2 [&>*:nth-child(even)]:justify-self-start [&>*:nth-child(odd)]:justify-self-end lg:ml-auto lg:flex lg:w-auto lg:gap-3">
+          <div className="col-span-2 w-full justify-self-stretch lg:w-auto">
+            <SearchInput />
+          </div>
           <FilterPopover />
           <Select
             value={`${sort}:${sortDir}`}
@@ -217,7 +222,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           </Button>
         </div>
       </div>
-      <div className="py-6">
+      <div className="pt-2 pb-6 lg:py-6">
         {showSkeleton && (
           <div data-testid="vocab-skeleton" className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -260,8 +265,9 @@ export function VocabularyPage({ lang, tab }: Props) {
         )}
         {!showSkeleton && !isError && total > 0 && (
           <>
-            <div className="flex flex-wrap items-center justify-end gap-4 pb-5">
-              <div className="flex items-center gap-2">
+            {/* Below 1024px: total left, page size right, pagination centred below. */}
+            <div className="grid grid-cols-2 items-center gap-x-4 gap-y-3 pb-5 lg:flex lg:justify-end">
+              <div className="order-2 flex items-center gap-2 justify-self-end lg:order-1">
                 <span className="text-sm text-muted-foreground">{tr('Показать:')}</span>
                 <Select
                   value={String(pageSize)}
@@ -279,8 +285,12 @@ export function VocabularyPage({ lang, tab }: Props) {
                   </SelectContent>
                 </Select>
               </div>
-              <span className="text-sm text-muted-foreground">{tr('Всего:')} {total.toLocaleString(targetLanguage)}</span>
-              <PaginationNumbers page={page} totalPages={totalPages} onPage={setPage} />
+              <span className="order-1 text-sm text-muted-foreground lg:order-2">
+                {tr('Всего:')} {total.toLocaleString(targetLanguage)}
+              </span>
+              <div className="order-3 col-span-2 justify-self-center">
+                <PaginationNumbers page={page} totalPages={totalPages} onPage={setPage} />
+              </div>
             </div>
             <VocabularyTable
               items={items}

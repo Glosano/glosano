@@ -25,7 +25,7 @@ function truncateContext(context: string): string {
   return context.length > CONTEXT_MAX ? `${context.slice(0, CONTEXT_MAX)}…` : context
 }
 
-/** Desktop (≥md) vocabulary card-row list: checkbox / term+chips / translation / source text / picker. */
+/** Desktop (≥lg, 1024px) vocabulary card-row list: checkbox / term+chips / translation / source text / picker. */
 export function VocabularyTable({
   items,
   selection,
@@ -40,7 +40,7 @@ export function VocabularyTable({
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selection.includes(id))
 
   return (
-    <div className="hidden md:block">
+    <div className="hidden lg:block">
       <div className={`grid ${GRID_COLS} items-center px-4 py-2`}>
         <input
           type="checkbox"

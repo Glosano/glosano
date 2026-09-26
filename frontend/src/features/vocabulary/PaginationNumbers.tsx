@@ -64,9 +64,10 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
               aria-label={tr('Страница {{value0}}', { value0: p })}
               onClick={() => onPage(p)}
               className={
+                // Coarse pointers get a 40px hit area; mouse users keep the compact look.
                 p === page
-                  ? 'flex h-5 w-5 items-center justify-center rounded-full bg-[var(--vocab-term-fg)] text-xs text-white'
-                  : 'text-xs text-[var(--vocab-muted-fg)]'
+                  ? 'flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--vocab-term-fg)] text-xs text-white [@media(pointer:coarse)]:size-10'
+                  : 'flex items-center justify-center text-xs text-[var(--vocab-muted-fg)] [@media(pointer:coarse)]:size-10'
               }
             >
               {p}

@@ -30,7 +30,7 @@ const bare: VocabListItem = {
   created_at: '2026-01-01T00:00:00Z',
 }
 
-function setup(items: VocabListItem[] = [enriched, bare]) {
+function setup(items: VocabListItem[] = [enriched, bare], selection: string[] = []) {
   const onToggleSelected = vi.fn()
   const onSelectPage = vi.fn()
   const onClearSelection = vi.fn()
@@ -39,7 +39,7 @@ function setup(items: VocabListItem[] = [enriched, bare]) {
   render(
     <VocabularyCardList
       items={items}
-      selection={[]}
+      selection={selection}
       onToggleSelected={onToggleSelected}
       onSelectPage={onSelectPage}
       onClearSelection={onClearSelection}
@@ -88,4 +88,26 @@ describe('VocabularyCardList', () => {
 it("keeps AI provenance visible on saved tags", () => {
   setup([{ ...enriched, ai_tags: ["verbs"] }])
   expect(screen.getByText("AI")).toBeInTheDocument()
+})
+
+// FLQ-32.3: cards replace the table below 1024px, so they need the table's
+// "select all on page" for bulk actions.
+describe('VocabularyCardList select all', () => {
+  it('selects every card on the page', () => {
+    const { onSelectPage, onClearSelection } = setup()
+    const all = screen.getByRole('checkbox', { name: 'Выбрать все на странице' })
+    expect(all).not.toBeChecked()
+    fireEvent.click(all)
+    expect(onSelectPage).toHaveBeenCalledWith(['i1', 'i2'])
+    expect(onClearSelection).not.toHaveBeenCalled()
+  })
+
+  it('clears the selection when the whole page is already selected', () => {
+    const { onSelectPage, onClearSelection } = setup([enriched, bare], ['i1', 'i2'])
+    const all = screen.getByRole('checkbox', { name: 'Выбрать все на странице' })
+    expect(all).toBeChecked()
+    fireEvent.click(all)
+    expect(onClearSelection).toHaveBeenCalledOnce()
+    expect(onSelectPage).not.toHaveBeenCalled()
+  })
 })
