@@ -311,9 +311,10 @@ it('shows a one-line hint instead of a large empty-state heading', async () => {
 it('moves the conversation controls into the chat header on phones', async () => {
   mockMediaQueries([COMPACT_QUERY])
   show()
-  const header = screen.getByRole('heading', { name: 'New conversation' }).closest('header')!
   const toggles = screen.getAllByRole('button', { name: 'Open sidebar' })
   expect(toggles).toHaveLength(1)
+  const header = toggles[0]!.closest('header')!
+  expect(header).not.toHaveTextContent('New conversation')
   expect(header).toContainElement(toggles[0]!)
   expect(header).toContainElement(screen.getByRole('button', { name: 'New conversation' }))
   fireEvent.click(toggles[0]!)
@@ -405,4 +406,16 @@ it('keeps the transcript and the composer in one centred reading column', async 
   expect(columns[1]).toContainElement(screen.getByRole('textbox', { name: 'Message' }))
   // The scrollport stays full width so the wheel works over the side margins.
   expect(columns[0]!.parentElement!.className).toContain('overflow-y-auto')
+})
+
+it('shows no conversation title on the chat page, keeping it only for screen readers', async () => {
+  show()
+  fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Earlier conversation' }))
+  await screen.findByText('Saved answer')
+  expect(screen.getByRole('heading', { level: 2, name: 'Earlier conversation' })).toHaveClass(
+    'sr-only',
+  )
+  // Desktop controls live in the sidebar rail, so the page has no header row.
+  expect(document.querySelector('header')).toBeNull()
 })

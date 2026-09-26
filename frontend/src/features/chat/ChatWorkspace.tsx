@@ -110,31 +110,35 @@ export function ChatWorkspace({
         </aside>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header
-          className={`flex shrink-0 flex-wrap items-center gap-2 border-b ${compact ? 'px-1.5 py-1' : 'p-3'}`}
-        >
-          {compact && !listOpen && <ChatSidebarToggle open={false} onToggle={toggleList} />}
-          {embedded && (
-            <div className={externalList ? '2xl:hidden' : undefined}>
-              <ChatSidebarToggle open={listOpen} onToggle={toggleList} />
+        {/* No visible title, as in ChatGPT (FLQ-32.10): the list shows which
+            conversation is open; screen readers still get its name. */}
+        <h2 className="sr-only">{detail?.title ?? t('Новый разговор')}</h2>
+        {(compact || embedded || onReturn) && (
+          <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 px-1.5">
+            <div className="flex items-center">
+              {compact && !listOpen && <ChatSidebarToggle open={false} onToggle={toggleList} />}
+              {embedded && (
+                <div className={externalList ? '2xl:hidden' : undefined}>
+                  <ChatSidebarToggle open={listOpen} onToggle={toggleList} />
+                </div>
+              )}
             </div>
-          )}
-          <h2 className="min-w-0 flex-1 truncate font-semibold">
-            {detail?.title ?? t('Новый разговор')}
-          </h2>
-          {compact && !listOpen && <ChatNewButton />}
-          {onReturn && (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t('Закрыть чат')}
-              title={t('Закрыть чат')}
-              onClick={onReturn}
-            >
-              <X aria-hidden="true" />
-            </Button>
-          )}
-        </header>
+            <div className="flex items-center">
+              {compact && !listOpen && <ChatNewButton />}
+              {onReturn && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t('Закрыть чат')}
+                  title={t('Закрыть чат')}
+                  onClick={onReturn}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+          </header>
+        )}
         {embedded && listOpen && (
           <div
             className={`max-h-72 shrink-0 overflow-y-auto border-b ${externalList ? '2xl:hidden' : ''}`}
