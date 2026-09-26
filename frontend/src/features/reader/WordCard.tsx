@@ -217,6 +217,11 @@ export function WordCard({
       </button>
 
       <p className="text-2xl font-semibold">{word.t}</p>
+      {kind === 'token' && lessonId && (
+        <p className="mt-1 hidden text-xs text-muted-foreground [@media(hover:none)]:block">
+          {tr('Удерживайте слово и ведите пальцем, чтобы выделить фразу')}
+        </p>
+      )}
       {data && (
         <WordTags
           key={`${kind}:${lang}:${text}:${aiContext}`}

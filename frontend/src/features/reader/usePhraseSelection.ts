@@ -11,7 +11,7 @@ export interface DragRange {
 
 export const MAX_PHRASE_WORDS = 8
 
-interface Anchor {
+export interface Anchor {
   ordinal: number
   sentence: Sentence
   /** Ординалы слов предложения якоря по возрастанию. Пунктуация тоже
@@ -53,7 +53,7 @@ function resolveWordIndex(wordOrdinals: number[], target: number, forward: boole
 // Лимит в 8 слов считается в индексном пространстве wordOrdinals, а не
 // арифметикой над ординалами — иначе пунктуация внутри диапазона (у которой
 // тоже есть свой ординал) отъедала бы слот у настоящего слова.
-function clampRange(anchor: Anchor, target: number): DragRange {
+export function clampRange(anchor: Anchor, target: number): DragRange {
   const { wordOrdinals, ordinal } = anchor
   const first = Math.min(...wordOrdinals)
   const last = Math.max(...wordOrdinals)
@@ -71,6 +71,13 @@ function clampRange(anchor: Anchor, target: number): DragRange {
     from: wordOrdinals[fromIdx] ?? ordinal,
     to: wordOrdinals[toIdx] ?? ordinal,
   }
+}
+
+/** Anchor for a word ordinal: its sentence and that sentence's word ordinals. */
+export function anchorAt(sentences: Sentence[], ordinal: number): Anchor | null {
+  const sentence = sentences.find((s) => s.tokens.some((tok) => isWord(tok) && tok.i === ordinal))
+  if (!sentence) return null
+  return { ordinal, sentence, wordOrdinals: sentence.tokens.filter(isWord).map((word) => word.i) }
 }
 
 function ordinalFromEvent(e: { target: EventTarget | null }): number | null {
@@ -150,16 +157,7 @@ export function usePhraseSelection({ enabled, sentences, onSelect }: Params) {
     if (!enabled || e.pointerType !== 'mouse' || e.button !== 0) return
     const ordinal = ordinalFromEvent(e)
     if (ordinal === null) return
-    const sentence = sentences.find((s) =>
-      s.tokens.some((tok) => isWord(tok) && tok.i === ordinal),
-    )
-    if (!sentence) return
-    const wordOrdinals = sentence.tokens.filter(isWord).map((word) => word.i)
-    anchorRef.current = {
-      ordinal,
-      sentence,
-      wordOrdinals,
-    }
+    anchorRef.current = anchorAt(sentences, ordinal)
   }
 
   const onPointerOver: PointerEventHandler = (e) => {

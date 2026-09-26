@@ -851,4 +851,32 @@ describe('WordCard core', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(vocabularyApi.patchItem).not.toHaveBeenCalled()
   })
+
+  // FLQ-32.2: the touch hint is shown only for a reader word card; CSS hides it
+  // on hover-capable (mouse) devices.
+  it('shows the long-press phrase hint on a reader word card', () => {
+    renderCard()
+    expect(screen.getByText('Удерживайте слово и ведите пальцем, чтобы выделить фразу')).toBeInTheDocument()
+  })
+
+  it('omits the phrase hint outside the reader and on phrase cards', () => {
+    const { unmount } = renderCard(null, null)
+    expect(screen.queryByText('Удерживайте слово и ведите пальцем, чтобы выделить фразу')).not.toBeInTheDocument()
+    unmount()
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={qc}>
+        <WordCard
+          word={{ kind: 'phrase', t: 'cada dia', n: 'cada dia', i: 0, endOrdinal: 1, sentenceText: null }}
+          lang="pt"
+          target="ru"
+          lessonId="L1"
+          segId={null}
+          onClose={() => {}}
+          sentenceText={null}
+        />
+      </QueryClientProvider>,
+    )
+    expect(screen.queryByText('Удерживайте слово и ведите пальцем, чтобы выделить фразу')).not.toBeInTheDocument()
+  })
 })

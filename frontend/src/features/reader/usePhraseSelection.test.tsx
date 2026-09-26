@@ -14,7 +14,13 @@ import { describe, expect, it, vi } from 'vitest'
 
 import type { Sentence, Token } from '@/api/reader'
 
-import { MAX_PHRASE_WORDS, usePhraseSelection, type DragRange } from './usePhraseSelection'
+import {
+  anchorAt,
+  clampRange,
+  MAX_PHRASE_WORDS,
+  usePhraseSelection,
+  type DragRange,
+} from './usePhraseSelection'
 
 const w = (t: string, i: number): Token => ({ t, n: t.toLowerCase(), i })
 const ws: Token = { ws: ' ' }
@@ -271,5 +277,24 @@ describe('usePhraseSelection', () => {
     pointer('pointerover', screen.getByTestId('w-9'))
     pointer('pointerup', screen.getByTestId('w-9'))
     expect(onSelect).toHaveBeenCalledWith({ from: 4, to: 9 }, sg)
+  })
+})
+
+// Shared with the touch path (FLQ-32.2).
+describe('range helpers', () => {
+  it('anchorAt finds the sentence and its word ordinals, or null for an unknown ordinal', () => {
+    const anchor = anchorAt([s1, s2], 11)
+    expect(anchor?.sentence).toBe(s2)
+    expect(anchor?.ordinal).toBe(11)
+    expect(anchor?.wordOrdinals).toEqual([10, 11])
+    expect(anchorAt([s1, s2], 99)).toBeNull()
+  })
+
+  it('clampRange caps the phrase at MAX_PHRASE_WORDS in both directions', () => {
+    const forward = anchorAt([s1], 0)!
+    expect(clampRange(forward, 9)).toEqual({ from: 0, to: MAX_PHRASE_WORDS - 1 })
+    const backward = anchorAt([s1], 9)!
+    expect(clampRange(backward, 0)).toEqual({ from: 9 - (MAX_PHRASE_WORDS - 1), to: 9 })
+    expect(clampRange(forward, 42)).toEqual({ from: 0, to: MAX_PHRASE_WORDS - 1 })
   })
 })

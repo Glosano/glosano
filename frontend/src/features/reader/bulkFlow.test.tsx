@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LessonDetail } from '@/api/lessons'
@@ -434,6 +434,33 @@ describe('bulk-known flow, undo, hotkeys', () => {
       swipe(within(slot).getByText('w5'), [[600, 300], [580, 300], [300, 300]], 2)
       await new Promise((resolve) => setTimeout(resolve, 50))
       expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+    })
+
+    // FLQ-32.2: a long-press drag selects a phrase; its sideways travel must not
+    // be read as a page-turn swipe.
+    it('selects a phrase by long-press drag without turning the page', async () => {
+      renderPage()
+      const slot = await screen.findByTestId('page-view-slot')
+      const original = document.elementFromPoint
+      document.elementFromPoint = ((px: number) =>
+        slot.querySelector(`[data-ordinal="${Math.floor(px / 10)}"]`)) as typeof document.elementFromPoint
+      try {
+        const start = within(slot).getByText('w5')
+        fireEvent.touchStart(start, { touches: [touch(55, 300)], changedTouches: [touch(55, 300)] })
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 450))
+        })
+        fireEvent.touchMove(start, { touches: [touch(75, 300)], changedTouches: [touch(75, 300)] })
+        fireEvent.touchMove(start, { touches: [touch(500, 300)], changedTouches: [touch(500, 300)] })
+        fireEvent.touchEnd(start, { touches: [], changedTouches: [touch(500, 300)] })
+        const card = await screen.findByTestId('word-card')
+        expect(card).toHaveTextContent('w5 w6 w7 w8 w9 w10 w11 w12')
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+        expect(slot).toHaveTextContent('w0')
+      } finally {
+        document.elementFromPoint = original
+      }
     })
 
     it('opens the end page on the last page and swipes back to the text', async () => {

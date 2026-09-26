@@ -42,6 +42,7 @@ import {
   useUndoBulk,
 } from './useReaderQueries'
 import { useSwipe } from './useSwipe'
+import { useTouchPhraseSelection } from './useTouchPhraseSelection'
 import { WordCard } from './WordCard'
 import type { SelectedItem } from './selectedItem'
 import { VideoPlayer, type VideoControls } from './video/VideoPlayer'
@@ -876,6 +877,17 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   })
 
   const swipeHandlers = useSwipe({ onSwipeLeft: handleNext, onSwipeRight: handlePrev })
+  const [textContainer, setTextContainer] = useState<HTMLDivElement | null>(null)
+  // FLQ-32.2: long-press + drag selects a phrase on touch screens. Activation
+  // drops the swipe gesture so the sideways drag cannot turn the page.
+  const { touchRange, preview: touchPreview } = useTouchPhraseSelection({
+    enabled: readyForInteraction && !atEnd,
+    sentences: flatSentences,
+    container: textContainer,
+    onSelect: handlePhraseSelect,
+    onWordTap: handleWordClick,
+    onActivate: swipeHandlers.onTouchCancel,
+  })
 
   function handleReaderClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (!selectedWord) return
@@ -1186,8 +1198,26 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         </div>
       )}
 
+      {touchPreview && (
+        <div className="pointer-events-none fixed inset-x-0 top-20 z-[var(--z-fixed)] flex justify-center px-4">
+          <div
+            role="status"
+            className="max-w-full rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg"
+          >
+            <span className="font-medium">{touchPreview.text}</span>
+            {touchPreview.limited && (
+              <span className="ml-2 text-muted-foreground">{tr('Не больше 8 слов')}</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div
-        className={cn('py-6', fontClass)}
+        ref={setTextContainer}
+        className={cn(
+          'py-6 [@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]',
+          fontClass,
+        )}
         onPointerDownCapture={() => videoControls.current?.pause()}
         onTouchStart={swipeHandlers.onTouchStart}
         onTouchMove={swipeHandlers.onTouchMove}
@@ -1231,7 +1261,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
               languageCode={content.language_code}
               statuses={statusMap}
               phraseIndex={phraseIndex}
-              dragRange={dragRange ?? selectionRange}
+              dragRange={dragRange ?? touchRange ?? selectionRange}
               onWordClick={handleWordClick}
               onPhraseClick={handlePhraseClick}
             />
@@ -1252,7 +1282,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
               sentence={currentSentence}
               statuses={statusMap}
               phraseIndex={phraseIndex}
-              dragRange={dragRange ?? selectionRange}
+              dragRange={dragRange ?? touchRange ?? selectionRange}
               lang={content.language_code}
               targetLang={targetLanguage}
               onWordClick={handleWordClick}

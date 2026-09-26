@@ -40,6 +40,9 @@ export const readerMessages: Record<string, string> = {
     'New words on the last page will be marked as known',
   'Вернуться к тексту': 'Back to the text',
   'Повторить лексику урока': 'Review lesson vocabulary',
+  'Не больше 8 слов': 'Up to 8 words',
+  'Удерживайте слово и ведите пальцем, чтобы выделить фразу':
+    'Hold a word and drag to select a phrase',
   'Отменить завершение': 'Undo completion',
   'Не удалось завершить материал. Попробуйте ещё раз.':
     'Could not complete the material. Please try again.',
