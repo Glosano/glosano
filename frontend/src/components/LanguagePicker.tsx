@@ -44,16 +44,22 @@ export function LanguagePicker() {
     await navigate({ to: '/learn/$lang/library', params: { lang } })
   }
 
+  const triggerLabel = `${t('Язык материала')}: ${learningLanguageLabel(currentLang, language)}`
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
           ref={triggerRef}
-          aria-label={`${t('Язык материала')}: ${learningLanguageLabel(currentLang, language)}`}
+          aria-label={triggerLabel}
+          title={triggerLabel}
           className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-accent"
         >
           <span aria-hidden="true">{learningLanguageFlag(currentLang)}</span>
-          <span className="font-medium">{learningLanguageLabel(currentLang, language)}</span>
+          {/* Flag only on phones: long names pushed the top bar onto a third row (FLQ-32.11). */}
+          <span className="hidden font-medium sm:inline">
+            {learningLanguageLabel(currentLang, language)}
+          </span>
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">

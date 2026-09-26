@@ -164,6 +164,7 @@ export const readerMessages: Record<string, string> = {
   'срок повторения уже наступил': 'their review date has come',
   Сортировка: 'Sort order',
   '⟳ Повтор лексики': '⟳ Review vocabulary',
+  '⟳ Повтор': '⟳ Review',
   'Не удалось загрузить словарь': 'Could not load vocabulary',
   'В словаре пока пусто': 'Your vocabulary is empty',
   'Начните с импорта урока — нажимайте на слова в reader, и они появятся здесь':

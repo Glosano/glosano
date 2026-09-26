@@ -218,3 +218,12 @@ describe('LanguagePicker add-language flow', () => {
     expect(within(dialog).getByRole('button', { name: 'Добавить' })).toBeDisabled()
   })
 })
+
+it('shows only the flag on phones while keeping the language name for assistive tech', () => {
+  show()
+  const trigger = screen.getByRole('button', { name: 'Язык материала: Португальский' })
+  expect(trigger).toHaveAttribute('title', 'Язык материала: Португальский')
+  const name = within(trigger).getByText('Португальский')
+  // Hidden below `sm` so the top bar keeps two rows on 320px screens (FLQ-32.11).
+  expect(name).toHaveClass('hidden', 'sm:inline')
+})

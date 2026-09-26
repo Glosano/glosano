@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
@@ -381,5 +381,16 @@ describe('VocabularyPage states', () => {
 
     await waitFor(() => { expect(reviewApi.counts).toHaveBeenCalled() })
     expect(screen.getByRole('button', { name: '⟳ Повтор лексики' })).toBeInTheDocument()
+  })
+
+  it('shortens the review button label on phones but keeps the full accessible name', async () => {
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+    vi.mocked(reviewApi.counts).mockResolvedValue({ due: 4, new: 0, practice: 0, ai_enabled: true })
+
+    renderPage()
+
+    const button = await screen.findByRole('button', { name: '⟳ Повтор лексики (4)' })
+    expect(within(button).getByText('⟳ Повтор')).toHaveClass('sm:hidden')
+    expect(within(button).getByText('⟳ Повтор лексики')).toHaveClass('hidden', 'sm:inline')
   })
 })

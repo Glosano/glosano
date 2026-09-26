@@ -226,9 +226,14 @@ export function VocabularyPage({ lang, tab }: Props) {
                 ...(reviewKind ? { search: { kind: reviewKind } } : {}),
               })
             }}
+            aria-label={`${tr('⟳ Повтор лексики')}${dueCount > 0 ? ` (${dueCount})` : ''}`}
           >
-            {tr('⟳ Повтор лексики')}
-            {dueCount > 0 && ` (${dueCount})`}
+            {/* Short label on phones so the counter fits beside «Ещё действия» (FLQ-32.11). */}
+            <span>
+              <span className="sm:hidden">{tr('⟳ Повтор')}</span>
+              <span className="hidden sm:inline">{tr('⟳ Повтор лексики')}</span>
+              {dueCount > 0 && ` (${dueCount})`}
+            </span>
           </Button>
         </div>
       </div>
