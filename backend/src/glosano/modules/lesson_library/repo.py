@@ -1,11 +1,14 @@
-"""Lesson repository: list, create, and pipeline-fact persistence."""
+"""Lesson repository: library feed queries, create, and pipeline-fact persistence."""
 
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
+from datetime import date
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import Date, and_, cast, delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from glosano.modules.lesson_library.models import (
     Lesson,
@@ -14,46 +17,119 @@ from glosano.modules.lesson_library.models import (
     LessonSource,
     LessonTokenOccurrence,
 )
+from glosano.modules.reader_state.models import ReaderPosition
+
+
+@dataclass(frozen=True)
+class HistoryDay:
+    day: date
+    total: int
+    lessons: list[Lesson]
 
 
 class LessonRepo:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def list_for_user(
+    @staticmethod
+    def _visible(user_id: uuid.UUID, lang: str, q: str | None) -> list[ColumnElement[bool]]:
+        filters: list[ColumnElement[bool]] = [
+            Lesson.language_code == lang,
+            Lesson.status != "archived",
+            or_(Lesson.owner_user_id == user_id, Lesson.visibility == "shared"),
+        ]
+        if q:
+            filters.append(Lesson.title.ilike(f"%{q}%"))
+        return filters
+
+    async def list_continue(
+        self, *, user_id: uuid.UUID, lang: str, q: str | None, limit: int
+    ) -> list[Lesson]:
+        stmt = (
+            select(Lesson)
+            .join(
+                ReaderPosition,
+                and_(ReaderPosition.lesson_id == Lesson.id, ReaderPosition.user_id == user_id),
+            )
+            .where(
+                *self._visible(user_id, lang, q),
+                ReaderPosition.last_activity_at.is_not(None),
+                ReaderPosition.completed_at.is_(None),
+            )
+            .order_by(ReaderPosition.last_activity_at.desc(), Lesson.id)
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def timezone_exists(self, tz: str) -> bool:
+        # Дни считает Postgres (timezone()), поэтому и допустимость пояса
+        # проверяется по его базе, а не по zoneinfo процесса. Сравнение без
+        # учёта регистра — как у самого timezone().
+        stmt = text(
+            "SELECT EXISTS (SELECT 1 FROM pg_timezone_names WHERE lower(name) = lower(:tz))"
+        )
+        return bool(await self.session.scalar(stmt, {"tz": tz}))
+
+    async def list_history_days(
         self,
         *,
         user_id: uuid.UUID,
         lang: str,
-        q: str | None = None,
-        visibility: str = "all",
-        tab: str = "lessons",
-        page: int = 1,
-        page_size: int = 25,
-    ) -> tuple[list[Lesson], int]:
-        stmt = select(Lesson).where(
-            Lesson.language_code == lang,
-            Lesson.status != "archived",
-            or_(
-                Lesson.owner_user_id == user_id,
-                Lesson.visibility == "shared",
-            ),
+        q: str | None,
+        tz: str,
+        before: date | None,
+        days: int,
+        per_day: int = 100,
+    ) -> tuple[list[HistoryDay], date | None]:
+        # День считается один раз во внутреннем подзапросе: одинаковое выражение
+        # с bind-параметром tz в SELECT и GROUP BY Postgres не сопоставит.
+        dated = (
+            select(
+                Lesson.id.label("id"),
+                Lesson.created_at.label("created_at"),
+                cast(func.timezone(tz, Lesson.created_at), Date).label("day"),
+            )
+            .where(*self._visible(user_id, lang, q))
+            .subquery()
         )
-        if q:
-            stmt = stmt.where(Lesson.title.ilike(f"%{q}%"))
-        if visibility == "mine":
-            stmt = stmt.where(Lesson.owner_user_id == user_id)
-        elif visibility == "shared":
-            stmt = stmt.where(Lesson.visibility == "shared")
+        day_stmt = select(dated.c.day).group_by(dated.c.day).order_by(dated.c.day.desc())
+        if before is not None:
+            day_stmt = day_stmt.where(dated.c.day < before)
+        found = list((await self.session.scalars(day_stmt.limit(days + 1))).all())
+        page_days = found[:days]
+        if not page_days:
+            return [], None
 
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await self.session.execute(count_stmt)).scalar_one()
-
-        stmt = (
-            stmt.order_by(Lesson.created_at.desc()).limit(page_size).offset((page - 1) * page_size)
+        ranked = (
+            select(
+                dated.c.id,
+                dated.c.day,
+                func.row_number()
+                .over(
+                    partition_by=dated.c.day,
+                    order_by=(dated.c.created_at.desc(), dated.c.id),
+                )
+                .label("rn"),
+                func.count().over(partition_by=dated.c.day).label("total"),
+            )
+            .where(dated.c.day.in_(page_days))
+            .subquery()
         )
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all()), total
+        rows = (
+            await self.session.execute(
+                select(Lesson, ranked.c.day, ranked.c.total)
+                .join(ranked, ranked.c.id == Lesson.id)
+                .where(ranked.c.rn <= per_day)
+                .order_by(ranked.c.day.desc(), Lesson.created_at.desc(), Lesson.id)
+            )
+        ).all()
+        grouped: dict[date, tuple[int, list[Lesson]]] = {}
+        for lesson, day, total in rows:
+            grouped.setdefault(day, (total, []))[1].append(lesson)
+        result = [
+            HistoryDay(day=day, total=grouped[day][0], lessons=grouped[day][1]) for day in page_days
+        ]
+        return result, (page_days[-1] if len(found) > days else None)
 
     async def create_processing_lesson(
         self,

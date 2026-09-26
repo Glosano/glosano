@@ -93,4 +93,33 @@ describe('LessonCard', () => {
     expect(screen.getByRole('progressbar').firstElementChild).toHaveStyle({ width: '100%' })
     expect(screen.getByText('100% · 1240 слов · 0 новых')).toBeInTheDocument()
   })
+
+  it('marks a lesson without activity as not started', () => {
+    render(<LessonCard lesson={{ ...lesson, read_percent: 0, last_activity_at: null }} />)
+    expect(screen.getByText('Не начат')).toBeInTheDocument()
+  })
+
+  it('does not call a started or completed lesson not started', () => {
+    const { rerender } = render(
+      <LessonCard lesson={{ ...lesson, last_activity_at: '2026-09-26T09:00:00Z' }} />,
+    )
+    expect(screen.queryByText('Не начат')).not.toBeInTheDocument()
+    rerender(<LessonCard lesson={{ ...lesson, completed_at: '2026-09-26T09:00:00Z' }} />)
+    expect(screen.queryByText('Не начат')).not.toBeInTheDocument()
+    expect(screen.getByText(/Материал завершён/)).toBeInTheDocument()
+  })
+
+  it('shows the last study day only in the continue variant', () => {
+    const started = { ...lesson, last_activity_at: new Date(2026, 8, 25, 20).toISOString() }
+    const today = new Date(2026, 8, 26, 12)
+    const { rerender } = render(<LessonCard lesson={started} variant="continue" today={today} />)
+    expect(screen.getByText('Последнее занятие: вчера')).toBeInTheDocument()
+    rerender(<LessonCard lesson={started} variant="history" today={today} />)
+    expect(screen.queryByText(/Последнее занятие/)).not.toBeInTheDocument()
+  })
+
+  it('does not call an opened lesson with progress not started', () => {
+    render(<LessonCard lesson={{ ...lesson, read_percent: 15, last_activity_at: null }} />)
+    expect(screen.queryByText('Не начат')).not.toBeInTheDocument()
+  })
 })

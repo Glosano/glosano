@@ -21,9 +21,8 @@
 - Путь: `/learn/:lang/library`, где `:lang ∈ {en, ru, pt}` (decision log §10.1).
 - Корневой `/library` или `/` авторизованного пользователя → редирект на `/learn/:lang/library`, где `:lang` берётся из `user_settings.last_learning_language_code` (нужно поле — см. §16).
 - Доступ: `learner` (auth обязателен).
-- **Query-параметры:**
-  - `tab`: `continue` (default) | `lessons` — единственный URL-state.
-- **Не URL, а client-state:** search query, фильтры (visibility, language extras), sort, pagination, pageSize. По умолчанию sort = `created_at desc`, page size = 25. Refresh ресетит до default'ов — это сознательно.
+- **Query-параметров нет** (FLQ-36): вкладки `?tab=…` удалены вместе с вкладкой «Уроки».
+- **Не URL, а client-state:** только search query (`libraryStore.search`). Подгрузка истории по дням — состояние `useInfiniteQuery`. Refresh ресетит до default'ов — это сознательно.
 
 ## 3. Layout (Figma desktop 1440)
 
@@ -35,18 +34,25 @@
 ┌─ FilterRow — 78px ───────────────────────────────────────────────────────┐
 │ [🔍 Поиск в Библиотеке]    Начальный ●━━━━━━━━ Продвинутый    [+ Импорт]│
 └──────────────────────────────────────────────────────────────────────────┘
-┌─ SubTabsRow — 53px ──────────────────────────────────────────────────────┐
-│ Продолжить изучение | Уроки | (Интерактивные)        Посмотреть все ›   │
-└──────────────────────────────────────────────────────────────────────────┘
-┌─ CardsRow — 274px ───────────────────────────────────────────────────────┐
+┌─ ContinueSection ────────────────────────────────────────────────────────┐
+│ Продолжить изучение                                                      │
 │ ‹ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ›                    │
-│   │import │ │ cap14 │ │ cap15 │ │ cap16 │ │ cap17 │                      │
+│   │ cap14 │ │ cap15 │ │ cap16 │ │ cap17 │ │ cap18 │                      │
 │   └───────┘ └───────┘ └───────┘ └───────┘ └───────┘                      │
 └──────────────────────────────────────────────────────────────────────────┘
-                                                       Посмотреть все ›
+┌─ HistorySection ─────────────────────────────────────────────────────────┐
+│ История                                                                  │
+│ Сегодня · 26 сентября                                                    │
+│ ‹ ┌───────┐ ┌───────┐ ›                                                  │
+│ Четверг · 24 сентября                                                    │
+│ ‹ ┌───────┐ ┌───────┐ ┌───────┐ … ещё N ›                                │
+│                        [Показать ещё]                                    │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 Размеры из Figma: card 220×250, gap 16px, cover 220×140, meta 110px.
+Раскладка из двух секций вместо вкладок — FLQ-36
+(`docs/superpowers/specs/FLQ-36-library-history-design.md`).
 
 ## 4. TopBar (global app shell)
 
@@ -98,15 +104,18 @@
 
 Slider «Начальный ↔ Продвинутый» (Figma `3:6`) **из вёрстки убирается**. Поля `lessons.difficulty_level` в domain model нет. Возвращаем в Phase 2 вместе с автоматическим estimator'ом (по словарной частотности).
 
-## 7. SubTabsRow
+## 7. Секции «Продолжить изучение» и «История» (FLQ-36)
 
-| Sub-tab | URL | Что показывает |
-|---|---|---|
-| `Продолжить изучение` | `?tab=continue` (default) | Уроки с непустой `reader_positions` пользователя, отсортированные по `last_opened_at desc`. Показывается carousel с навигацией ‹ ›. |
-| `Уроки` | `?tab=lessons` | Полный grid всех доступных уроков (own `private` + `shared`), с фильтрами и пагинацией. |
-| `Интерактивные уроки` | `?tab=interactive` | **Post-MVP.** В MVP таб скрыт или disabled. Это — будущие уроки с упражнениями (cloze, dictation), вне scope. |
+Вкладки (SubTabsRow из Figma, `Посмотреть все ›`) удалены: экран — две секции
+одна под другой.
 
-Справа от tabs — `Посмотреть все ›` (Figma `4:11`) — переключает на `?tab=lessons`.
+| Секция | Что показывает |
+|---|---|
+| `Продолжить изучение` | Начатые и не завершённые материалы: `reader_positions.last_activity_at IS NOT NULL AND completed_at IS NULL`, сортировка `last_activity_at desc`. Carousel с навигацией ‹ ›. Пустой список — секция не рендерится. |
+| `История` | Все доступные материалы (own `private` + `shared`) по дням добавления (`lessons.created_at` в часовом поясе пользователя), дни по убыванию. Каждый день — заголовок («Сегодня · 26 сентября», «Вчера · …», «Четверг · 24 сентября») и своя горизонтальная carousel; если в дне больше 100 материалов — неинтерактивная плашка «ещё N». Внизу — сторож `IntersectionObserver` для подгрузки следующих дней и кнопка «Показать ещё». |
+
+«Начат» = была осмысленная работа (сдвиг позиции, bulk-known, завершение,
+слово/фраза из урока). Открыть материал или сменить режим чтения — не начать его.
 
 ## 8. CardsRow — карточки
 
@@ -139,6 +148,8 @@ Slider «Начальный ↔ Продвинутый» (Figma `3:6`) **из в
 - `Title` — `lessons.title`, max 2 строки + ellipsis.
 - `Progress bar` — доля прочитанного: `reader_positions.current_token_ordinal / MAX(lesson_token_occurrences.ordinal_in_lesson)`. Не coverage: показывает, сколько текста пройдено, а не насколько знакома лексика. Решение и обоснование — `docs/superpowers/specs/2026-07-25-library-reading-progress-design.md` §2.
 - Подпись под баром — `{read_percent}% · {word_count} слов · {new_words_remaining} новых`. `new_words_remaining` — уникальные слова без `TokenItem`, встречающиеся **после** текущей позиции чтения.
+- Статус (FLQ-36): «✓ Материал завершён» при `completed_at`; иначе «Не начат», если нет `last_activity_at` и прочитано 0%. В «Продолжить изучение» карточка (`variant="continue"`) дополнительно подписана «Последнее занятие: сегодня / вчера / 24 сент.».
+- Заголовок карточки — `h4`: он вложен в заголовок дня (`h3`) секции «История».
 
 Click на card → `/learn/:lang/lessons/$lessonId` (открывает reader, resume по `reader_positions`).
 
@@ -172,28 +183,17 @@ Click на card → `/learn/:lang/lessons/$lessonId` (открывает reader,
 
 ## 9. CardsFooter
 
-Footer-блок с правым «Посмотреть все ›». В MVP — duplicate якорной ссылки из subtabs row, можно оставить или убрать (рекомендация — убрать, она дублирует §7).
+Удалён вместе с вкладками (FLQ-36): «Посмотреть все ›» больше некуда вести —
+все материалы и так видны в «Истории».
 
-## 10. View `?tab=lessons` (полный список)
+## 10. Полный список материалов
 
-В Figma пока показан только carousel-вариант. Когда пользователь переходит на `?tab=lessons` или жмёт «Посмотреть все», нужен grid:
+Отдельного grid-вида `?tab=lessons` нет (FLQ-36): полный список — это
+«История» по дням с бесконечной подгрузкой (§7).
 
-```
-┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐
-│ L1 │ │ L2 │ │ L3 │ │ L4 │ │ L5 │
-└────┘ └────┘ └────┘ └────┘ └────┘
-┌────┐ ┌────┐ ┌────┐ ┌────┐ ┌────┐
-│ L6 │ │ L7 │ │ L8 │ │ L9 │ │L10 │
-└────┘ └────┘ └────┘ └────┘ └────┘
-
-       ‹ 1 2 3 … 8 ›
-```
-
-- 5 колонок при ≥1280px, 4 при 1024–1279, 3 при 768–1023, 2 при 480–767, 1 на mobile.
 - Card компонент тот же.
-- Доп. фильтр-popover в FilterRow: `visibility` (mine/shared/all), `статус` (`ready` / `processing` / `failed`). Все фильтры — client-state.
-- Pagination: 25 per page (default). Page и pageSize — client-state, не URL.
-- Sort: `created_at desc` (default, без toggle в MVP).
+- Фильтр «мои / общие» в UI не показывается (вне скоупа FLQ-36); `visibility` и `page` из client-state удалены.
+- Порядок: дни по убыванию, внутри дня `created_at desc`.
 - Язык НЕ в фильтрах — он уже в path (`/learn/:lang/...`). Бэкенд автоматически фильтрует по `lessons.language_code = :lang`.
 
 ## 11. Состояния
@@ -207,10 +207,10 @@ Carousel: 5 skeleton-карточек. Grid: skeleton-сетка.
 - Заголовок: «У вас пока нет уроков».
 - Подзаголовок: «Импортируйте свой первый текст».
 - CTA: повтор кнопки «+ Импортировать урок».
-- При `?tab=continue` — fallback-текст «Откройте любой урок из библиотеки» + ссылка на `?tab=lessons`.
+- Пустое состояние показывается, только когда пусты и «Продолжить изучение», и «История», а поиска нет.
 
-### 11.3 Empty (фильтры дают 0)
-«Ничего не найдено по запросу `{q}`» + «Сбросить фильтры».
+### 11.3 Empty (поиск даёт 0)
+Есть поиск, но пусто и в «Продолжить изучение», и в «Истории» — «Ничего не найдено».
 
 ### 11.4 Lesson processing
 Card с `lessons.status = processing` — показывает spinner поверх cover'а и блокирует click (или ведёт на reader, который показывает full-screen processing state — см. `reader.md` §12.2).
@@ -222,7 +222,7 @@ Card с red border + tooltip с error message + контекстное меню 
 
 - TopBar схлопывается: logo + hamburger + avatar.
 - FilterRow: search полноширинный, кнопка «Импорт» = floating action button (FAB).
-- SubTabs: горизонтальный scroll.
+- Заголовки секций и дней умещаются в одну строку.
 - Carousel: 1 card visible с peek соседних.
 - Grid: 1–2 колонки.
 
@@ -230,7 +230,9 @@ Card с red border + tooltip с error message + контекстное меню 
 
 API-вызовы делаются с `lang` из path (`/learn/:lang/library`). Бэкенд получает `lang` как query или header, фильтрует автоматически.
 
-- `GET /api/lessons?lang=:lang&tab=continue|lessons&q=...&visibility=...&page=1&pageSize=25` — пагинированный список. URL и параметры идут на API; UI хранит фильтры в client-state, передаёт в запрос.
+- `GET /api/lessons/continue?lang=:lang&q=...&limit=20` — «Продолжить изучение»: `{items: LessonSummary[]}`, `limit` 1..50.
+- `GET /api/lessons/history?lang=:lang&q=...&tz=Europe/Moscow&before=2026-09-19&days=7` — «История» по дням: `{days: [{date, total, items}], next_before}`. `tz` — IANA-пояс из `Intl.DateTimeFormat().resolvedOptions().timeZone` (по умолчанию `UTC`, неизвестный Postgres пояс → 422); `before` — дата, исключительно (без него — с сегодняшнего дня); `days` 1..31 (по умолчанию 7); до 100 материалов на день, `total` — сколько всего. Следующая страница запрашивается с `before = next_before`; `null` — дней больше нет.
+- `LessonSummary` содержит `last_activity_at` текущего пользователя (`null` — материал не начат).
 - `POST /api/lessons` — создание урока из текста (lang в body).
 - `POST /api/lessons/import-file` — multipart upload `.txt`/`.md`.
 - `GET /api/lessons/$id/edit` — исходный текст и название, только владельцу.
@@ -279,7 +281,9 @@ URL-схема `/learn/:lang/...` требует одной правки domain 
 |---|---|---|
 | `TopBar` (1:3) | `<AppTopBar>` | `frontend/src/components/AppTopBar.tsx` (shared) |
 | `FilterRow` (3:2) | `<LibraryFilterRow>` | `frontend/src/features/library/FilterRow.tsx` |
-| `SubTabsRow` (4:2) | `<LibrarySubTabs>` | `frontend/src/features/library/SubTabs.tsx` |
+| `SubTabsRow` (4:2) | — (удалён в FLQ-36) | — |
+| — | `<ContinueSection>` | `frontend/src/features/library/ContinueSection.tsx` |
+| — | `<HistorySection>`, `<DaySection>` | `frontend/src/features/library/HistorySection.tsx`, `DaySection.tsx` |
 | `CardsRow` (7:2) | `<LessonCarousel>` | `frontend/src/features/library/LessonCarousel.tsx` |
 | `Card/Lesson` (7:13) | `<LessonCard>` | `frontend/src/features/library/LessonCard.tsx` |
 | `Cover` (7:14) | `<LessonCover>` | `frontend/src/features/library/LessonCover.tsx` |

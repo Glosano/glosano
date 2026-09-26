@@ -35,7 +35,10 @@ afterEach(() => {
 })
 
 function Library() {
-  const { data } = useQuery({ queryKey: ['lessons', 'pt'], queryFn: () => lessonsApi.list('pt') })
+  const { data } = useQuery({
+    queryKey: ['lessons', 'pt'],
+    queryFn: () => lessonsApi.continue('pt'),
+  })
   return (
     <>
       {data?.items.map((item) => (

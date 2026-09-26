@@ -28,6 +28,7 @@ class LessonProgress:
     read_percent: int
     new_words_remaining: int
     completed_at: datetime | None = None
+    last_activity_at: datetime | None = None
 
 
 #: Урок, по которому агрегат не вернул строки (в тексте нет word-like токенов).
@@ -70,9 +71,10 @@ async def progress_for_lessons(
     Инвариант, которым эта функция не владеет, но на который полагается:
     `token_items` соединяется по единому `lang`, а не по `language_code`
     каждого урока — это безопасно только потому, что вызывающий
-    (`LessonRepo.list_for_user`) уже отфильтровал `lesson_ids` по
-    `Lesson.language_code == lang`. Если это перестанет быть так, счётчик
-    новых слов начнёт смешивать словарь пользователя по разным языкам.
+    (`LessonRepo.list_continue` / `list_history_days`) уже отфильтровал
+    `lesson_ids` по `Lesson.language_code == lang`. Если это перестанет быть
+    так, счётчик новых слов начнёт смешивать словарь пользователя по разным
+    языкам.
     """
     if not lesson_ids:
         return {}
@@ -84,6 +86,7 @@ async def progress_for_lessons(
             func.max(occ.ordinal_in_lesson),
             func.max(ReaderPosition.current_token_ordinal),
             func.max(ReaderPosition.completed_at),
+            func.max(ReaderPosition.last_activity_at),
             func.count(distinct(occ.normalized_text)).filter(
                 TokenItem.id.is_(None),
                 occ.normalized_text != "",
@@ -116,7 +119,8 @@ async def progress_for_lessons(
         lesson_id: LessonProgress(
             read_percent=100 if completed_at else read_percent(position, max_ordinal),
             completed_at=completed_at,
+            last_activity_at=last_activity_at,
             new_words_remaining=new_remaining,
         )
-        for lesson_id, max_ordinal, position, completed_at, new_remaining in rows
+        for lesson_id, max_ordinal, position, completed_at, last_activity_at, new_remaining in rows
     }

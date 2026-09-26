@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.modules.lesson_library.models import Lesson, LessonTokenOccurrence
+from glosano.modules.reader_state.activity import touch_lesson_activity
 from glosano.modules.reader_state.models import BulkAction, ReaderPosition
 from glosano.modules.statistics.service import record_reading
 from glosano.modules.vocabulary.models import TokenItem
@@ -37,6 +38,11 @@ async def bulk_mark_known(
     commit: bool = True,
     request_id: uuid.UUID | None = None,
 ) -> tuple[uuid.UUID, int]:
+    # Перелистывание и завершение (которое тоже идёт через bulk_mark_known) —
+    # это работа с материалом (FLQ-36). Строка reader_positions блокируется
+    # первой, до статистики и слов: complete_lesson берёт её FOR UPDATE раньше
+    # остального, и одинаковый порядок блокировок исключает взаимоблокировку.
+    await touch_lesson_activity(session, user_id=user_id, lesson_id=lesson.id)
     await record_reading(
         session, user_id=user_id, lesson=lesson, from_ordinal=from_ordinal, to_ordinal=to_ordinal
     )

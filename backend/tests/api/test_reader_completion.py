@@ -17,7 +17,7 @@ from glosano.modules.identity.repo import UserRepo
 from glosano.modules.reader_state.models import BulkAction
 from glosano.modules.statistics.models import DailyReadOccurrence
 from glosano.modules.vocabulary.models import PhraseItem, TokenItem
-from tests.api._reader_helpers import register_and_onboard, seed_ready_lesson
+from tests.api._reader_helpers import library_items, register_and_onboard, seed_ready_lesson
 
 
 @pytest.mark.parametrize("mode", ["page", "sentence"])
@@ -128,8 +128,8 @@ async def test_complete_last_fragment_preserves_statuses_and_undo(
         detail = (await c.get(f"/api/lessons/{lesson}")).json()
         assert detail["reader_position"]["completed_at"] == result["completed_at"]
         assert detail["reader_position"]["completion_action_id"] == result["action_id"]
-        listing = (await c.get("/api/lessons", params={"lang": "pt"})).json()
-        card = next(row for row in listing["items"] if row["id"] == str(lesson))
+        listing = await library_items(c)
+        card = next(row for row in listing if row["id"] == str(lesson))
         assert card["completed_at"] == result["completed_at"]
         assert card["read_percent"] == 100
         r = await c.post(f"/api/reader/bulk-actions/{result['action_id']}/undo", headers=headers)
@@ -176,8 +176,8 @@ async def test_complete_without_words_in_final_fragment(
         assert r.status_code == 200, r.text
         assert r.json()["created_count"] == 0
         assert r.json()["summary"]["reading_days"] == 0
-        listing = (await c.get("/api/lessons", params={"lang": "pt"})).json()
-        card = next(row for row in listing["items"] if row["id"] == str(lesson))
+        listing = await library_items(c)
+        card = next(row for row in listing if row["id"] == str(lesson))
         assert card["completed_at"]
         assert card["read_percent"] == 100
         assert (await c.get(f"/api/lessons/{lesson}/token-statuses")).json()["statuses"] == {}

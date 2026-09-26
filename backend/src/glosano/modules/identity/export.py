@@ -107,7 +107,7 @@ USER_TABLES: dict[str, tuple[str, str]] = {
     "reader_positions": (
         "user_id",
         "id user_id lesson_id view_mode current_segment_id current_token_ordinal "
-        "completed_at completion_action_id last_opened_at",
+        "completed_at completion_action_id last_opened_at last_activity_at",
     ),
     "bulk_actions": (
         "user_id",

@@ -2,6 +2,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from glosano.main import create_app
+from tests.api._reader_helpers import library_items
 
 
 async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") -> str:
@@ -66,9 +67,7 @@ async def test_create_and_list_lesson(monkeypatch: pytest.MonkeyPatch) -> None:
         assert st["status"] == "ready"
         assert st["word_count"] == 5
 
-        r = await c.get("/api/lessons?lang=pt")
-        assert r.status_code == 200
-        titles = [item["title"] for item in r.json()["items"]]
+        titles = [item["title"] for item in await library_items(c)]
         assert "Olá mundo" in titles
 
 
@@ -88,9 +87,7 @@ async def test_list_lessons_filters_by_language() -> None:
             headers={"X-CSRF-Token": csrf},
         )
 
-        r = await c.get("/api/lessons?lang=en")
-        body = r.json()
-        titles = [item["title"] for item in body["items"]]
+        titles = [item["title"] for item in await library_items(c, lang="en")]
         assert "PT-only" not in titles
 
 
@@ -108,11 +105,12 @@ async def test_create_requires_auth() -> None:
         assert r.status_code == 403  # CSRF blocks before auth check
 
 
-async def test_list_requires_auth() -> None:
+async def test_old_list_endpoint_is_gone() -> None:
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
+        await _register_and_onboard(c, "lessons-old-list@example.com")
         r = await c.get("/api/lessons?lang=pt")
-        assert r.status_code == 401
+        assert r.status_code == 405
 
 
 async def test_create_validates_language() -> None:
@@ -145,7 +143,5 @@ async def test_list_search_by_title() -> None:
             headers={"X-CSRF-Token": csrf},
         )
 
-        r = await c.get("/api/lessons?lang=pt&q=FindMe")
-        body = r.json()
-        titles = [item["title"] for item in body["items"]]
+        titles = [item["title"] for item in await library_items(c, q="FindMe")]
         assert any("FindMe" in t for t in titles)

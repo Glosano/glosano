@@ -10,7 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 from glosano.main import create_app
 
-from ._reader_helpers import register_and_onboard, seed_ready_lesson
+from ._reader_helpers import library_items, register_and_onboard, seed_ready_lesson
 
 # Восемь уникальных слов, без повторов — остаток новых слов совпадает с
 # числом слов после позиции, поэтому ожидания в тестах читаются глазами.
@@ -31,9 +31,7 @@ async def _word_ordinals(c: AsyncClient, lesson_id: uuid.UUID) -> list[int]:
 
 
 async def _card(c: AsyncClient, lesson_id: uuid.UUID, lang: str = "pt") -> dict[str, Any]:
-    r = await c.get(f"/api/lessons?lang={lang}")
-    assert r.status_code == 200
-    return next(i for i in r.json()["items"] if i["id"] == str(lesson_id))
+    return next(i for i in await library_items(c, lang) if i["id"] == str(lesson_id))
 
 
 async def _put_position(

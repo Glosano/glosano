@@ -8,6 +8,7 @@ test_reader_statuses.py, and test_reader_positions.py so new reader tests
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
@@ -74,3 +75,15 @@ async def seed_ready_lesson(
         await service.process_lesson_import(s, lesson_id)
 
     return lesson_id
+
+
+async def library_items(
+    c: AsyncClient, lang: str = "pt", q: str | None = None
+) -> list[dict[str, Any]]:
+    """Все материалы из истории библиотеки за последний месяц, плоским списком."""
+    params: dict[str, str | int] = {"lang": lang, "days": 31}
+    if q:
+        params["q"] = q
+    r = await c.get("/api/lessons/history", params=params)
+    assert r.status_code == 200, r.text
+    return [item for day in r.json()["days"] for item in day["items"]]

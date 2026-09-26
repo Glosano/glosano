@@ -121,6 +121,15 @@ ignore = [
 "tests/modules/lesson_library/test_progress.py" = ["RUF002"]
 "tests/modules/lesson_library/test_segmenter.py" = ["RUF001"]
 "tests/api/test_lessons_progress.py" = ["RUF002", "RUF003"]
+"src/glosano/modules/reader_state/activity.py" = ["RUF002"]
+"src/glosano/modules/reader_state/models.py" = ["RUF003"]
+"src/glosano/modules/reader_state/positions.py" = ["RUF003"]
+"tests/api/test_lesson_activity.py" = ["RUF002"]
+"src/glosano/modules/reader_state/bulk.py" = ["RUF003"]
+"src/glosano/api/vocabulary.py" = ["RUF002"]
+"src/glosano/modules/lesson_library/repo.py" = ["RUF003"]
+"tests/api/_reader_helpers.py" = ["RUF002"]
+"tests/api/test_library_feed.py" = ["RUF003"]
 
 [tool.ruff.format]
 quote-style = "double"

@@ -10,7 +10,7 @@ from glosano.modules.lesson_library.models import LessonImportJob
 from glosano.modules.lesson_library.video_segments import Cue
 from glosano.modules.lesson_library.youtube import VideoResult
 from glosano.worker.tasks import run_lesson_import
-from tests.api._reader_helpers import register_and_onboard
+from tests.api._reader_helpers import library_items, register_and_onboard
 
 
 async def test_video_import_edit_export_and_idempotency(
@@ -175,8 +175,8 @@ async def test_queue_failure_is_safe_and_retry_preserves_lesson(
     lesson_id = repeated.json()["id"]
     detail = (await client.get(f"/api/lessons/{lesson_id}")).json()
     assert detail["import_error"] == {"code": "queue_unavailable", "retryable": True}
-    library = (await client.get("/api/lessons?lang=en")).json()
-    assert library["items"][0]["source_type"] == "youtube"
+    library = await library_items(client, "en")
+    assert next(i for i in library if i["id"] == lesson_id)["source_type"] == "youtube"
 
     async def queued(*args: Any) -> None:
         pass

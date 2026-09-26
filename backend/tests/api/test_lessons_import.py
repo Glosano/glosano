@@ -6,6 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from glosano.main import create_app
+from tests.api._reader_helpers import library_items
 
 
 async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "pt") -> str:
@@ -83,9 +84,7 @@ async def test_enqueue_failure_marks_failed_and_returns_503(
         )
         assert r.status_code == 503
 
-        r2 = await c.get("/api/lessons?lang=pt")
-        assert r2.status_code == 200
-        statuses = {item["title"]: item["status"] for item in r2.json()["items"]}
+        statuses = {item["title"]: item["status"] for item in await library_items(c)}
         assert statuses.get("Stuck?") == "failed"
 
 

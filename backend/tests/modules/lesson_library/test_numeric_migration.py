@@ -159,13 +159,20 @@ async def test_numeric_migration_repairs_legacy_data() -> None:
                     due_at=datetime.now(UTC),
                 )
             )
-            s.add(
-                ReaderPosition(
-                    user_id=user_id,
-                    lesson_id=lesson_id,
-                    current_segment_id=segment_id,
-                    current_token_ordinal=1,
-                )
+            # reader_positions at 0019 predates last_activity_at (0025_lesson_activity).
+            await s.execute(
+                text(
+                    "INSERT INTO reader_positions "
+                    "(id, user_id, lesson_id, view_mode, current_segment_id, "
+                    "current_token_ordinal) "
+                    "VALUES (:id, :user, :lesson, 'page', :segment, 1)"
+                ),
+                {
+                    "id": uuid.uuid4(),
+                    "user": user_id,
+                    "lesson": lesson_id,
+                    "segment": segment_id,
+                },
             )
             await s.commit()
         migrate("head")

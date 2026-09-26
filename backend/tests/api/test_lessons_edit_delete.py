@@ -15,7 +15,7 @@ from glosano.modules.review.models import ReviewItem
 from glosano.modules.statistics.models import DailyReadOccurrence, DailyUserStats
 from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
-from ._reader_helpers import register_and_onboard, seed_ready_lesson
+from ._reader_helpers import library_items, register_and_onboard, seed_ready_lesson
 
 
 @pytest.fixture
@@ -30,8 +30,8 @@ async def test_owner_can_load_original_text(client: AsyncClient, material):
     response = await client.get(f"/api/lessons/{lesson_id}/edit")
     assert response.status_code == 200
     assert response.json()["raw_text"] == "Olá mundo."
-    listing = (await client.get("/api/lessons?lang=pt")).json()
-    assert next(x for x in listing["items"] if x["id"] == str(lesson_id))["can_manage"]
+    listing = await library_items(client)
+    assert next(x for x in listing if x["id"] == str(lesson_id))["can_manage"]
 
 
 @pytest.mark.parametrize("change_text", [False, True])
@@ -154,7 +154,7 @@ async def test_delete_preserves_vocabulary_reviews_and_totals(client: AsyncClien
     assert response.status_code == 204
     assert (await client.get(f"/api/lessons/{lesson_id}")).status_code == 404
     assert (await client.get(f"/api/lessons/{lesson_id}/content")).status_code == 404
-    assert str(lesson_id) not in (await client.get("/api/lessons?lang=pt")).text
+    assert str(lesson_id) not in {x["id"] for x in await library_items(client)}
     async with session_scope() as s:
         for model, item_id in zip((TokenItem, PhraseItem), ids, strict=True):
             item = await s.get(model, item_id)
@@ -187,8 +187,8 @@ async def test_other_users_cannot_manage_material(client: AsyncClient, material,
         ).status_code == 404
         assert (await other.delete(f"/api/lessons/{lesson_id}", headers=headers)).status_code == 404
         if visibility == "shared":
-            listing = (await other.get("/api/lessons?lang=pt")).json()
-            assert not next(x for x in listing["items"] if x["id"] == str(lesson_id))["can_manage"]
+            listing = await library_items(other)
+            assert not next(x for x in listing if x["id"] == str(lesson_id))["can_manage"]
     assert (await client.get(f"/api/lessons/{lesson_id}")).status_code == 200
 
 

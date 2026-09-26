@@ -9,7 +9,6 @@ vi.mock('@tanstack/react-router', async () => ({
 
 import { setUiLanguage } from '@/lib/i18n'
 import { FilterRow } from './FilterRow'
-import { SubTabs } from './SubTabs'
 import { LibraryEmptyState } from './LibraryEmptyState'
 import { LessonCarousel } from './LessonCarousel'
 
@@ -33,17 +32,15 @@ describe('Library localization', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Заполните название и текст')
   })
 
-  it('localizes search, tabs, import dialog labels and the close action live', async () => {
+  it('localizes search, import dialog labels and the close action live', async () => {
     setUiLanguage('en')
     const client = new QueryClient()
     render(
       <QueryClientProvider client={client}>
         <FilterRow />
-        <SubTabs />
       </QueryClientProvider>,
     )
     expect(screen.getByPlaceholderText('Search the library')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue learning' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '+ Import lesson' }))
     expect(await screen.findByRole('dialog', { name: 'Import lesson' })).toBeInTheDocument()
     expect(

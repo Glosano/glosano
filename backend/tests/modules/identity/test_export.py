@@ -36,6 +36,8 @@ from glosano.modules.vocabulary.models import (
 )
 from tests.api.test_me_settings import register
 
+LAST_ACTIVITY_AT = datetime(2026, 9, 20, 12, 0, tzinfo=UTC)
+
 
 async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
     async with session_scope() as s:
@@ -152,7 +154,12 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
                 ItemTag(
                     owner_user_id=user_id, item_kind="token", item_id=token.id, tag_name="mine"
                 ),
-                ReaderPosition(user_id=user_id, lesson_id=foreign.id, current_token_ordinal=3),
+                ReaderPosition(
+                    user_id=user_id,
+                    lesson_id=foreign.id,
+                    current_token_ordinal=3,
+                    last_activity_at=LAST_ACTIVITY_AT,
+                ),
                 BulkAction(
                     user_id=user_id,
                     lesson_id=own.id,
@@ -210,6 +217,8 @@ async def test_export_is_complete_and_isolated(client: AsyncClient):
     assert len(records["lessons"]) == 1
     assert records["lessons"][0]["raw_text"] == "cada dia"
     assert records["reader_positions"][0]["lesson_id"] == ids["foreign"]
+    exported_activity = records["reader_positions"][0]["last_activity_at"]
+    assert datetime.fromisoformat(exported_activity) == LAST_ACTIVITY_AT
     assert records["personal_translations"][0]["translation_text"] == "Saved translation"
     assert records["daily_user_stats"][0]["tokens_read"] == 2
     for table in records:

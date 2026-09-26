@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.db import get_session
 from glosano.core.languages import LearningLanguageCode
+from glosano.modules.reader_state.activity import touch_lesson_activity
 from glosano.modules.vocabulary import service
 from glosano.modules.vocabulary.models import PersonalTranslation
 from glosano.modules.vocabulary.schemas import (
@@ -48,6 +49,20 @@ def _require_user(request: Request) -> uuid.UUID:
     if user_id is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     return user_id
+
+
+async def _touch_lesson(
+    session: AsyncSession, user_id: uuid.UUID, lesson_id: uuid.UUID | None
+) -> None:
+    """Слово, взятое из урока, — работа с этим уроком (FLQ-36).
+
+    Сервис словаря коммитит сам, поэтому касание — отдельная короткая
+    транзакция; lesson_id к этому моменту сервис уже провалидировал.
+    """
+    if lesson_id is None:
+        return
+    await touch_lesson_activity(session, user_id=user_id, lesson_id=lesson_id)
+    await session.commit()
 
 
 def _translation_out(t: PersonalTranslation) -> TranslationOut:
@@ -121,6 +136,7 @@ async def create_item(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid lesson/segment provenance"
         ) from None
+    await _touch_lesson(session, user_id, body.lesson_id)
     return ItemStateResponse(item_id=item.id, status=item.status, confidence=item.confidence)
 
 
@@ -152,6 +168,7 @@ async def patch_item(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid lesson/segment provenance"
         ) from None
+    await _touch_lesson(session, user_id, body.lesson_id)
     return ItemStateResponse(item_id=item.id, status=item.status, confidence=item.confidence)
 
 

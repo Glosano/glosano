@@ -13,6 +13,7 @@ from glosano.core.db import session_scope
 from glosano.modules.lesson_library.models import LessonSource
 from glosano.modules.lesson_library.repo import LessonRepo
 from glosano.worker.tasks import run_lesson_import
+from tests.api._reader_helpers import library_items
 from tests.api.test_lessons_import import (
     _register_and_onboard,  # pyright: ignore[reportPrivateUsage]
 )
@@ -112,8 +113,7 @@ async def test_invalid_file_creates_no_lesson(
         headers={"X-CSRF-Token": csrf},
     )
     assert response.status_code == expected, response.text
-    lessons = await client.get("/api/lessons?lang=pt&visibility=mine")
-    assert lessons.json()["total"] == 0
+    assert [i for i in await library_items(client) if i["can_manage"]] == []
 
 
 async def test_file_import_requires_auth_and_csrf(client: AsyncClient) -> None:
@@ -145,8 +145,8 @@ async def test_file_enqueue_failure_is_not_stranded(
         headers={"X-CSRF-Token": csrf},
     )
     assert response.status_code == 503
-    lessons = await client.get("/api/lessons?lang=pt&visibility=mine")
-    assert lessons.json()["items"][0]["status"] == "failed"
+    mine = [i for i in await library_items(client) if i["can_manage"]]
+    assert mine[0]["status"] == "failed"
 
 
 async def test_file_at_size_limit_is_accepted(

@@ -1,10 +1,22 @@
-"""Lessons API: list, async import (202 + enqueue), and status polling."""
+"""Lessons API: library feed, async import (202 + enqueue), and status polling."""
 
 from __future__ import annotations
 
 import uuid
+from datetime import date
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -20,9 +32,11 @@ from glosano.modules.lesson_library.schemas import (
     CreateLessonRequest,
     ImportErrorOut,
     ImportYouTubeRequest,
+    LessonContinueResponse,
     LessonCreatedResponse,
     LessonEditResponse,
-    LessonListResponse,
+    LessonHistoryDay,
+    LessonHistoryResponse,
     LessonStatusResponse,
     LessonSummary,
     UpdateLessonRequest,
@@ -42,59 +56,77 @@ def _require_user(request: Request) -> uuid.UUID:
     return user_id
 
 
-@router.get("", response_model=LessonListResponse)
-async def list_lessons(
-    request: Request,
-    lang: str,
-    tab: str = "lessons",
-    q: str | None = None,
-    visibility: str = "all",
-    page: int = 1,
-    page_size: int = 25,
-    session: AsyncSession = Depends(get_session),
-) -> LessonListResponse:
-    user_id = _require_user(request)
-    items, total = await LessonRepo(session).list_for_user(
-        user_id=user_id,
-        lang=lang,
-        q=q,
-        visibility=visibility,
-        tab=tab,
-        page=page,
-        page_size=page_size,
-    )
-    progress = await progress_for_lessons(
-        session, user_id=user_id, lang=lang, lesson_ids=[item.id for item in items]
-    )
+async def _summaries(
+    session: AsyncSession, user_id: uuid.UUID, lang: str, lessons: list[Lesson]
+) -> list[LessonSummary]:
+    ids = [lesson.id for lesson in lessons]
+    progress = await progress_for_lessons(session, user_id=user_id, lang=lang, lesson_ids=ids)
     sources = await session.scalars(
         select(LessonSource)
         .join(Lesson, Lesson.id == LessonSource.lesson_id)
         .where(
-            Lesson.id.in_([item.id for item in items]),
+            Lesson.id.in_(ids),
             LessonSource.version_number == Lesson.current_source_version,
         )
     )
     source_types = {source.lesson_id: source.source_type for source in sources}
-    summaries = []
-    for item in items:
-        item_progress = progress.get(item.id, ZERO_PROGRESS)
+    summaries: list[LessonSummary] = []
+    for lesson in lessons:
+        item_progress = progress.get(lesson.id, ZERO_PROGRESS)
         summaries.append(
-            LessonSummary.model_validate(item).model_copy(
+            LessonSummary.model_validate(lesson).model_copy(
                 update={
-                    "source_type": source_types.get(item.id),
+                    "source_type": source_types.get(lesson.id),
                     "read_percent": item_progress.read_percent,
                     "completed_at": item_progress.completed_at,
+                    "last_activity_at": item_progress.last_activity_at,
                     "new_words_remaining": item_progress.new_words_remaining,
-                    "can_manage": item.owner_user_id == user_id,
+                    "can_manage": lesson.owner_user_id == user_id,
                 }
             )
         )
+    return summaries
 
-    return LessonListResponse(
-        items=summaries,
-        total=total,
-        page=page,
-        page_size=page_size,
+
+@router.get("/continue", response_model=LessonContinueResponse)
+async def continue_lessons(
+    request: Request,
+    lang: str,
+    q: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    session: AsyncSession = Depends(get_session),
+) -> LessonContinueResponse:
+    user_id = _require_user(request)
+    lessons = await LessonRepo(session).list_continue(user_id=user_id, lang=lang, q=q, limit=limit)
+    return LessonContinueResponse(items=await _summaries(session, user_id, lang, lessons))
+
+
+@router.get("/history", response_model=LessonHistoryResponse)
+async def lesson_history(
+    request: Request,
+    lang: str,
+    q: str | None = None,
+    tz: str = "UTC",
+    before: date | None = None,
+    days: Annotated[int, Query(ge=1, le=31)] = 7,
+    session: AsyncSession = Depends(get_session),
+) -> LessonHistoryResponse:
+    user_id = _require_user(request)
+    repo = LessonRepo(session)
+    if not await repo.timezone_exists(tz):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown timezone")
+    history, next_before = await repo.list_history_days(
+        user_id=user_id, lang=lang, q=q, tz=tz, before=before, days=days
+    )
+    summaries = iter(
+        await _summaries(session, user_id, lang, [lesson for d in history for lesson in d.lessons])
+    )
+    return LessonHistoryResponse(
+        days=[
+            LessonHistoryDay(date=d.day, total=d.total, items=[next(summaries) for _ in d.lessons])
+            for d in history
+        ],
+        next_before=next_before,
     )
 
 

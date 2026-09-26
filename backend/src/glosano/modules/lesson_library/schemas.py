@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from datetime import datetime
 from typing import Literal
@@ -43,13 +44,22 @@ class LessonSummary(BaseModel):
     new_words_remaining: int = 0
     can_manage: bool = False
     completed_at: datetime | None = None
+    last_activity_at: datetime | None = None
 
 
-class LessonListResponse(BaseModel):
+class LessonContinueResponse(BaseModel):
     items: list[LessonSummary]
+
+
+class LessonHistoryDay(BaseModel):
+    date: dt.date
     total: int
-    page: int
-    page_size: int
+    items: list[LessonSummary]
+
+
+class LessonHistoryResponse(BaseModel):
+    days: list[LessonHistoryDay]
+    next_before: dt.date | None
 
 
 class LessonCreatedResponse(BaseModel):

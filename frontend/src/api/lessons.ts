@@ -27,6 +27,7 @@ export interface VideoFragment {
 export interface LessonSummary {
   source_type?: string | null
   completed_at?: string | null
+  last_activity_at?: string | null
   id: string
   title: string
   language_code: string
@@ -39,11 +40,15 @@ export interface LessonSummary {
   can_manage: boolean
 }
 
-export interface LessonListResponse {
-  items: LessonSummary[]
+export interface LessonHistoryDay {
+  date: string
   total: number
-  page: number
-  page_size: number
+  items: LessonSummary[]
+}
+
+export interface LessonHistoryResponse {
+  days: LessonHistoryDay[]
+  next_before: string | null
 }
 
 export interface LessonCreated {
@@ -76,26 +81,19 @@ export interface LessonEditData {
   status: LessonStatus
 }
 
-interface ListParams {
-  tab?: 'continue' | 'lessons'
-  q?: string
-  visibility?: 'mine' | 'shared' | 'all'
-  page?: number
-  page_size?: number
+function queryString(params: Record<string, string | undefined>): string {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') search.set(key, value)
+  }
+  return search.toString()
 }
 
 export const lessonsApi = {
-  list: (lang: string, params: ListParams = {}) => {
-    const search = new URLSearchParams({
-      lang,
-      ...Object.fromEntries(
-        Object.entries(params)
-          .filter(([, v]) => v !== undefined)
-          .map(([k, v]) => [k, String(v)]),
-      ),
-    })
-    return api<LessonListResponse>(`/api/lessons?${search.toString()}`)
-  },
+  continue: (lang: string, params: { q?: string } = {}) =>
+    api<{ items: LessonSummary[] }>(`/api/lessons/continue?${queryString({ lang, ...params })}`),
+  history: (lang: string, params: { q?: string; tz: string; before?: string }) =>
+    api<LessonHistoryResponse>(`/api/lessons/history?${queryString({ lang, ...params })}`),
   create: (data: CreateLessonPayload) =>
     api<LessonCreated>('/api/lessons', {
       method: 'POST',

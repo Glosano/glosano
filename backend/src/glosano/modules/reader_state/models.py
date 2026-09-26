@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,9 +27,13 @@ class ReaderPosition(Base):
     last_opened_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # Последняя осмысленная работа с материалом (FLQ-36): сдвиг позиции,
+    # bulk-known, завершение, изменение слова из урока. Открытие не считается.
+    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint("user_id", "lesson_id", name="uq_reader_positions_user_lesson"),
+        Index("ix_reader_positions_user_activity", "user_id", "last_activity_at"),
     )
 
 
