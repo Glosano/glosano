@@ -87,7 +87,7 @@ export function ChatWorkspace({
     <section
       data-reader-panel
       aria-label={t('AI-чат')}
-      className={`relative flex min-h-0 bg-background ${embedded ? 'min-w-0 flex-1 flex-col overflow-hidden' : 'mx-auto h-[calc(100dvh-8rem)] max-w-screen-2xl md:h-[calc(100dvh-4rem)]'}`}
+      className={`relative flex min-h-0 bg-background ${embedded ? 'min-w-0 flex-1 flex-col overflow-hidden' : 'h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)]'}`}
     >
       {!embedded && listOpen && (
         <button
