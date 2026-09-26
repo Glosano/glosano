@@ -53,7 +53,7 @@ const appendedText = (message: AppendMessage): string =>
 
 type TranscriptMessageProps = Pick<
   ChatTranscriptProps,
-  'conversationId' | 'renderExercise' | 'renderText' | 'renderMessageMeta'
+  'conversationId' | 'renderExercise' | 'renderText' | 'renderMessageMeta' | 'renderMessageActions'
 > &
   Readonly<{
     messageId: string
@@ -69,55 +69,71 @@ function TranscriptMessage({
   renderExercise,
   renderText,
   renderMessageMeta,
+  renderMessageActions,
   status,
   t,
 }: TranscriptMessageProps) {
+  const user = role === 'user'
   return (
-    <MessagePrimitive.Root asChild>
-      <article
-        data-message-role={role}
-        className="mb-4 min-w-0 space-y-2 rounded-xl border border-border p-4"
-      >
-        {renderMessageMeta?.(messageId)}
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === 'text') {
-              return renderText ? renderText(part.text) : <p>{part.text}</p>
-            }
-            if (part.type !== 'data' || part.name !== 'exercise') {
-              return null
-            }
+    // Chat-app layout (FLQ-32.8): the user's turn is a bubble on the right, the
+    // reply is plain full-width text; actions sit below, outside the bubble.
+    <div className={`group mb-6 flex min-w-0 flex-col ${user ? 'items-end' : 'items-stretch'}`}>
+      <MessagePrimitive.Root asChild>
+        <article
+          data-message-role={role}
+          className={
+            user
+              ? 'max-w-[85%] min-w-0 space-y-2 rounded-3xl bg-muted px-4 py-2.5'
+              : 'min-w-0 space-y-2'
+          }
+        >
+          {renderMessageMeta?.(messageId)}
+          <MessagePrimitive.Parts>
+            {({ part }) => {
+              if (part.type === 'text') {
+                return renderText ? renderText(part.text) : <p>{part.text}</p>
+              }
+              if (part.type !== 'data' || part.name !== 'exercise') {
+                return null
+              }
 
-            const exercise = part.data as ChatTranscriptExercisePart
-            return renderExercise ? (
-              renderExercise({
-                conversationId,
-                messageId,
-                exercise,
-              })
-            ) : (
-              <section
-                aria-label={t('Упражнение {{id}}', { id: exercise.exerciseId })}
-                data-exercise-id={exercise.exerciseId}
-              >
-                {exercise.prompt}
-              </section>
-            )
-          }}
-        </MessagePrimitive.Parts>
-        {status?.type === 'running' ? (
-          <span aria-label={t('Ответ формируется')}>{t('Формируем ответ…')}</span>
-        ) : null}
-        {status?.type === 'incomplete' && status.reason === 'cancelled' ? (
-          <span aria-label={t('Ответ остановлен')}>{t('Ответ остановлен')}</span>
-        ) : null}
-        {status?.type === 'incomplete' && status.reason === 'error' ? (
-          <p role="alert">
-            {typeof status.error === 'string' ? status.error : t('Не удалось получить ответ')}
-          </p>
-        ) : null}
-      </article>
-    </MessagePrimitive.Root>
+              const exercise = part.data as ChatTranscriptExercisePart
+              return renderExercise ? (
+                renderExercise({
+                  conversationId,
+                  messageId,
+                  exercise,
+                })
+              ) : (
+                <section
+                  aria-label={t('Упражнение {{id}}', { id: exercise.exerciseId })}
+                  data-exercise-id={exercise.exerciseId}
+                >
+                  {exercise.prompt}
+                </section>
+              )
+            }}
+          </MessagePrimitive.Parts>
+          {status?.type === 'running' ? (
+            <span
+              aria-label={t('Ответ формируется')}
+              className="block animate-pulse text-sm text-muted-foreground"
+            >
+              {t('Формируем ответ…')}
+            </span>
+          ) : null}
+          {status?.type === 'incomplete' && status.reason === 'cancelled' ? (
+            <span aria-label={t('Ответ остановлен')}>{t('Ответ остановлен')}</span>
+          ) : null}
+          {status?.type === 'incomplete' && status.reason === 'error' ? (
+            <p role="alert">
+              {typeof status.error === 'string' ? status.error : t('Не удалось получить ответ')}
+            </p>
+          ) : null}
+        </article>
+      </MessagePrimitive.Root>
+      {renderMessageActions?.(messageId)}
+    </div>
   )
 }
 
@@ -131,6 +147,7 @@ function ChatTranscriptRuntime({
   renderExercise,
   renderText,
   renderMessageMeta,
+  renderMessageActions,
 }: ChatTranscriptProps) {
   const t = useTranslation()
   const handleNew = useCallback(
@@ -167,6 +184,7 @@ function ChatTranscriptRuntime({
                 renderExercise={renderExercise}
                 renderText={renderText}
                 renderMessageMeta={renderMessageMeta}
+                renderMessageActions={renderMessageActions}
                 status={message.status}
                 t={t}
               />

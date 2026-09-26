@@ -37,6 +37,8 @@ export type ChatTranscriptProps = Readonly<{
   showComposer?: boolean
   renderText?: (text: string) => ReactNode
   renderMessageMeta?: (messageId: string) => ReactNode
+  /** Rendered below the message, outside the bubble (copy, AI label). */
+  renderMessageActions?: (messageId: string) => ReactNode
   readOnly?: boolean
   onSend?: (conversationId: string, text: string) => Promise<void> | void
   onCancel?: (conversationId: string) => Promise<void> | void

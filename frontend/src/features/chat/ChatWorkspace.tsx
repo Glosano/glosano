@@ -13,6 +13,7 @@ import { ChatTranscript } from './ChatTranscript'
 import { ChatComposer } from './ChatComposer'
 import { ChatCitation } from './ChatCitation'
 import { ChatMarkdown } from './ChatMarkdown'
+import { ChatMessageActions } from './ChatMessageActions'
 
 export function ChatWorkspace({
   lang,
@@ -107,9 +108,7 @@ export function ChatWorkspace({
           />
         </aside>
       )}
-      <div
-        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-      >
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header
           className={`flex shrink-0 flex-wrap items-center gap-2 border-b ${compact ? 'px-1.5 py-1' : 'p-3'}`}
         >
@@ -185,20 +184,23 @@ export function ChatWorkspace({
             messages={mapped}
             showComposer={false}
             renderText={(text) => <ChatMarkdown text={text} />}
-            renderMessageMeta={(messageId) => {
+            renderMessageMeta={(messageId) =>
+              messages
+                .find((m) => m.id === messageId)
+                ?.citations.map((c) => (
+                  <ChatCitation key={c.id} id={c.id} snapshot={c} onNavigate={onReturn} />
+                ))
+            }
+            renderMessageActions={(messageId) => {
               const message = messages.find((m) => m.id === messageId)
-              return message ? (
-                <>
-                  <div className="mb-2 flex gap-2 text-xs text-muted-foreground">
-                    <span>{t(message.role === 'assistant' ? 'Создано AI' : 'Вы')}</span>
-                    <time dateTime={message.created_at}>
-                      {new Date(message.created_at).toLocaleString()}
-                    </time>
-                  </div>
-                  {message.citations.map((c) => (
-                    <ChatCitation key={c.id} id={c.id} snapshot={c} onNavigate={onReturn} />
-                  ))}
-                </>
+              // A reply still being written, or stopped before any text, has
+              // nothing to copy or label yet.
+              return message && message.state !== 'pending' && message.text.trim() ? (
+                <ChatMessageActions
+                  role={message.role}
+                  text={message.text}
+                  createdAt={message.created_at}
+                />
               ) : null
             }}
           />
@@ -213,7 +215,7 @@ export function ChatWorkspace({
                 g.kind === 'reply' && ['failed', 'cancelled', 'interrupted'].includes(g.status),
             )
             .map((g) => (
-              <div key={g.id} className="my-2 rounded border p-2 text-sm">
+              <div key={g.id} className="my-2 rounded-xl border border-border p-3 text-sm">
                 <p>
                   {t(
                     g.status === 'cancelled'

@@ -301,7 +301,9 @@ it('keeps historical text visible while excluding old practice cards and actions
 it('shows a one-line hint instead of a large empty-state heading', async () => {
   show()
   expect(
-    await screen.findByText('Click the plus to the left of a paragraph to quote it, then ask a question.'),
+    await screen.findByText(
+      'Click the plus to the left of a paragraph to quote it, then ask a question.',
+    ),
   ).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: /Discussion starts/ })).not.toBeInTheDocument()
 })
@@ -347,4 +349,46 @@ it('stops a running reply from the composer button', async () => {
   expect(await screen.findByRole('status')).toHaveTextContent('Generating…')
   fireEvent.click(await screen.findByRole('button', { name: 'Stop response' }))
   await waitFor(() => expect(cancel).toHaveBeenCalledWith('a', 'g'))
+})
+
+it('shows replies without a header, marks them AI-generated and copies their text', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+  show()
+  fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Earlier conversation' }))
+  const reply = (await screen.findByText('Saved answer')).closest('[data-message-role]')!
+  expect(reply).not.toHaveTextContent('AI-generated')
+  expect(screen.getByText('AI-generated')).toBeInTheDocument()
+  expect(document.querySelector('time')).toHaveAttribute('datetime', '2026-09-18T12:00:00Z')
+  fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+  await waitFor(() => expect(writeText).toHaveBeenCalledWith('Saved answer'))
+  expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
+  Reflect.deleteProperty(navigator, 'clipboard')
+})
+
+it('shows no action row for a reply stopped before any text', async () => {
+  vi.mocked(chatsApi.detail).mockResolvedValue({
+    ...(await chatsApi.detail('a')),
+    messages: [
+      {
+        id: 'm',
+        role: 'assistant',
+        text: '',
+        state: 'cancelled',
+        created_at: '2026-09-18T12:00:00Z',
+        ui_language: 'en',
+        exercise_id: null,
+        attempt_id: null,
+        citations: [],
+        exercises: [],
+      },
+    ],
+  })
+  show()
+  fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Earlier conversation' }))
+  await screen.findByLabelText('Response cancelled')
+  expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument()
+  expect(screen.queryByText('AI-generated')).not.toBeInTheDocument()
 })

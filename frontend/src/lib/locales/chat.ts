@@ -110,7 +110,8 @@ export const chatMessages: Record<string, string> = {
     'Click the plus to the left of a paragraph to quote it, then ask a question.',
   'Предыдущие сообщения': 'Earlier messages',
   'Создано AI': 'AI-generated',
-  Вы: 'You',
+  Копировать: 'Copy',
+  Скопировано: 'Copied',
   'Часть ранней истории не вошла в контекст ответа.':
     'Some earlier history was omitted from the response context.',
   'Ответ прерван': 'Response interrupted',

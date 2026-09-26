@@ -244,4 +244,27 @@ describe('ChatTranscript', () => {
     expect(screen.queryByRole('button', { name: 'Stop response' })).not.toBeInTheDocument()
     expect(onCancel).not.toHaveBeenCalled()
   })
+
+  it('lays out user messages as bubbles on the right and replies full width, with actions below', () => {
+    render(
+      <ChatTranscript
+        conversationId="conversation-layout"
+        messages={[
+          message('message-user', 'user', 'Explain this sentence'),
+          message('message-assistant', 'assistant', 'It means hello.'),
+        ]}
+        renderMessageActions={(id) => <button type="button">{`Actions ${id}`}</button>}
+      />,
+    )
+
+    const [user, assistant] = screen.getAllByRole('article')
+    expect(user).toHaveAttribute('data-message-role', 'user')
+    expect(user!.className).toContain('rounded-3xl')
+    expect(user!.parentElement!.className).toContain('items-end')
+    expect(assistant).toHaveAttribute('data-message-role', 'assistant')
+    expect(assistant!.className).not.toContain('border')
+    const userActions = screen.getByRole('button', { name: 'Actions message-user' })
+    expect(user).not.toContainElement(userActions)
+    expect(user!.parentElement).toContainElement(userActions)
+  })
 })
