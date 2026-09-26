@@ -71,6 +71,21 @@ export function ChatSidebarToggle({
   )
 }
 
+export function ChatNewButton({ onSelect }: { onSelect?: () => void }) {
+  const t = useTranslation()
+  return (
+    <SidebarButton
+      label={t('Новый разговор')}
+      onClick={() => {
+        chatDrafts.select(null)
+        onSelect?.()
+      }}
+    >
+      <SquarePen className="size-[18px]" strokeWidth={1.7} />
+    </SidebarButton>
+  )
+}
+
 export function ChatSidebar({
   onSelect,
   collapsed = false,
@@ -121,15 +136,7 @@ export function ChatSidebar({
         {!collapsed && (
           <h2 className="flex-1 px-1.5 text-xs font-medium text-muted-foreground">{t('Чаты')}</h2>
         )}
-        <SidebarButton
-          label={t('Новый разговор')}
-          onClick={() => {
-            chatDrafts.select(null)
-            onSelect?.()
-          }}
-        >
-          <SquarePen className="size-[18px]" strokeWidth={1.7} />
-        </SidebarButton>
+        <ChatNewButton onSelect={onSelect} />
       </div>
       {!collapsed && (
         <div

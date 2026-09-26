@@ -1,13 +1,16 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { chatsApi } from '@/api/chats'
 import { setUiLanguage } from '@/lib/i18n'
+import { COMPACT_QUERY } from '@/lib/useMediaQuery'
+import { clearMediaQueries, mockMediaQueries } from '@/test/mockMediaQueries'
 import { chatDrafts } from './chatStore'
 import { ChatWorkspace } from './ChatWorkspace'
 import { useChatLayoutStore } from './chatLayoutStore'
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }))
+afterEach(() => clearMediaQueries())
 beforeEach(() => {
   vi.restoreAllMocks()
   setUiLanguage('en')
@@ -293,4 +296,55 @@ it('keeps historical text visible while excluding old practice cards and actions
   expect(
     screen.queryByRole('button', { name: /Submit answer|Similar practice|Discuss attempt/ }),
   ).not.toBeInTheDocument()
+})
+
+it('shows a one-line hint instead of a large empty-state heading', async () => {
+  show()
+  expect(
+    await screen.findByText('Click the plus to the left of a paragraph to quote it, then ask a question.'),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: /Discussion starts/ })).not.toBeInTheDocument()
+})
+
+it('moves the conversation controls into the chat header on phones', async () => {
+  mockMediaQueries([COMPACT_QUERY])
+  show()
+  const header = screen.getByRole('heading', { name: 'New conversation' }).closest('header')!
+  const toggles = screen.getAllByRole('button', { name: 'Open sidebar' })
+  expect(toggles).toHaveLength(1)
+  expect(header).toContainElement(toggles[0]!)
+  expect(header).toContainElement(screen.getByRole('button', { name: 'New conversation' }))
+  fireEvent.click(toggles[0]!)
+  fireEvent.click(await screen.findByRole('button', { name: 'Earlier conversation' }))
+  await screen.findByText('Saved answer')
+})
+
+it('stops a running reply from the composer button', async () => {
+  vi.mocked(chatsApi.detail).mockResolvedValue({
+    ...(await chatsApi.detail('a')),
+    generations: [
+      {
+        id: 'g',
+        conversation_id: 'a',
+        operation_id: 'op',
+        kind: 'reply',
+        message_id: 'm',
+        attempt_id: null,
+        status: 'running',
+        partial_text: 'Partial',
+        heartbeat_at: null,
+        error_code: null,
+        context_truncated: false,
+        exercise_kind: null,
+        ui_language: 'en',
+      },
+    ],
+  })
+  const cancel = vi.spyOn(chatsApi, 'cancel').mockResolvedValue(undefined as never)
+  show()
+  fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Earlier conversation' }))
+  expect(await screen.findByRole('status')).toHaveTextContent('Generating…')
+  fireEvent.click(await screen.findByRole('button', { name: 'Stop response' }))
+  await waitFor(() => expect(cancel).toHaveBeenCalledWith('a', 'g'))
 })

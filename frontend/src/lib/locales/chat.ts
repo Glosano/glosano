@@ -6,6 +6,7 @@ export const chatMessages: Record<string, string> = {
   'Отменить добавление цитаты': 'Cancel adding quote',
   'Цитата не помещается в сообщение. Сократите текст и попробуйте ещё раз.':
     'The quote does not fit in the message. Shorten the text and try again.',
+  'Сообщение…': 'Message…',
   'Лимит контекста: {{budget}} символов.': 'Context limit: {{budget}} characters.',
   'Абзац слишком большой для цитаты. Выберите более короткий абзац.':
     'This paragraph is too large to quote. Choose a shorter paragraph.',
@@ -76,8 +77,6 @@ export const chatMessages: Record<string, string> = {
     'AI is disabled. History and drafts remain available; new replies are unavailable.',
   'Отправка…': 'Sending…',
   'Не сохранено на сервере': 'Not saved to server',
-  'Черновик на этом устройстве': 'Draft on this device',
-  'Черновик сохранён': 'Draft saved',
   'Повторить сохранение': 'Retry saving',
   'Источник изменился или недоступен. Уберите цитату и приложите её заново.':
     'The source changed or is unavailable. Remove the citation and attach it again.',
@@ -105,7 +104,6 @@ export const chatMessages: Record<string, string> = {
   'Повторить загрузку попыток': 'Retry loading attempts',
   'Ещё попытки': 'More attempts',
   'Закрыть чат': 'Close chat',
-  'Обсуждение начинается с вопроса': 'Discussion starts with a question',
   'Цитата или её абзацы слишком велики. Выделите фрагмент в более коротком абзаце.':
     'The quote or its paragraphs are too large. Select text in a shorter paragraph.',
   'Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.':

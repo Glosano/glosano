@@ -4,9 +4,10 @@ import { X } from 'lucide-react'
 import { chatsApi, type Generation } from '@/api/chats'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
+import { COMPACT_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 import { chatDrafts, useChatStore } from './chatStore'
 import { useChat } from './useChat'
-import { ChatSidebar, ChatSidebarToggle } from './ChatSidebar'
+import { ChatNewButton, ChatSidebar, ChatSidebarToggle } from './ChatSidebar'
 import { useChatLayoutStore } from './chatLayoutStore'
 import { ChatTranscript } from './ChatTranscript'
 import { ChatComposer } from './ChatComposer'
@@ -35,6 +36,8 @@ export function ChatWorkspace({
     [error, setError] = useState(false),
     [acting, setActing] = useState(false)
   const listOpen = externalList?.open ?? (embedded ? internalListOpen : sidebarOpen)
+  // Phones drop the icon rail: its controls move into the chat header (FLQ-32.7).
+  const compact = useMediaQuery(COMPACT_QUERY) && !embedded
   const toggleList = () => {
     if (externalList) externalList.toggle()
     else if (embedded) setListOpen((v) => !v)
@@ -91,7 +94,7 @@ export function ChatWorkspace({
           className="absolute inset-0 z-30 bg-black/10 md:hidden"
         />
       )}
-      {!embedded && (
+      {!embedded && (!compact || listOpen) && (
         <aside
           className={`shrink-0 border-r border-border/60 bg-background ${listOpen ? 'w-[260px] max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-xl' : 'w-12'}`}
         >
@@ -105,9 +108,12 @@ export function ChatWorkspace({
         </aside>
       )}
       <div
-        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${!embedded && listOpen ? 'max-md:pl-12' : ''}`}
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
       >
-        <header className="flex shrink-0 flex-wrap items-center gap-2 border-b p-3">
+        <header
+          className={`flex shrink-0 flex-wrap items-center gap-2 border-b ${compact ? 'px-1.5 py-1' : 'p-3'}`}
+        >
+          {compact && !listOpen && <ChatSidebarToggle open={false} onToggle={toggleList} />}
           {embedded && (
             <div className={externalList ? '2xl:hidden' : undefined}>
               <ChatSidebarToggle open={listOpen} onToggle={toggleList} />
@@ -116,6 +122,7 @@ export function ChatWorkspace({
           <h2 className="min-w-0 flex-1 truncate font-semibold">
             {detail?.title ?? t('Новый разговор')}
           </h2>
+          {compact && !listOpen && <ChatNewButton />}
           {onReturn && (
             <Button
               variant="ghost"
@@ -151,12 +158,9 @@ export function ChatWorkspace({
           className="relative min-h-0 flex-1 overflow-y-auto p-4"
         >
           {!id && (
-            <div className="mx-auto max-w-xl py-10 text-center">
-              <h3 className="text-xl font-semibold">{t('Обсуждение начинается с вопроса')}</h3>
-              <p className="mt-3 text-muted-foreground">
-                {t('Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.')}
-              </p>
-            </div>
+            <p className="mx-auto max-w-xl py-6 text-center text-sm text-muted-foreground">
+              {t('Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.')}
+            </p>
           )}
           {id && history.isLoading && <p>{t('Загрузка…')}</p>}
           {history.isError && (
@@ -233,21 +237,11 @@ export function ChatWorkspace({
               </div>
             ))}
         </div>
+        {/* The stop control lives in the composer; the state stays announced. */}
         {active && (
-          <div
-            className="flex items-center justify-between border-t px-3 py-2 text-sm"
-            role="status"
-          >
-            <span>{t(active.status === 'queued' ? 'В очереди' : 'Формируем ответ…')}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={acting}
-              onClick={() => void command(active, true)}
-            >
-              {t('Остановить')}
-            </Button>
-          </div>
+          <p role="status" className="sr-only">
+            {t(active.status === 'queued' ? 'В очереди' : 'Формируем ответ…')}
+          </p>
         )}
         {error && (
           <p role="alert" className="px-3 text-sm">
@@ -264,6 +258,8 @@ export function ChatWorkspace({
             aiEnabled={aiEnabled}
             busy={!!active}
             capabilities={capabilities.data}
+            onStop={active ? () => void command(active, true) : undefined}
+            stopping={acting}
           />
         </div>
       </div>

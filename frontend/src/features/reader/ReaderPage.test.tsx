@@ -1543,7 +1543,8 @@ describe('ReaderPage', () => {
       context_char_budget: 24000,
       attachment_char_limit: 6000,
       answer_max_tokens: 1500,
-      draft_text_char_limit: 16000,
+      // Differs from the composer's 16000 fallback so tests can wait for capabilities.
+      draft_text_char_limit: 15000,
     })
     vi.spyOn(chatsApi, 'draft').mockResolvedValue({
       revision: 0,
@@ -1971,7 +1972,12 @@ describe('ReaderPage', () => {
         <ChatWorkspace lang="en" />
       </QueryClientProvider>,
     )
-    await screen.findByText('Лимит контекста: 24000 символов.')
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveAttribute(
+        'maxlength',
+        '15000',
+      ),
+    )
     expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveValue(
       'Explain the pending paragraph',
     )
@@ -2021,7 +2027,12 @@ describe('ReaderPage', () => {
           <ChatWorkspace lang="en" />
         </QueryClientProvider>,
       )
-      await screen.findByText('Лимит контекста: 24000 символов.')
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: 'Сообщение' })).toHaveAttribute(
+          'maxlength',
+          '15000',
+        ),
+      )
       expect(screen.getByRole('button', { name: 'Отправить' })).toBeDisabled()
       expect(screen.getByRole('status')).toHaveTextContent('Загрузка…')
       if (outcome === 'cancel')

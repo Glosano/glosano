@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { chatsApi } from '@/api/chats'
 import { setUiLanguage } from '@/lib/i18n'
+import { COARSE_POINTER_QUERY } from '@/lib/useMediaQuery'
+import { clearMediaQueries, mockMediaQueries } from '@/test/mockMediaQueries'
 import { chatDrafts } from './chatStore'
 import { ChatComposer } from './ChatComposer'
 vi.mock('./ChatCitation', () => ({ ChatCitation: () => <blockquote>Selected quote</blockquote> }))
+afterEach(() => clearMediaQueries())
 beforeEach(() => {
   vi.restoreAllMocks()
   setUiLanguage('en')
@@ -138,4 +141,77 @@ it('keeps migration recovery editable through consecutive edits and retries succ
   expect(input).toBeEnabled()
   expect(screen.queryByRole('button', { name: 'Retry adding quotes' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+})
+
+function renderComposer(props: Partial<Parameters<typeof ChatComposer>[0]> = {}) {
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ChatComposer id={null} lang="en" aiEnabled busy={false} {...props} />
+    </QueryClientProvider>,
+  )
+}
+
+it('starts as a single line with the send button inside the field', async () => {
+  renderComposer()
+  const input = screen.getByRole('textbox', { name: 'Message' })
+  await waitFor(() => expect(input).not.toBeDisabled())
+  expect(input).toHaveAttribute('rows', '1')
+  expect(input.closest('[data-chat-input]')).toContainElement(
+    screen.getByRole('button', { name: 'Send' }),
+  )
+})
+
+it('hides routine draft status and shows the context limit only near it', async () => {
+  renderComposer({
+    capabilities: {
+      ai_enabled: true,
+      max_attachments: 4,
+      context_char_budget: 100,
+      attachment_char_limit: 60,
+      answer_max_tokens: 100,
+      draft_text_char_limit: 1000,
+    },
+  })
+  const input = screen.getByRole('textbox', { name: 'Message' })
+  await waitFor(() => expect(input).not.toBeDisabled())
+  expect(screen.queryByText('Draft saved')).not.toBeInTheDocument()
+  expect(screen.queryByText(/Context limit/)).not.toBeInTheDocument()
+  fireEvent.change(input, { target: { value: 'short question' } })
+  expect(screen.queryByText('Draft on this device')).not.toBeInTheDocument()
+  expect(screen.queryByText(/Context limit/)).not.toBeInTheDocument()
+  fireEvent.change(input, { target: { value: 'x'.repeat(81) } })
+  expect(screen.getByText('Context limit: 100 characters.')).toBeInTheDocument()
+})
+
+it('turns the send button into stop while a reply is generating', async () => {
+  const onStop = vi.fn()
+  renderComposer({ busy: true, onStop })
+  await waitFor(() =>
+    expect(screen.getByRole('textbox', { name: 'Message' })).not.toBeDisabled(),
+  )
+  expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Stop response' }))
+  expect(onStop).toHaveBeenCalledOnce()
+})
+
+it('keeps Enter for new lines on touch screens and sends on desktop', async () => {
+  const send = vi
+    .spyOn(chatsApi, 'send')
+    .mockResolvedValue({ conversation_id: 'accepted', generation: { id: 'gen' } as never })
+  mockMediaQueries([COARSE_POINTER_QUERY])
+  const touch = renderComposer()
+  const input = screen.getByRole('textbox', { name: 'Message' })
+  await waitFor(() => expect(input).not.toBeDisabled())
+  fireEvent.change(input, { target: { value: 'Question' } })
+  expect(fireEvent.keyDown(input, { key: 'Enter' })).toBe(true)
+  expect(send).not.toHaveBeenCalled()
+  touch.unmount()
+
+  clearMediaQueries()
+  renderComposer()
+  const desktopInput = screen.getByRole('textbox', { name: 'Message' })
+  await waitFor(() => expect(desktopInput).not.toBeDisabled())
+  fireEvent.keyDown(desktopInput, { key: 'Enter' })
+  await waitFor(() => expect(send).toHaveBeenCalledOnce())
+  await act(async () => {})
 })

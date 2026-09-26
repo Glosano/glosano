@@ -1,12 +1,19 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { ArrowUp, RotateCw, Square } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import type { Capabilities } from '@/api/chats'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/i18n'
+import { COARSE_POINTER_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 import { chatDrafts, useChatStore } from './chatStore'
 import { useDraft } from './useChat'
 import { questionOutsideQuotes } from './inlineQuotes'
+
+/** About six lines of `leading-6` text; beyond that the field scrolls. */
+const MAX_INPUT_HEIGHT = 144
+/** Share of the context budget after which the limit is shown. */
+const CONTEXT_WARNING_SHARE = 0.8
 
 export function ChatComposer({
   id,
@@ -14,12 +21,17 @@ export function ChatComposer({
   aiEnabled,
   busy,
   capabilities,
+  onStop,
+  stopping = false,
 }: {
   id: string | null
   lang: string
   aiEnabled: boolean
   busy: boolean
   capabilities?: Capabilities
+  /** While a reply is generating, the send button becomes a stop button. */
+  onStop?: () => void
+  stopping?: boolean
 }) {
   const t = useTranslation(),
     entry = useDraft(id),
@@ -28,6 +40,9 @@ export function ChatComposer({
     insertionVersion = useChatStore((s) => s.insertionVersion),
     client = useQueryClient()
   const input = useRef<HTMLTextAreaElement>(null)
+  // On-screen keyboards put Enter where users expect a line break, so touch
+  // screens send only from the button (FLQ-32.7).
+  const touch = useMediaQuery(COARSE_POINTER_QUERY)
   useEffect(() => {
     if (entry.loaded) input.current?.focus()
   }, [id, entry.loaded])
@@ -36,7 +51,7 @@ export function ChatComposer({
     const node = input.current
     if (node) {
       node.style.height = 'auto'
-      node.style.height = `${Math.min(node.scrollHeight, 320)}px`
+      node.style.height = `${Math.min(node.scrollHeight, MAX_INPUT_HEIGHT)}px`
     }
   }, [content.text])
   useEffect(() => {
@@ -69,9 +84,18 @@ export function ChatComposer({
     (!entry.pending && !!content.citation_ids.length) ||
     (!entry.pending && (!aiEnabled || busy || empty))
   const errorKey = entry.error instanceof ApiError ? entry.error.detail : ''
+  const showStop = busy && !!onStop && !entry.pending
+  const contextBudget = capabilities?.context_char_budget
+  const nearContextLimit =
+    contextBudget !== undefined && content.text.length > contextBudget * CONTEXT_WARNING_SHARE
+  const draftStatus = entry.sending
+    ? 'Отправка…'
+    : entry.error || entry.conversionError
+      ? 'Не сохранено на сервере'
+      : null
   return (
     <form
-      className="shrink-0 space-y-2 border-t bg-card p-3"
+      className="shrink-0 space-y-2 bg-background px-3 pt-2 pb-3"
       onSubmit={(e) => {
         e.preventDefault()
         if (!blocked) void send()
@@ -112,44 +136,66 @@ export function ChatComposer({
           </div>
         </div>
       )}
-      <textarea
-        ref={input}
-        rows={5}
-        className="max-h-80 min-h-32 w-full resize-y rounded-lg border bg-background p-3 text-sm focus:outline-primary"
-        aria-label={t('Сообщение')}
-        disabled={!entry.loaded && !entry.conversionError && !entry.error}
-        maxLength={capabilities?.draft_text_char_limit ?? 16000}
-        value={content.text}
-        onChange={(e) => chatDrafts.edit(id, { text: e.target.value })}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault()
-            if (!blocked) void send()
-          }
-        }}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={blocked}>
-          {t(entry.pending ? 'Повторить отправку' : 'Отправить')}
-        </Button>
+      <div
+        data-chat-input
+        className="flex items-end gap-2 rounded-3xl border bg-background py-1.5 pr-1.5 pl-4 shadow-sm focus-within:border-primary/60"
+      >
+        <textarea
+          ref={input}
+          rows={1}
+          className="max-h-36 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-sm leading-6 outline-none"
+          aria-label={t('Сообщение')}
+          placeholder={t('Сообщение…')}
+          disabled={!entry.loaded && !entry.conversionError && !entry.error}
+          maxLength={capabilities?.draft_text_char_limit ?? 16000}
+          value={content.text}
+          onChange={(e) => chatDrafts.edit(id, { text: e.target.value })}
+          onKeyDown={(e) => {
+            if (touch) return
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault()
+              if (!blocked) void send()
+            }
+          }}
+        />
+        {/* Room to the left of this button is reserved for a future microphone. */}
+        {showStop ? (
+          <Button
+            type="button"
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            aria-label={t('Остановить ответ')}
+            title={t('Остановить ответ')}
+            disabled={stopping}
+            onClick={onStop}
+          >
+            <Square className="size-3.5 fill-current" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="icon"
+            className="size-9 shrink-0 rounded-full"
+            aria-label={t(entry.pending ? 'Повторить отправку' : 'Отправить')}
+            title={t(entry.pending ? 'Повторить отправку' : 'Отправить')}
+            disabled={blocked}
+          >
+            {entry.pending ? (
+              <RotateCw className="size-4" aria-hidden="true" />
+            ) : (
+              <ArrowUp className="size-4" aria-hidden="true" />
+            )}
+          </Button>
+        )}
       </div>
       {!aiEnabled && (
         <p className="text-sm text-muted-foreground">
           {t('AI отключён. История и черновики доступны; новые ответы недоступны.')}
         </p>
       )}
-      <div aria-live="polite" className="text-xs text-muted-foreground">
-        {t(
-          entry.sending
-            ? 'Отправка…'
-            : entry.saving
-              ? 'Сохранение…'
-              : entry.error || entry.conversionError
-                ? 'Не сохранено на сервере'
-                : entry.dirty
-                  ? 'Черновик на этом устройстве'
-                  : 'Черновик сохранён',
-        )}
+      {/* Routine autosave states stay silent; only sending and failures surface. */}
+      <div aria-live="polite" className="px-4 text-xs text-muted-foreground empty:hidden">
+        {draftStatus && t(draftStatus)}
       </div>
       {!!entry.conversionError && !entry.conflict && !entry.pending && (
         <div role="alert" className="space-y-2 text-sm">
@@ -207,11 +253,9 @@ export function ChatComposer({
           )}
         </div>
       )}
-      {capabilities && (
-        <p className="text-xs text-muted-foreground">
-          {t('Лимит контекста: {{budget}} символов.', {
-            budget: capabilities.context_char_budget,
-          })}
+      {nearContextLimit && (
+        <p className="px-4 text-xs text-muted-foreground">
+          {t('Лимит контекста: {{budget}} символов.', { budget: contextBudget })}
         </p>
       )}
     </form>
