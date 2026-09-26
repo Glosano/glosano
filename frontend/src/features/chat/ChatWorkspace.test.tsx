@@ -392,3 +392,17 @@ it('shows no action row for a reply stopped before any text', async () => {
   expect(screen.queryByRole('button', { name: 'Copy' })).not.toBeInTheDocument()
   expect(screen.queryByText('AI-generated')).not.toBeInTheDocument()
 })
+
+it('keeps the transcript and the composer in one centred reading column', async () => {
+  show()
+  const hint = await screen.findByText(
+    'Click the plus to the left of a paragraph to quote it, then ask a question.',
+  )
+  const columns = document.querySelectorAll('[data-chat-column]')
+  expect(columns).toHaveLength(2)
+  for (const column of columns) expect(column.className).toContain('max-w-3xl')
+  expect(columns[0]).toContainElement(hint)
+  expect(columns[1]).toContainElement(screen.getByRole('textbox', { name: 'Message' }))
+  // The scrollport stays full width so the wheel works over the side margins.
+  expect(columns[0]!.parentElement!.className).toContain('overflow-y-auto')
+})

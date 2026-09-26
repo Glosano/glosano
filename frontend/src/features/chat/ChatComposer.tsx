@@ -9,6 +9,7 @@ import { COARSE_POINTER_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 import { chatDrafts, useChatStore } from './chatStore'
 import { useDraft } from './useChat'
 import { questionOutsideQuotes } from './inlineQuotes'
+import { CHAT_COLUMN_CLASS } from './chatColumn'
 
 /** About six lines of `leading-6` text; beyond that the field scrolls. */
 const MAX_INPUT_HEIGHT = 144
@@ -95,7 +96,8 @@ export function ChatComposer({
       : null
   return (
     <form
-      className="shrink-0 space-y-2 bg-background px-3 pt-2 pb-3"
+      data-chat-column
+      className={`${CHAT_COLUMN_CLASS} shrink-0 space-y-2 bg-background pt-2 pb-3`}
       onSubmit={(e) => {
         e.preventDefault()
         if (!blocked) void send()

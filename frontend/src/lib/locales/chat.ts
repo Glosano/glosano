@@ -111,6 +111,7 @@ export const chatMessages: Record<string, string> = {
   'Предыдущие сообщения': 'Earlier messages',
   'Создано AI': 'AI-generated',
   Копировать: 'Copy',
+  'Показать ещё': 'Show more',
   Скопировано: 'Copied',
   'Часть ранней истории не вошла в контекст ответа.':
     'Some earlier history was omitted from the response context.',

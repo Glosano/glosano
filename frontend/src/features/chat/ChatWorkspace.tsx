@@ -14,6 +14,7 @@ import { ChatComposer } from './ChatComposer'
 import { ChatCitation } from './ChatCitation'
 import { ChatMarkdown } from './ChatMarkdown'
 import { ChatMessageActions } from './ChatMessageActions'
+import { CHAT_COLUMN_CLASS } from './chatColumn'
 
 export function ChatWorkspace({
   lang,
@@ -154,90 +155,92 @@ export function ChatWorkspace({
                 100
           }}
           // Keep absolute accessibility labels inside this scrollport's containing block.
-          className="relative min-h-0 flex-1 overflow-y-auto p-4"
+          className="relative min-h-0 flex-1 overflow-y-auto py-4"
         >
-          {!id && (
-            <p className="mx-auto max-w-xl py-6 text-center text-sm text-muted-foreground">
-              {t('Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.')}
-            </p>
-          )}
-          {id && history.isLoading && <p>{t('Загрузка…')}</p>}
-          {history.isError && (
-            <Button variant="outline" onClick={() => void history.refetch()}>
-              {t('Повторить загрузку')}
-            </Button>
-          )}
-          {history.hasNextPage && (
-            <Button
-              variant="outline"
-              disabled={history.isFetchingNextPage}
-              onClick={() => {
-                follow.current = false
-                void history.fetchNextPage()
+          <div data-chat-column className={CHAT_COLUMN_CLASS}>
+            {!id && (
+              <p className="mx-auto max-w-xl py-6 text-center text-sm text-muted-foreground">
+                {t('Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.')}
+              </p>
+            )}
+            {id && history.isLoading && <p>{t('Загрузка…')}</p>}
+            {history.isError && (
+              <Button variant="outline" onClick={() => void history.refetch()}>
+                {t('Повторить загрузку')}
+              </Button>
+            )}
+            {history.hasNextPage && (
+              <Button
+                variant="outline"
+                disabled={history.isFetchingNextPage}
+                onClick={() => {
+                  follow.current = false
+                  void history.fetchNextPage()
+                }}
+              >
+                {t('Предыдущие сообщения')}
+              </Button>
+            )}
+            <ChatTranscript
+              conversationId={id ?? 'new'}
+              messages={mapped}
+              showComposer={false}
+              renderText={(text) => <ChatMarkdown text={text} />}
+              renderMessageMeta={(messageId) =>
+                messages
+                  .find((m) => m.id === messageId)
+                  ?.citations.map((c) => (
+                    <ChatCitation key={c.id} id={c.id} snapshot={c} onNavigate={onReturn} />
+                  ))
+              }
+              renderMessageActions={(messageId) => {
+                const message = messages.find((m) => m.id === messageId)
+                // A reply still being written, or stopped before any text, has
+                // nothing to copy or label yet.
+                return message && message.state !== 'pending' && message.text.trim() ? (
+                  <ChatMessageActions
+                    role={message.role}
+                    text={message.text}
+                    createdAt={message.created_at}
+                  />
+                ) : null
               }}
-            >
-              {t('Предыдущие сообщения')}
-            </Button>
-          )}
-          <ChatTranscript
-            conversationId={id ?? 'new'}
-            messages={mapped}
-            showComposer={false}
-            renderText={(text) => <ChatMarkdown text={text} />}
-            renderMessageMeta={(messageId) =>
-              messages
-                .find((m) => m.id === messageId)
-                ?.citations.map((c) => (
-                  <ChatCitation key={c.id} id={c.id} snapshot={c} onNavigate={onReturn} />
-                ))
-            }
-            renderMessageActions={(messageId) => {
-              const message = messages.find((m) => m.id === messageId)
-              // A reply still being written, or stopped before any text, has
-              // nothing to copy or label yet.
-              return message && message.state !== 'pending' && message.text.trim() ? (
-                <ChatMessageActions
-                  role={message.role}
-                  text={message.text}
-                  createdAt={message.created_at}
-                />
-              ) : null
-            }}
-          />
-          {generations.some((g) => g.context_truncated) && (
-            <p className="my-3 text-sm text-muted-foreground">
-              {t('Часть ранней истории не вошла в контекст ответа.')}
-            </p>
-          )}
-          {generations
-            .filter(
-              (g) =>
-                g.kind === 'reply' && ['failed', 'cancelled', 'interrupted'].includes(g.status),
-            )
-            .map((g) => (
-              <div key={g.id} className="my-2 rounded-xl border border-border p-3 text-sm">
-                <p>
-                  {t(
-                    g.status === 'cancelled'
-                      ? 'Ответ остановлен'
-                      : g.status === 'interrupted'
-                        ? 'Ответ прерван'
-                        : 'Не удалось получить ответ',
-                  )}
-                  {g.error_code === 'context_limit'
-                    ? `: ${t('Контекст слишком большой. Сократите сообщение или уберите цитаты.')}`
-                    : ''}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!aiEnabled || !!active || acting}
-                  onClick={() => void command(g, false)}
-                >
-                  {t('Повторить ответ')}
-                </Button>
-              </div>
-            ))}
+            />
+            {generations.some((g) => g.context_truncated) && (
+              <p className="my-3 text-sm text-muted-foreground">
+                {t('Часть ранней истории не вошла в контекст ответа.')}
+              </p>
+            )}
+            {generations
+              .filter(
+                (g) =>
+                  g.kind === 'reply' && ['failed', 'cancelled', 'interrupted'].includes(g.status),
+              )
+              .map((g) => (
+                <div key={g.id} className="my-2 rounded-xl border border-border p-3 text-sm">
+                  <p>
+                    {t(
+                      g.status === 'cancelled'
+                        ? 'Ответ остановлен'
+                        : g.status === 'interrupted'
+                          ? 'Ответ прерван'
+                          : 'Не удалось получить ответ',
+                    )}
+                    {g.error_code === 'context_limit'
+                      ? `: ${t('Контекст слишком большой. Сократите сообщение или уберите цитаты.')}`
+                      : ''}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!aiEnabled || !!active || acting}
+                    onClick={() => void command(g, false)}
+                  >
+                    {t('Повторить ответ')}
+                  </Button>
+                </div>
+              ))}
+          </div>
         </div>
         {/* The stop control lives in the composer; the state stays announced. */}
         {active && (

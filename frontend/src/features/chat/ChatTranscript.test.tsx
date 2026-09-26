@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { setUiLanguage } from '@/lib/i18n'
 
@@ -266,5 +266,47 @@ describe('ChatTranscript', () => {
     const userActions = screen.getByRole('button', { name: 'Actions message-user' })
     expect(user).not.toContainElement(userActions)
     expect(user!.parentElement).toContainElement(userActions)
+  })
+
+  it('collapses a long user message behind «Show more» and leaves replies expanded', () => {
+    // jsdom has no layout: pretend every message body overflows its collapsed height.
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(600)
+    const client = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(208)
+    onTestFinished(() => {
+      scroll.mockRestore()
+      client.mockRestore()
+    })
+    render(
+      <ChatTranscript
+        conversationId="conversation-long"
+        messages={[
+          message('message-user', 'user', 'A very long question'),
+          message('message-assistant', 'assistant', 'A very long reply'),
+        ]}
+      />,
+    )
+
+    const toggles = screen.getAllByRole('button', { name: 'Show more' })
+    expect(toggles).toHaveLength(1)
+    const [user] = screen.getAllByRole('article')
+    expect(user).toContainElement(toggles[0]!)
+    expect(toggles[0]).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggles[0]!)
+    expect(screen.getByRole('button', { name: 'Collapse' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse' }))
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeInTheDocument()
+  })
+
+  it('does not offer «Show more» for a message that fits', () => {
+    render(
+      <ChatTranscript
+        conversationId="conversation-short"
+        messages={[message('message-user', 'user', 'Short question')]}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: 'Show more' })).not.toBeInTheDocument()
   })
 })

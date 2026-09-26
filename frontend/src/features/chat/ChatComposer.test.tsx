@@ -186,9 +186,7 @@ it('hides routine draft status and shows the context limit only near it', async 
 it('turns the send button into stop while a reply is generating', async () => {
   const onStop = vi.fn()
   renderComposer({ busy: true, onStop })
-  await waitFor(() =>
-    expect(screen.getByRole('textbox', { name: 'Message' })).not.toBeDisabled(),
-  )
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Message' })).not.toBeDisabled())
   expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Stop response' }))
   expect(onStop).toHaveBeenCalledOnce()
