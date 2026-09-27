@@ -4,6 +4,7 @@ import { useI18n } from '@/lib/i18n'
 import type { LessonSummary } from '@/api/lessons'
 import { LessonCover } from './LessonCover'
 import { LessonActions } from './LessonActions'
+import { LessonTagChips } from './LessonTagChips'
 import { RetryVideoImport } from './RetryVideoImport'
 import { formatLastActivity } from './libraryDates'
 
@@ -73,10 +74,13 @@ export function LessonCard({ lesson, variant = 'history', today }: Props) {
           </div>
         </div>
       </Link>
+      {lesson.tags && lesson.tags.length > 0 && (
+        <LessonTagChips lang={lesson.language_code} tags={lesson.tags} />
+      )}
       {lesson.can_manage && lesson.status === 'failed' && lesson.source_type === 'youtube' && (
         <RetryVideoImport lessonId={lesson.id} lang={lesson.language_code} />
       )}
-      {lesson.can_manage && <LessonActions lesson={lesson} />}
+      <LessonActions lesson={lesson} />
     </article>
   )
 }

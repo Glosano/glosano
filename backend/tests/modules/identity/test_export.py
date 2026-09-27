@@ -18,6 +18,7 @@ from glosano.modules.lesson_library.models import (
     LessonMediaSource,
     LessonSegment,
     LessonSource,
+    LessonTag,
     LessonTokenOccurrence,
 )
 from glosano.modules.reader_state.models import BulkAction, LessonSegmentTranslation, ReaderPosition
@@ -154,6 +155,7 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
                 ItemTag(
                     owner_user_id=user_id, item_kind="token", item_id=token.id, tag_name="mine"
                 ),
+                LessonTag(user_id=user_id, lesson_id=foreign.id, tag="news"),
                 ReaderPosition(
                     user_id=user_id,
                     lesson_id=foreign.id,
@@ -221,6 +223,9 @@ async def test_export_is_complete_and_isolated(client: AsyncClient):
     assert datetime.fromisoformat(exported_activity) == LAST_ACTIVITY_AT
     assert records["personal_translations"][0]["translation_text"] == "Saved translation"
     assert records["daily_user_stats"][0]["tokens_read"] == 2
+    assert [(row["lesson_id"], row["tag"]) for row in records["lesson_tags"]] == [
+        (ids["foreign"], "news")
+    ]
     for table in records:
         if table.startswith("chat_"):
             # This fixture predates chat; chat portability has dedicated integration coverage.

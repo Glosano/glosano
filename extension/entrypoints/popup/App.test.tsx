@@ -190,3 +190,48 @@ describe('import form', () => {
     expect((await getSettings()).openAfterImport).toBe(false)
   })
 })
+
+describe('tags', () => {
+  it('sends parsed tags with a selection import', async () => {
+    setup({ page: { ...PAGE, selection: 'Olá.' } })
+    vi.mocked(requestImportText).mockResolvedValue({ ok: true, lessonId: 'L1', lessonUrl: `${ORIGIN}/learn/pt/lessons/L1` })
+    await userEvent.type(await screen.findByLabelText('Tags (comma-separated)'), 'News, b2, news')
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    expect(requestImportText).toHaveBeenCalledWith(expect.objectContaining({ tags: ['news', 'b2'] }))
+  })
+
+  it('passes tags to the on-page picker', async () => {
+    setup()
+    await userEvent.type(await screen.findByLabelText('Tags (comma-separated)'), 'news')
+    await userEvent.click(screen.getByRole('button', { name: 'Pick on page' }))
+    expect(startPicker).toHaveBeenCalledWith(7, expect.objectContaining({ mode: 'article', tags: ['news'] }))
+  })
+
+  it('passes tags to YouTube imports', async () => {
+    setup({ url: 'https://www.youtube.com/live/dQw4w9WgXcQ', page: null })
+    vi.mocked(requestImportYoutube).mockResolvedValue({ ok: true, lessonId: 'V1', lessonUrl: `${ORIGIN}/learn/en/lessons/V1` })
+    await userEvent.type(await screen.findByLabelText('Tags (comma-separated)'), 'music')
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    expect(requestImportYoutube).toHaveBeenCalledWith({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', language_code: 'en', tags: ['music'] })
+  })
+
+  it('blocks an overlong tag before any request', async () => {
+    setup({ page: { ...PAGE, selection: 'Olá.' } })
+    fireEvent.change(await screen.findByLabelText('Tags (comma-separated)'), { target: { value: 'x'.repeat(41) } })
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    expect(await screen.findByText('A tag must be at most 40 characters.')).toBeInTheDocument()
+    expect(requestImportText).not.toHaveBeenCalled()
+  })
+
+  it('clears the tag error once the field is edited', async () => {
+    setup({ page: { ...PAGE, selection: 'Olá.' } })
+    const field = await screen.findByLabelText('Tags (comma-separated)')
+    fireEvent.change(field, { target: { value: 'x'.repeat(41) } })
+    await userEvent.click(screen.getByRole('button', { name: 'Import' }))
+    expect(await screen.findByText('A tag must be at most 40 characters.')).toBeInTheDocument()
+
+    fireEvent.change(field, { target: { value: 'news' } })
+
+    expect(screen.queryByText('A tag must be at most 40 characters.')).not.toBeInTheDocument()
+  })
+})

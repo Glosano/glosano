@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useLibraryStore } from '@/features/library/libraryStore'
 import { useUserStore } from '@/stores/userStore'
 import { useTranslation } from '@/lib/i18n'
 
@@ -34,6 +35,7 @@ export function AvatarMenu() {
       // ignore — clear local state regardless
     }
     reset()
+    useLibraryStore.getState().reset()
     queryClient.clear()
     await navigate({ to: '/login', replace: true })
   }

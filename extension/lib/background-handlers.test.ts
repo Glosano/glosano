@@ -99,6 +99,15 @@ describe('importText', () => {
     const denied = deps({ hasPermission: async () => false })
     expect(await createHandlers(denied).importText({ title: 'T', language_code: 'pt', text: 'x', source: SOURCE })).toEqual({ ok: false, error: { code: 'no_permission' } })
   })
+
+  it('forwards non-empty tags and leaves empty ones out of the request', async () => {
+    const c = client()
+    const h = createHandlers(deps({}, c))
+    await h.importText({ title: 'T', language_code: 'pt', text: 'Olá.', source: SOURCE, tags: ['news'] })
+    await h.importText({ title: 'T', language_code: 'pt', text: 'Olá.', source: SOURCE, tags: [] })
+    expect(c.createLesson).toHaveBeenNthCalledWith(1, { title: 'T', language_code: 'pt', raw_text: 'Olá.', source: SOURCE, tags: ['news'] })
+    expect(c.createLesson).toHaveBeenNthCalledWith(2, { title: 'T', language_code: 'pt', raw_text: 'Olá.', source: SOURCE })
+  })
 })
 
 describe('importYoutube', () => {
@@ -107,6 +116,12 @@ describe('importYoutube', () => {
     const result = await createHandlers(deps({}, c)).importYoutube({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', language_code: 'en' })
     expect(result).toEqual({ ok: true, lessonId: 'V1', lessonUrl: `${ORIGIN}/learn/en/lessons/V1` })
     expect(c.importYoutube).toHaveBeenCalledWith({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', language_code: 'en', request_id: 'req-1' })
+  })
+
+  it('forwards tags', async () => {
+    const c = client()
+    await createHandlers(deps({}, c)).importYoutube({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', language_code: 'en', tags: ['music'] })
+    expect(c.importYoutube).toHaveBeenCalledWith({ url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', language_code: 'en', request_id: 'req-1', tags: ['music'] })
   })
 })
 

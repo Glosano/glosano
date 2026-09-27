@@ -38,8 +38,13 @@ from glosano.modules.lesson_library.schemas import (
     LessonHistoryResponse,
     LessonStatusResponse,
     LessonSummary,
+    LessonTagCount,
+    LessonTagsOut,
+    LessonTagsResponse,
+    SetLessonTagsRequest,
     UpdateLessonRequest,
 )
+from glosano.modules.lesson_library.tags import normalize_tags
 from glosano.modules.lesson_library.youtube import VideoImportError
 from glosano.modules.reader_state.positions import get_position
 from glosano.modules.reader_state.schemas import LessonMedia, ReaderPositionOut
@@ -53,6 +58,14 @@ def _require_user(request: Request) -> uuid.UUID:
     if user_id is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     return user_id
+
+
+def _filter_tags(tag: list[str] | None) -> list[str]:
+    # Filters are not lessons: the per-lesson 20-tag cap does not apply here.
+    try:
+        return normalize_tags(tag or [], max_tags=None)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
 
 async def _summaries(
@@ -69,6 +82,7 @@ async def _summaries(
         )
     )
     source_types = {source.lesson_id: source.source_type for source in sources}
+    tags = await LessonRepo(session).tags_for_lessons(user_id=user_id, lesson_ids=ids)
     summaries: list[LessonSummary] = []
     for lesson in lessons:
         item_progress = progress.get(lesson.id, ZERO_PROGRESS)
@@ -81,6 +95,7 @@ async def _summaries(
                     "last_activity_at": item_progress.last_activity_at,
                     "new_words_remaining": item_progress.new_words_remaining,
                     "can_manage": lesson.owner_user_id == user_id,
+                    "tags": tags.get(lesson.id, []),
                 }
             )
         )
@@ -93,11 +108,21 @@ async def continue_lessons(
     request: Request,
     lang: str,
     q: str | None = None,
+    tag: Annotated[list[str] | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> LessonContinueResponse:
     user_id = _require_user(request)
-    lessons = await LessonRepo(session).list_continue(user_id=user_id, lang=lang, q=q, limit=limit)
+    lessons = await LessonRepo(session).list_continue(
+        user_id=user_id, lang=lang, q=q, tags=_filter_tags(tag), limit=limit
+    )
     return LessonContinueResponse(items=await _summaries(session, user_id, lang, lessons))
+
+
+@router.get("/tags", response_model=LessonTagsResponse)
+async def lesson_tags(session: SessionDep, request: Request, lang: str) -> LessonTagsResponse:
+    user_id = _require_user(request)
+    counts = await LessonRepo(session).list_tag_counts(user_id=user_id, lang=lang)
+    return LessonTagsResponse(tags=[LessonTagCount(name=name, count=n) for name, n in counts])
 
 
 @router.get("/history", response_model=LessonHistoryResponse)
@@ -106,6 +131,7 @@ async def lesson_history(
     request: Request,
     lang: str,
     q: str | None = None,
+    tag: Annotated[list[str] | None, Query()] = None,
     tz: str = "UTC",
     before: date | None = None,
     days: Annotated[int, Query(ge=1, le=31)] = 7,
@@ -115,7 +141,7 @@ async def lesson_history(
     if not await repo.timezone_exists(tz):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown timezone")
     history, next_before = await repo.list_history_days(
-        user_id=user_id, lang=lang, q=q, tz=tz, before=before, days=days
+        user_id=user_id, lang=lang, q=q, tags=_filter_tags(tag), tz=tz, before=before, days=days
     )
     summaries = iter(
         await _summaries(session, user_id, lang, [lesson for d in history for lesson in d.lessons])
@@ -146,18 +172,20 @@ async def _create_and_enqueue(
     original_filename: str | None = None,
 ) -> LessonCreatedResponse:
     source = body.source
+    repo = LessonRepo(session)
     lesson, job_id = await service.create_lesson_for_import(
         owner_user_id=user_id,
         title=body.title,
         language_code=body.language_code,
         raw_text=body.raw_text,
         visibility=body.visibility,
-        repo=LessonRepo(session),
+        repo=repo,
         original_filename=original_filename,
         source_uri=source.url if source else None,
         author=source.author if source else None,
         source_label=source.site_name if source else None,
     )
+    await repo.add_tags(user_id=user_id, lesson_id=lesson.id, tags=body.tags)
     lesson_id = lesson.id
     lesson_status = lesson.status
     # Commit so the background worker (which opens its own session) sees the rows.
@@ -194,9 +222,14 @@ async def import_lesson_file(
     file: UploadFile,
     language_code: str = Form(),
     title: str | None = Form(default=None),
+    tags: str | None = Form(default=None),
 ) -> LessonCreatedResponse:
     user_id = _require_user(request)
     try:
+        try:
+            tag_list = normalize_tags([tags or ""])
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
         # Never interpret a client filename as a path on the server.
         filename = (file.filename or "").replace("\\", "/").rsplit("/", 1)[-1]
         if len(filename) > 255:
@@ -225,6 +258,7 @@ async def import_lesson_file(
                 language_code=language_code,
                 raw_text=raw_text,
                 visibility="private",
+                tags=tag_list,
             )
         except ValidationError as exc:
             raise HTTPException(
@@ -253,10 +287,11 @@ async def import_youtube(
     request: Request,
     session: SessionDep,
 ) -> LessonCreatedResponse:
+    user_id = _require_user(request)
     try:
         lesson, job, created = await video_import.create_video_import(
             session,
-            user_id=_require_user(request),
+            user_id=user_id,
             url=body.url,
             language_code=body.language_code,
             request_id=body.request_id,
@@ -265,6 +300,9 @@ async def import_youtube(
         raise HTTPException(422, exc.code) from None
     except video_import.VideoConflictError as exc:
         raise HTTPException(409, str(exc)) from None
+    # Tags are not part of the job payload, so a replay with other tags merges
+    # them instead of conflicting on request_id (ADR-0026).
+    await LessonRepo(session).add_tags(user_id=user_id, lesson_id=lesson.id, tags=body.tags)
     result = LessonCreatedResponse(id=lesson.id, status=lesson.status)
     if created:
         await _enqueue_video(session, lesson.id, job.id)
@@ -381,6 +419,25 @@ async def update_lesson(
     except service.LessonNotProcessableError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, "lesson is still processing") from exc
     return await video_import.edit_response(session, lesson)
+
+
+@router.put("/{lesson_id}/tags", response_model=LessonTagsOut)
+async def set_lesson_tags(
+    lesson_id: uuid.UUID,
+    body: SetLessonTagsRequest,
+    request: Request,
+    session: SessionDep,
+) -> LessonTagsOut:
+    # Tags are personal labels: any visible lesson can carry them, ownership is not needed.
+    user_id = _require_user(request)
+    try:
+        await service.get_visible_lesson(session, lesson_id=lesson_id, user_id=user_id)
+    except service.LessonNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from exc
+    repo = LessonRepo(session)
+    await repo.replace_tags(user_id=user_id, lesson_id=lesson_id, tags=body.tags)
+    tags = await repo.tags_for_lessons(user_id=user_id, lesson_ids=[lesson_id])
+    return LessonTagsOut(tags=tags.get(lesson_id, []))
 
 
 @router.delete("/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)

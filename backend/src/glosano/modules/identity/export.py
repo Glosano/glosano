@@ -104,6 +104,7 @@ USER_TABLES: dict[str, tuple[str, str]] = {
         "id owner_user_id item_kind item_id note_text created_at updated_at",
     ),
     "item_tags": ("owner_user_id", "id owner_user_id item_kind item_id tag_name source_type"),
+    "lesson_tags": ("user_id", "user_id lesson_id tag created_at"),
     "reader_positions": (
         "user_id",
         "id user_id lesson_id view_mode current_segment_id current_token_ordinal "

@@ -22,7 +22,7 @@ describe('Library localization', () => {
     const client = new QueryClient()
     render(
       <QueryClientProvider client={client}>
-        <FilterRow />
+        <FilterRow lang="pt" />
       </QueryClientProvider>,
     )
     fireEvent.click(screen.getByRole('button', { name: '+ Import lesson' }))
@@ -37,7 +37,7 @@ describe('Library localization', () => {
     const client = new QueryClient()
     render(
       <QueryClientProvider client={client}>
-        <FilterRow />
+        <FilterRow lang="pt" />
       </QueryClientProvider>,
     )
     expect(screen.getByPlaceholderText('Search the library')).toBeInTheDocument()

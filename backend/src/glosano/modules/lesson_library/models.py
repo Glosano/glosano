@@ -16,6 +16,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -192,3 +193,24 @@ class LessonMediaSource(Base):
     cue_snapshot: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     preparation_version: Mapped[int] = mapped_column(Integer, default=1)
     user_edited: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class LessonTag(Base):
+    """A learner's personal label on a lesson they can see (ADR-0026)."""
+
+    __tablename__ = "lesson_tags"
+    __table_args__ = (
+        Index("ix_lesson_tags_user_tag", "user_id", "tag"),
+        Index("ix_lesson_tags_lesson", "lesson_id"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    lesson_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lessons.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag: Mapped[str] = mapped_column(String(40), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )

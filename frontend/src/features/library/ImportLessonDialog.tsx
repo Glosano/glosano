@@ -7,6 +7,7 @@ import { Upload } from 'lucide-react'
 import { lessonsApi } from '@/api/lessons'
 import { ApiError, getApiErrorMessage } from '@/api/client'
 import { useTranslation } from '@/lib/i18n'
+import { parseTagInput, tagInputError } from '@/lib/tags'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -53,25 +54,30 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
   const [error, setError] = useState<unknown>(null)
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [url, setUrl] = useState('')
+  const [tagText, setTagText] = useState('')
   const requestId = useRef<string | null>(null)
 
   const create = useMutation({
     mutationFn: () => {
+      const tags = parseTagInput(tagText)
+      const withTags = tags.length > 0 ? { tags } : {}
       if (tab === 'youtube') {
         requestId.current ??= randomId()
         return lessonsApi.importYouTube({
           url: url.trim(),
           language_code: lang,
           request_id: requestId.current,
+          ...withTags,
         })
       }
       return tab === 'file' && file
-        ? lessonsApi.importFile(file, title.trim(), lang)
+        ? lessonsApi.importFile(file, title.trim(), lang, tags)
         : lessonsApi.create({
             title: title.trim(),
             language_code: lang,
             raw_text: text.trim(),
             visibility: 'private',
+            ...withTags,
           })
     },
     onSuccess: (lesson) => {
@@ -148,6 +154,11 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
     e.preventDefault()
     if (busy) return
     setError(null)
+    const tagError = tagInputError(parseTagInput(tagText))
+    if (tagError) {
+      setError(tagError)
+      return
+    }
     if (tab === 'youtube') {
       if (!url.trim()) {
         setError('Введите HTTPS-ссылку на одно видео YouTube.')
@@ -308,6 +319,16 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
               </div>
             </Tabs.Content>
           </Tabs.Root>
+          <div className="space-y-2">
+            <Label htmlFor="lesson-tags">{t('Теги (через запятую)')}</Label>
+            <Input
+              id="lesson-tags"
+              disabled={busy}
+              value={tagText}
+              placeholder={t('например: новости, подкаст')}
+              onChange={(e) => setTagText(e.target.value)}
+            />
+          </div>
           {shownError !== null && (
             <p role="alert" className="text-sm text-destructive">
               {errorMessage(shownError)}

@@ -124,6 +124,20 @@ async def get_owned_lesson(
     return lesson
 
 
+async def get_visible_lesson(
+    session: AsyncSession, *, lesson_id: uuid.UUID, user_id: uuid.UUID
+) -> Lesson:
+    """A lesson the user may read and label: their own or shared, in any language."""
+    lesson = await LessonRepo(session).get_lesson(lesson_id)
+    if (
+        lesson is None
+        or lesson.status == "archived"
+        or (lesson.owner_user_id != user_id and lesson.visibility != "shared")
+    ):
+        raise LessonNotFoundError(str(lesson_id))
+    return lesson
+
+
 async def update_lesson(
     session: AsyncSession, *, lesson_id: uuid.UUID, user_id: uuid.UUID, title: str, raw_text: str
 ) -> Lesson:

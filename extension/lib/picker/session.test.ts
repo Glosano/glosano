@@ -165,6 +165,14 @@ describe('article mode', () => {
     expect(d.importText).not.toHaveBeenCalled()
     expect(document.getElementById(OVERLAY_HOST_ID)).not.toBeNull()
   })
+
+  it('passes the popup tags on to the import', async () => {
+    const d = deps()
+    cleanup = startPickerSession(document, { ...ARTICLE, tags: ['news'] }, d)
+    press('Enter')
+    await flush()
+    expect(d.importText.mock.calls[0]![0].tags).toEqual(['news'])
+  })
 })
 
 describe('blocks mode', () => {

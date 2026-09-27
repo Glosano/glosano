@@ -25,12 +25,16 @@ export interface CreateLessonInput {
   raw_text: string
   /** Omitted when the page has no provenance the API accepts. */
   source?: LessonSourceInput
+  /** Omitted when empty, so imports keep working against servers without tag support. */
+  tags?: string[]
 }
 
 export interface ImportYoutubeInput {
   url: string
   language_code: string
   request_id: string
+  /** Omitted when empty, so imports keep working against servers without tag support. */
+  tags?: string[]
 }
 
 function validationDetail(body: unknown): string {

@@ -16,6 +16,7 @@ export interface PickerParams {
   title: string
   language_code: string
   source: LessonSourceInput
+  tags?: string[]
 }
 
 export interface SessionDeps {
@@ -68,7 +69,13 @@ export function startPickerSession(doc: Document, params: PickerParams, deps: Se
     overlay.showBusy()
     let result: ImportResult
     try {
-      result = await deps.importText({ title: params.title, language_code: params.language_code, text, source: params.source })
+      result = await deps.importText({
+        title: params.title,
+        language_code: params.language_code,
+        text,
+        source: params.source,
+        ...(params.tags ? { tags: params.tags } : {}),
+      })
     } catch (error) {
       // runtime.sendMessage rejects when the extension was reloaded or its context is gone.
       result = { ok: false, error: { code: 'unknown', detail: String(error) } }

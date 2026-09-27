@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getApiErrorKey } from '@/api/client'
 import { meApi } from '@/api/me'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import { useLibraryStore } from '@/features/library/libraryStore'
 import { useTranslation } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
 import { buttonClass, FormMessage, inputClass, SettingsSection } from './shared'
@@ -60,6 +61,7 @@ export function DataSettings() {
       await meApi.delete(password)
       await cache.cancelQueries()
       useUserStore.getState().reset()
+      useLibraryStore.getState().reset()
       cache.clear()
       setPassword('')
       setStep(0)

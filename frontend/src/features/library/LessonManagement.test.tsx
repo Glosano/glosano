@@ -113,8 +113,9 @@ it('keeps the card and dialog when deletion fails and allows retry', async () =>
   expect(screen.getByRole('heading', { name: lesson.title })).toBeInTheDocument()
 })
 
-it('does not offer mutation actions for another user’s shared material', async () => {
+it('offers only tags for another user’s shared material', async () => {
   render(<LessonCard lesson={{ ...lesson, visibility: 'shared', can_manage: false }} />)
   fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' })
-  expect(screen.queryByRole('button', { name: 'Material actions' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Material actions' }))
+  expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Tags…'])
 })

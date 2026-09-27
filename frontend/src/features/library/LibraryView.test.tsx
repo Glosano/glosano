@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-router', async () => ({
@@ -32,6 +32,7 @@ function lesson(id: string, extra: Partial<LessonSummary> = {}): LessonSummary {
 type Routes = {
   continue: LessonSummary[]
   history: (before: string | null) => LessonHistoryResponse
+  tags?: { name: string; count: number }[]
 }
 
 function stubApi(routes: Routes) {
@@ -41,7 +42,9 @@ function stubApi(routes: Routes) {
     const parsed = new URL(url, 'http://test')
     const body = parsed.pathname.endsWith('/continue')
       ? { items: routes.continue }
-      : routes.history(parsed.searchParams.get('before'))
+      : parsed.pathname.endsWith('/tags')
+        ? { tags: routes.tags ?? [] }
+        : routes.history(parsed.searchParams.get('before'))
     return new Response(JSON.stringify(body))
   })
   return calls
@@ -294,5 +297,60 @@ describe('LibraryView', () => {
     await vi.waitFor(() => {
       expect(nextPageCalls).toHaveLength(2)
     })
+  })
+})
+
+describe('tag filter', () => {
+  const noHistory = () => ({ days: [], next_before: null })
+
+  it('filters both sections by every selected tag and clears them', async () => {
+    const calls = stubApi({
+      continue: [],
+      history: () => ({
+        days: [{ date: '2026-09-26', total: 1, items: [lesson('D1', { tags: ['news'] })] }],
+        next_before: null,
+      }),
+      tags: [
+        { name: 'b2', count: 1 },
+        { name: 'news', count: 2 },
+      ],
+    })
+    renderView()
+    fireEvent.click(await screen.findByRole('button', { name: 'news' }))
+    fireEvent.click(screen.getByRole('button', { name: 'b2' }))
+    await waitFor(() => {
+      expect(calls).toContainEqual(expect.stringMatching(/\/continue\?lang=pt&tag=news&tag=b2$/))
+      expect(calls).toContainEqual(expect.stringMatching(/\/history\?.*tag=news&tag=b2/))
+    })
+    expect(screen.getByRole('button', { name: 'news' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить теги' }))
+    expect(screen.getByRole('button', { name: 'news' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('keeps a selected tag visible after it leaves the tag list', async () => {
+    useLibraryStore.getState().toggleTag('pt', 'old')
+    stubApi({ continue: [], history: noHistory, tags: [] })
+    renderView()
+    const chip = await screen.findByRole('button', { name: 'old' })
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(chip)
+    expect(screen.queryByRole('button', { name: 'old' })).not.toBeInTheDocument()
+  })
+
+  it('ignores tags selected for another learning language', async () => {
+    useLibraryStore.getState().toggleTag('en', 'news')
+    const calls = stubApi({ continue: [], history: noHistory })
+    renderView()
+    await waitFor(() => expect(calls.some((url) => url.includes('/history?'))).toBe(true))
+    expect(calls.filter((url) => url.includes('tag='))).toEqual([])
+  })
+
+  it('offers to clear the tag filter when nothing matches', async () => {
+    useLibraryStore.getState().toggleTag('pt', 'news')
+    stubApi({ continue: [], history: noHistory, tags: [{ name: 'news', count: 1 }] })
+    renderView()
+    expect(await screen.findByText('Ничего не найдено')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтр' }))
+    expect(useLibraryStore.getState().tags).toEqual([])
   })
 })

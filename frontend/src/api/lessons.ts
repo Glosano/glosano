@@ -28,6 +28,7 @@ export interface LessonSummary {
   source_type?: string | null
   completed_at?: string | null
   last_activity_at?: string | null
+  tags?: string[]
   id: string
   title: string
   language_code: string
@@ -56,11 +57,17 @@ export interface LessonCreated {
   status: LessonStatus
 }
 
+export interface LessonTagCount {
+  name: string
+  count: number
+}
+
 export interface CreateLessonPayload {
   title: string
   language_code: string
   raw_text: string
   visibility?: LessonVisibility
+  tags?: string[]
 }
 
 export type LessonDetail = Omit<LessonSummary, 'can_manage'> & {
@@ -81,32 +88,40 @@ export interface LessonEditData {
   status: LessonStatus
 }
 
-function queryString(params: Record<string, string | undefined>): string {
+function queryString(params: Record<string, string | string[] | undefined>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') search.set(key, value)
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined && item !== '') search.append(key, item)
+    }
   }
   return search.toString()
 }
 
 export const lessonsApi = {
-  continue: (lang: string, params: { q?: string } = {}) =>
+  continue: (lang: string, params: { q?: string; tag?: string[] } = {}) =>
     api<{ items: LessonSummary[] }>(`/api/lessons/continue?${queryString({ lang, ...params })}`),
-  history: (lang: string, params: { q?: string; tz: string; before?: string }) =>
+  history: (lang: string, params: { q?: string; tz: string; before?: string; tag?: string[] }) =>
     api<LessonHistoryResponse>(`/api/lessons/history?${queryString({ lang, ...params })}`),
   create: (data: CreateLessonPayload) =>
     api<LessonCreated>('/api/lessons', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  importFile: (file: File, title: string, languageCode: string) => {
+  importFile: (file: File, title: string, languageCode: string, tags: string[] = []) => {
     const body = new FormData()
     body.set('file', file)
     body.set('title', title)
     body.set('language_code', languageCode)
+    if (tags.length > 0) body.set('tags', tags.join(', '))
     return api<LessonCreated>('/api/lessons/import-file', { method: 'POST', body })
   },
-  importYouTube: (data: { url: string; language_code: string; request_id: string }) =>
+  importYouTube: (data: {
+    url: string
+    language_code: string
+    request_id: string
+    tags?: string[]
+  }) =>
     api<LessonCreated>('/api/lessons/import-youtube', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -126,4 +141,11 @@ export const lessonsApi = {
         },
   ) => api<LessonEditData>(`/api/lessons/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: string) => api<void>(`/api/lessons/${id}`, { method: 'DELETE' }),
+  tags: (lang: string) =>
+    api<{ tags: LessonTagCount[] }>(`/api/lessons/tags?${queryString({ lang })}`),
+  setTags: (id: string, tags: string[]) =>
+    api<{ tags: string[] }>(`/api/lessons/${id}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tags }),
+    }),
 }

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Tags, Trash2 } from 'lucide-react'
 
 import { lessonsApi, type LessonSummary } from '@/api/lessons'
 import { getApiErrorMessage } from '@/api/client'
@@ -22,10 +22,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useTranslation } from '@/lib/i18n'
 import { invalidateMaterial } from './materialQueries'
+import { LessonTagsDialog } from './LessonTagsDialog'
 
 export function LessonActions({ lesson }: { lesson: LessonSummary }) {
   const t = useTranslation()
   const [deleting, setDeleting] = useState(false)
+  const [editingTags, setEditingTags] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
   return (
     <>
@@ -45,28 +47,43 @@ export function LessonActions({ lesson }: { lesson: LessonSummary }) {
           align="end"
           className="min-w-40"
           onCloseAutoFocus={(event) => {
-            if (deleting) event.preventDefault()
+            if (deleting || editingTags) event.preventDefault()
           }}
         >
-          <DropdownMenuItem asChild>
-            <Link
-              to="/learn/$lang/lessons/$lessonId/edit"
-              params={{ lang: lesson.language_code, lessonId: lesson.id }}
-            >
-              <Pencil aria-hidden="true" />
-              {t('Редактировать')}
-            </Link>
+          <DropdownMenuItem onSelect={() => setEditingTags(true)}>
+            <Tags aria-hidden="true" />
+            {t('Теги…')}
           </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
-            <Trash2 aria-hidden="true" />
-            {t('Удалить')}
-          </DropdownMenuItem>
+          {lesson.can_manage && (
+            <>
+              <DropdownMenuItem asChild>
+                <Link
+                  to="/learn/$lang/lessons/$lessonId/edit"
+                  params={{ lang: lesson.language_code, lessonId: lesson.id }}
+                >
+                  <Pencil aria-hidden="true" />
+                  {t('Редактировать')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
+                <Trash2 aria-hidden="true" />
+                {t('Удалить')}
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       {deleting && (
         <DeleteMaterialDialog
           lesson={lesson}
           onClose={() => setDeleting(false)}
+          onRestoreFocus={() => trigger.current?.focus()}
+        />
+      )}
+      {editingTags && (
+        <LessonTagsDialog
+          lesson={lesson}
+          onClose={() => setEditingTags(false)}
           onRestoreFocus={() => trigger.current?.focus()}
         />
       )}

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
@@ -208,4 +208,75 @@ it('reuses the import request id after an ambiguous network failure', async () =
   await userEvent.click(screen.getByRole('button', { name: 'Import' }))
   await waitFor(() => expect(bodies).toHaveLength(2))
   expect(bodies[0]?.request_id).toBe(bodies[1]?.request_id)
+})
+
+it('sends parsed tags with a pasted text import', async () => {
+  let payload: RequestInit | undefined
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url: string, init: RequestInit) => {
+      if (init.method === 'POST') payload = init
+      return new Response(
+        JSON.stringify({ id: 'L3', status: init.method === 'POST' ? 'processing' : 'ready' }),
+      )
+    }),
+  )
+  const close = setup()
+  const user = userEvent.setup()
+  await user.type(screen.getByLabelText('Title'), 'Tagged')
+  await user.type(screen.getByRole('textbox', { name: 'Text' }), 'Olá')
+  await user.type(screen.getByLabelText('Tags (comma-separated)'), 'News, b2, news')
+  await user.click(screen.getByRole('button', { name: 'Create lesson' }))
+  await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+  expect(JSON.parse(payload?.body as string)).toEqual({
+    title: 'Tagged',
+    raw_text: 'Olá',
+    language_code: 'pt',
+    visibility: 'private',
+    tags: ['news', 'b2'],
+  })
+})
+
+it('sends tags with file and YouTube imports', async () => {
+  const bodies: (FormData | string)[] = []
+  vi.stubGlobal('fetch', async (_url: string, init: RequestInit) => {
+    if (init.method === 'POST') bodies.push(init.body as FormData | string)
+    return new Response(JSON.stringify({ id: 'L4', status: 'processing' }))
+  })
+  setup()
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('tab', { name: 'File' }))
+  await user.upload(
+    screen.getByLabelText('Choose file'),
+    new File(['Olá'], 'book.txt', { type: 'text/plain' }),
+  )
+  await user.type(screen.getByLabelText('Tags (comma-separated)'), 'news; b2')
+  await user.click(screen.getByRole('button', { name: 'Create lesson' }))
+  await waitFor(() => expect(bodies).toHaveLength(1))
+  expect((bodies[0] as FormData).get('tags')).toBe('news, b2')
+
+  cleanup()
+  setup()
+  await user.click(screen.getByRole('tab', { name: 'YouTube' }))
+  await user.type(screen.getByLabelText('YouTube link'), 'https://youtu.be/M7lc1UVf-VE')
+  await user.type(screen.getByLabelText('Tags (comma-separated)'), 'music')
+  await user.click(screen.getByRole('button', { name: 'Import' }))
+  await waitFor(() => expect(bodies).toHaveLength(2))
+  expect(JSON.parse(bodies[1] as string)).toMatchObject({ tags: ['music'] })
+})
+
+it('blocks an overlong tag before any request and keeps the input', async () => {
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  setup()
+  const user = userEvent.setup()
+  await user.type(screen.getByLabelText('Title'), 'Tagged')
+  await user.type(screen.getByRole('textbox', { name: 'Text' }), 'Olá')
+  fireEvent.change(screen.getByLabelText('Tags (comma-separated)'), {
+    target: { value: 'x'.repeat(41) },
+  })
+  await user.click(screen.getByRole('button', { name: 'Create lesson' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('A tag must be at most 40 characters.')
+  expect(fetch).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Tags (comma-separated)')).toHaveValue('x'.repeat(41))
 })

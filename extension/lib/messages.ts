@@ -12,11 +12,13 @@ export interface ImportTextRequest {
   language_code: string
   text: string
   source: LessonSourceInput
+  tags?: string[]
 }
 
 export interface ImportYoutubeRequest {
   url: string
   language_code: string
+  tags?: string[]
 }
 
 export type ImportResult = { ok: true; lessonId: string; lessonUrl: string } | { ok: false; error: ImportError }

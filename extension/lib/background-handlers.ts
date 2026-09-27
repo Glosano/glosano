@@ -1,5 +1,5 @@
 import { GlosanoError } from './errors'
-import type { CreateLessonInput, GlosanoClient, LessonSourceInput } from './glosano-client'
+import type { CreateLessonInput, GlosanoClient, ImportYoutubeInput, LessonSourceInput } from './glosano-client'
 import type { BackgroundRequest, ImportResult, ImportTextRequest, ImportYoutubeRequest, Status } from './messages'
 import { normalizeOrigin, type Settings } from './settings'
 import { truncateCodePoints } from './text'
@@ -105,6 +105,7 @@ export function createHandlers(deps: HandlerDeps) {
         }
         const source = lessonSource(request.source)
         if (source) input.source = source
+        if (request.tags?.length) input.tags = request.tags
         const { id } = await client.createLesson(input)
         return await finish(origin, request.language_code, id, openAfterImport)
       } catch (error) {
@@ -115,11 +116,13 @@ export function createHandlers(deps: HandlerDeps) {
     async importYoutube(request: ImportYoutubeRequest): Promise<ImportResult> {
       try {
         const { origin, client, openAfterImport } = await connection()
-        const { id } = await client.importYoutube({
+        const input: ImportYoutubeInput = {
           url: request.url,
           language_code: request.language_code,
           request_id: deps.newRequestId(),
-        })
+        }
+        if (request.tags?.length) input.tags = request.tags
+        const { id } = await client.importYoutube(input)
         return await finish(origin, request.language_code, id, openAfterImport)
       } catch (error) {
         return failure(error)

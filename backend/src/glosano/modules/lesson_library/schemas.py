@@ -5,13 +5,17 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator
 
 from glosano.core.languages import SUPPORTED_LEARNING_LANGUAGES
+from glosano.modules.lesson_library.tags import normalize_tags
 from glosano.modules.reader_state.schemas import LessonMedia, ReaderPositionOut
+
+# Normalized on input so every path stores and compares the same form (ADR-0026).
+TagList = Annotated[list[str], AfterValidator(normalize_tags)]
 
 
 class LessonSourceIn(BaseModel):
@@ -45,6 +49,7 @@ class CreateLessonRequest(BaseModel):
     raw_text: str = Field(min_length=1)
     visibility: Literal["private", "shared"] = "private"
     source: LessonSourceIn | None = None
+    tags: TagList = Field(default_factory=list)
 
     @field_validator("language_code")
     @classmethod
@@ -72,6 +77,7 @@ class LessonSummary(BaseModel):
     can_manage: bool = False
     completed_at: datetime | None = None
     last_activity_at: datetime | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class LessonContinueResponse(BaseModel):
@@ -87,6 +93,24 @@ class LessonHistoryDay(BaseModel):
 class LessonHistoryResponse(BaseModel):
     days: list[LessonHistoryDay]
     next_before: dt.date | None
+
+
+class SetLessonTagsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tags: TagList
+
+
+class LessonTagsOut(BaseModel):
+    tags: list[str]
+
+
+class LessonTagCount(BaseModel):
+    name: str
+    count: int
+
+
+class LessonTagsResponse(BaseModel):
+    tags: list[LessonTagCount]
 
 
 class LessonCreatedResponse(BaseModel):
@@ -168,6 +192,7 @@ class ImportYouTubeRequest(BaseModel):
     url: str = Field(max_length=2048)
     language_code: str
     request_id: uuid.UUID
+    tags: TagList = Field(default_factory=list)
 
     @field_validator("language_code")
     @classmethod

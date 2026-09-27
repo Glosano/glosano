@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-router', async () => ({
@@ -10,6 +10,7 @@ import type { LessonSummary } from '@/api/lessons'
 import { setUiLanguage } from '@/lib/i18n'
 
 import { LessonCard } from './LessonCard'
+import { useLibraryStore } from './libraryStore'
 
 const lesson: LessonSummary = {
   id: '11111111-1111-1111-1111-111111111111',
@@ -121,5 +122,17 @@ describe('LessonCard', () => {
   it('does not call an opened lesson with progress not started', () => {
     render(<LessonCard lesson={{ ...lesson, read_percent: 15, last_activity_at: null }} />)
     expect(screen.queryByText('Не начат')).not.toBeInTheDocument()
+  })
+
+  it('shows up to three tag chips that filter the library without opening the lesson', () => {
+    act(() => setUiLanguage('ru'))
+    useLibraryStore.getState().reset()
+    render(<LessonCard lesson={{ ...lesson, tags: ['a', 'b', 'c', 'd'] }} />)
+    const chip = screen.getByRole('button', { name: 'Фильтровать по тегу «a»' })
+    expect(chip.closest('a')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Фильтровать по тегу «d»' })).toBeNull()
+    expect(screen.getByText('+1')).toHaveAttribute('title', 'd')
+    fireEvent.click(chip)
+    expect(useLibraryStore.getState()).toMatchObject({ tagsLang: 'pt', tags: ['a'] })
   })
 })

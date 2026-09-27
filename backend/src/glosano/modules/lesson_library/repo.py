@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
 from sqlalchemy import Date, and_, cast, delete, func, or_, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -15,6 +17,7 @@ from glosano.modules.lesson_library.models import (
     LessonImportJob,
     LessonSegment,
     LessonSource,
+    LessonTag,
     LessonTokenOccurrence,
 )
 from glosano.modules.reader_state.models import ReaderPosition
@@ -32,7 +35,9 @@ class LessonRepo:
         self.session = session
 
     @staticmethod
-    def _visible(user_id: uuid.UUID, lang: str, q: str | None) -> list[ColumnElement[bool]]:
+    def _visible(
+        user_id: uuid.UUID, lang: str, q: str | None, tags: Sequence[str] = ()
+    ) -> list[ColumnElement[bool]]:
         filters: list[ColumnElement[bool]] = [
             Lesson.language_code == lang,
             Lesson.status != "archived",
@@ -40,10 +45,27 @@ class LessonRepo:
         ]
         if q:
             filters.append(Lesson.title.ilike(f"%{q}%"))
+        # Every selected tag must be on the lesson, and only the viewer's own tags count.
+        filters.extend(
+            select(LessonTag.lesson_id)
+            .where(
+                LessonTag.user_id == user_id,
+                LessonTag.lesson_id == Lesson.id,
+                LessonTag.tag == tag,
+            )
+            .exists()
+            for tag in tags
+        )
         return filters
 
     async def list_continue(
-        self, *, user_id: uuid.UUID, lang: str, q: str | None, limit: int
+        self,
+        *,
+        user_id: uuid.UUID,
+        lang: str,
+        q: str | None,
+        tags: Sequence[str] = (),
+        limit: int,
     ) -> list[Lesson]:
         stmt = (
             select(Lesson)
@@ -52,7 +74,7 @@ class LessonRepo:
                 and_(ReaderPosition.lesson_id == Lesson.id, ReaderPosition.user_id == user_id),
             )
             .where(
-                *self._visible(user_id, lang, q),
+                *self._visible(user_id, lang, q, tags),
                 ReaderPosition.last_activity_at.is_not(None),
                 ReaderPosition.completed_at.is_(None),
             )
@@ -76,6 +98,7 @@ class LessonRepo:
         user_id: uuid.UUID,
         lang: str,
         q: str | None,
+        tags: Sequence[str] = (),
         tz: str,
         before: date | None,
         days: int,
@@ -89,7 +112,7 @@ class LessonRepo:
                 Lesson.created_at.label("created_at"),
                 cast(func.timezone(tz, Lesson.created_at), Date).label("day"),
             )
-            .where(*self._visible(user_id, lang, q))
+            .where(*self._visible(user_id, lang, q, tags))
             .subquery()
         )
         day_stmt = select(dated.c.day).group_by(dated.c.day).order_by(dated.c.day.desc())
@@ -154,6 +177,50 @@ class LessonRepo:
         self.session.add(lesson)
         await self.session.flush()
         return lesson
+
+    async def add_tags(
+        self, *, user_id: uuid.UUID, lesson_id: uuid.UUID, tags: Sequence[str]
+    ) -> None:
+        """Attach the user's tags to a lesson, keeping tags that are already there."""
+        if not tags:
+            return
+        await self.session.execute(
+            pg_insert(LessonTag)
+            .values([{"user_id": user_id, "lesson_id": lesson_id, "tag": tag} for tag in tags])
+            .on_conflict_do_nothing()
+        )
+
+    async def replace_tags(
+        self, *, user_id: uuid.UUID, lesson_id: uuid.UUID, tags: Sequence[str]
+    ) -> None:
+        await self.session.execute(
+            delete(LessonTag).where(LessonTag.user_id == user_id, LessonTag.lesson_id == lesson_id)
+        )
+        await self.add_tags(user_id=user_id, lesson_id=lesson_id, tags=tags)
+
+    async def tags_for_lessons(
+        self, *, user_id: uuid.UUID, lesson_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, list[str]]:
+        rows = await self.session.execute(
+            select(LessonTag.lesson_id, LessonTag.tag)
+            .where(LessonTag.user_id == user_id, LessonTag.lesson_id.in_(lesson_ids))
+            .order_by(LessonTag.lesson_id, LessonTag.tag)
+        )
+        result: dict[uuid.UUID, list[str]] = {}
+        for lesson_id, tag in rows.tuples():
+            result.setdefault(lesson_id, []).append(tag)
+        return result
+
+    async def list_tag_counts(self, *, user_id: uuid.UUID, lang: str) -> list[tuple[str, int]]:
+        """The viewer's tags on lessons they can currently see in this language."""
+        rows = await self.session.execute(
+            select(LessonTag.tag, func.count())
+            .join(Lesson, Lesson.id == LessonTag.lesson_id)
+            .where(LessonTag.user_id == user_id, *self._visible(user_id, lang, None))
+            .group_by(LessonTag.tag)
+            .order_by(LessonTag.tag)
+        )
+        return [(tag, count) for tag, count in rows.tuples()]
 
     async def add_source(
         self,
