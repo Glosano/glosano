@@ -6,6 +6,7 @@ import datetime as dt
 import uuid
 from datetime import datetime
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -13,11 +14,37 @@ from glosano.core.languages import SUPPORTED_LEARNING_LANGUAGES
 from glosano.modules.reader_state.schemas import LessonMedia, ReaderPositionOut
 
 
+class LessonSourceIn(BaseModel):
+    """Where an imported text came from (browser extension, FLQ-38)."""
+
+    model_config = ConfigDict(extra="forbid")
+    url: str = Field(max_length=2048)
+    author: str | None = Field(default=None, max_length=200)
+    site_name: str | None = Field(default=None, max_length=200)
+
+    @field_validator("url")
+    @classmethod
+    def _absolute_http_url(cls, v: str) -> str:
+        v = v.strip()
+        parts = urlsplit(v)
+        if parts.scheme not in {"http", "https"} or not parts.netloc:
+            raise ValueError("url must be an absolute http(s) URL")
+        return v
+
+    @field_validator("author", "site_name")
+    @classmethod
+    def _blank_to_none(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return v.strip() or None
+
+
 class CreateLessonRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     language_code: str
     raw_text: str = Field(min_length=1)
     visibility: Literal["private", "shared"] = "private"
+    source: LessonSourceIn | None = None
 
     @field_validator("language_code")
     @classmethod

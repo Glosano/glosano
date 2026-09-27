@@ -145,6 +145,7 @@ async def _create_and_enqueue(
     *,
     original_filename: str | None = None,
 ) -> LessonCreatedResponse:
+    source = body.source
     lesson, job_id = await service.create_lesson_for_import(
         owner_user_id=user_id,
         title=body.title,
@@ -153,6 +154,9 @@ async def _create_and_enqueue(
         visibility=body.visibility,
         repo=LessonRepo(session),
         original_filename=original_filename,
+        source_uri=source.url if source else None,
+        author=source.author if source else None,
+        source_label=source.site_name if source else None,
     )
     lesson_id = lesson.id
     lesson_status = lesson.status

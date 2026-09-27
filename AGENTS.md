@@ -187,7 +187,7 @@ This section will be filled in with directory layout, data flow, and component r
 
 **Frontend** — React 19+, TypeScript strict, Vite, pnpm. State: **Zustand** (client) + **TanStack Query** (server). Routing: **TanStack Router**. Styling: **Tailwind CSS v4**. Icons: **lucide-react**. Tests: **Vitest** + **@testing-library/react**.
 
-**Repository layout** — monorepo with `backend/` and `frontend/` at the root. Each directory is a self-contained project with its own lockfile and Dockerfile. CI jobs are path-filtered: `backend/**` and `frontend/**` trigger independent workflows.
+**Repository layout** — monorepo with `backend/`, `frontend/` and `extension/` at the root. Each directory is a self-contained project with its own lockfile. CI jobs are path-filtered: `backend/**`, `frontend/**` and `extension/**` trigger independent workflows. `extension/` is the browser importer (WXT, Chrome + Firefox MV3, ADR-0024); it talks to a Glosano instance through the learner's browser session.
 
 **Delivery** — `app-api` and `app-worker` containers from the same `backend/` codebase. Frontend is built as static assets in a multi-stage Docker build and served by FastAPI via `StaticFiles`. Single `docker compose up`.
 
@@ -205,6 +205,8 @@ This section will be filled in with directory layout, data flow, and component r
 - `pnpm install` (in `frontend/`) — install frontend deps
 - `pnpm dev` — start Vite dev server
 - `pnpm test` — frontend tests
+- `pnpm build` / `pnpm build:firefox` (in `extension/`) — build the browser extension into `.output/`
+- `pnpm test` (in `extension/`) — extension tests
 - `docker compose -f docker-compose.dev.yml up` — full dev stack
 
 ## Testing

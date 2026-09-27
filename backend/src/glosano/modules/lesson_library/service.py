@@ -52,6 +52,9 @@ async def create_lesson_for_import(
     visibility: str,
     repo: LessonRepo,
     original_filename: str | None = None,
+    source_uri: str | None = None,
+    author: str | None = None,
+    source_label: str | None = None,
 ) -> tuple[Lesson, uuid.UUID]:
     """Create a processing lesson + v1 source + pending job. Returns (lesson, job_id)."""
     canonical = _normalize_newlines(raw_text)
@@ -62,11 +65,20 @@ async def create_lesson_for_import(
         raw_text=canonical,
         visibility=visibility,
     )
+    if source_uri is not None:
+        source_type = "url"
+    elif original_filename is not None:
+        source_type = "file"
+    else:
+        source_type = "manual"
     await repo.add_source(
         lesson_id=lesson.id,
         content_hash=content_hash(canonical),
-        source_type="file" if original_filename is not None else "manual",
+        source_type=source_type,
         original_filename=original_filename,
+        source_uri=source_uri,
+        author=author,
+        source_label=source_label,
     )
     job = await repo.add_import_job(lesson_id=lesson.id, requested_by_user_id=owner_user_id)
     return lesson, job.id
@@ -122,13 +134,21 @@ async def update_lesson(
     canonical = _normalize_newlines(raw_text)
     lesson.title = title.strip()
     if canonical != lesson.raw_text:
+        repo = LessonRepo(session)
+        previous = await repo.get_source(lesson_id, lesson.current_source_version)
+        # Page imports keep pointing at their origin after the learner edits the text.
+        carried = previous if previous is not None and previous.source_type == "url" else None
         lesson.raw_text = canonical
         lesson.current_source_version += 1
-        repo = LessonRepo(session)
         await repo.add_source(
             lesson_id=lesson_id,
             content_hash=content_hash(canonical),
             version_number=lesson.current_source_version,
+            source_type=carried.source_type if carried else "manual",
+            source_uri=carried.source_uri if carried else None,
+            author=carried.author if carried else None,
+            license_name=carried.license if carried else None,
+            source_label=carried.source_label if carried else None,
         )
         # Ordinals and segment IDs refer to the old content. Historical totals
         # and personal learning items are independent and must survive.

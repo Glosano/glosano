@@ -163,6 +163,10 @@ class LessonRepo:
         source_type: str = "manual",
         original_filename: str | None = None,
         version_number: int = 1,
+        source_uri: str | None = None,
+        author: str | None = None,
+        license_name: str | None = None,
+        source_label: str | None = None,
     ) -> LessonSource:
         source = LessonSource(
             lesson_id=lesson_id,
@@ -170,10 +174,25 @@ class LessonRepo:
             source_type=source_type,
             original_filename=original_filename,
             version_number=version_number,
+            source_uri=source_uri,
+            author=author,
+            license=license_name,
+            source_label=source_label,
         )
         self.session.add(source)
         await self.session.flush()
         return source
+
+    async def get_source(self, lesson_id: uuid.UUID, version_number: int) -> LessonSource | None:
+        return await self.session.scalar(
+            select(LessonSource)
+            .where(
+                LessonSource.lesson_id == lesson_id,
+                LessonSource.version_number == version_number,
+            )
+            .order_by(LessonSource.created_at.desc())
+            .limit(1)
+        )
 
     async def add_import_job(
         self,
