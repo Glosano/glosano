@@ -6,10 +6,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.languages import LearningLanguageCode
 from glosano.modules.reader_state.activity import touch_lesson_activity
 from glosano.modules.vocabulary import service
@@ -77,11 +77,11 @@ def _translation_out(t: PersonalTranslation) -> TranslationOut:
 
 @router.get("/lookup", response_model=LookupResponse)
 async def lookup(
+    session: SessionDep,
     request: Request,
     lang: LangCode,
     text: Annotated[str, Query(min_length=1, max_length=256)],
     target: LangCode,
-    session: Annotated[AsyncSession, Depends(get_session)],
     kind: Kind = "token",
 ) -> LookupResponse:
     user_id = _require_user(request)
@@ -111,7 +111,7 @@ async def lookup(
 async def create_item(
     request: Request,
     body: CreateItemRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> ItemStateResponse:
     user_id = _require_user(request)
     try:
@@ -146,7 +146,7 @@ async def patch_item(
     kind: Kind,
     item_id: uuid.UUID,
     body: PatchItemRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> ItemStateResponse:
     user_id = _require_user(request)
     try:
@@ -179,7 +179,7 @@ async def add_translation(
     kind: Kind,
     item_id: uuid.UUID,
     body: AddTranslationRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TranslationOut:
     user_id = _require_user(request)
     try:
@@ -207,7 +207,7 @@ async def update_translation(
     item_id: uuid.UUID,
     translation_id: uuid.UUID,
     body: UpdateTranslationRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TranslationOut:
     user_id = _require_user(request)
     try:
@@ -235,7 +235,7 @@ async def delete_translation(
     kind: Kind,
     item_id: uuid.UUID,
     translation_id: uuid.UUID,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TranslationListResponse:
     user_id = _require_user(request)
     try:
@@ -257,7 +257,7 @@ async def put_note(
     kind: Kind,
     item_id: uuid.UUID,
     body: PutNoteRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> NoteResponse:
     user_id = _require_user(request)
     try:
@@ -279,7 +279,7 @@ async def add_tag(
     kind: Kind,
     item_id: uuid.UUID,
     body: AddTagRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TagsResponse:
     user_id = _require_user(request)
     try:
@@ -302,7 +302,7 @@ async def add_tags(
     kind: Kind,
     item_id: uuid.UUID,
     body: AddTagsRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TagsResponse:
     user_id = _require_user(request)
     try:
@@ -325,7 +325,7 @@ async def remove_tag(
     kind: Kind,
     item_id: uuid.UUID,
     tag_name: str,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TagsResponse:
     user_id = _require_user(request)
     try:
@@ -345,7 +345,7 @@ async def remove_tag(
 async def list_phrases(
     request: Request,
     lang: LangCode,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> PhraseListResponse:
     user_id = _require_user(request)
     rows = await service.list_phrases(session, user_id=user_id, language_code=lang)
@@ -366,7 +366,7 @@ async def list_phrases(
 async def list_vocabulary(
     request: Request,
     lang: LangCode,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
     target: LangCode = "ru",
     kind: Literal["token", "phrase", "all"] = "all",
     status_filter: Annotated[
@@ -440,7 +440,7 @@ async def list_vocabulary(
 async def bulk(
     request: Request,
     body: BulkActionRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> BulkActionResponse:
     user_id = _require_user(request)
     affected = await service.bulk_action(

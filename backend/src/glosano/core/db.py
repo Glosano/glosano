@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -76,6 +77,12 @@ async def session_scope() -> AsyncGenerator[AsyncSession]:
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency that yields an async session."""
+    """FastAPI dependency that yields an async session; inject it via `SessionDep`."""
     async with session_scope() as session:
         yield session
+
+
+# The function scope commits before the response is sent. FastAPI's default
+# request scope commits afterwards, so a client's next request could miss the
+# write it was just told succeeded (FLQ-19, ADR-0025).
+SessionDep = Annotated[AsyncSession, Depends(get_session, scope="function")]

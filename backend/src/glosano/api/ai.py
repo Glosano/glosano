@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Request, status
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.modules.ai_translation import service
 from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
 from glosano.modules.ai_translation.schemas import (
@@ -34,7 +32,7 @@ def _require_user(request: Request) -> uuid.UUID:
 async def translate(
     request: Request,
     body: TranslateRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> TranslateResponse:
     user_id = _require_user(request)
     try:
@@ -63,7 +61,7 @@ async def translate(
 async def word_tags(
     request: Request,
     body: WordTagsRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> WordTagsResponse:
     user_id = _require_user(request)
     try:

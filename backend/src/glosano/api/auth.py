@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request, Response
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.config import get_settings
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.rate_limit import RateLimiter
 from glosano.core.redis import get_redis
 from glosano.modules.identity import service
@@ -23,7 +22,7 @@ async def register(
     body: RegisterRequest,
     request: Request,
     response: Response,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict[str, object]:
     user = await service.register_user(
         request,
@@ -42,7 +41,7 @@ async def login(
     body: LoginRequest,
     request: Request,
     response: Response,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
     redis: Redis = Depends(get_redis),
 ) -> dict[str, object]:
     settings = get_settings()
@@ -71,7 +70,7 @@ async def login(
 async def logout(
     request: Request,
     response: Response,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict[str, object]:
     token = getattr(request.state, "session_token", None)
     if token:

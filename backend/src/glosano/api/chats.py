@@ -6,11 +6,10 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.modules.chat import citations, drafts, exercises, generations, service
 from glosano.modules.chat.access import conversation, lock_user
 from glosano.modules.chat.models import Attempt, Citation, Exercise, Generation
@@ -25,7 +24,6 @@ from glosano.modules.chat.schemas import (
 )
 
 router = APIRouter(prefix="/api/chats", tags=["chats"])
-Session = Annotated[AsyncSession, Depends(get_session)]
 
 
 def user(request: Request) -> uuid.UUID:
@@ -38,7 +36,7 @@ def user(request: Request) -> uuid.UUID:
 @router.get("")
 async def list_chats(
     request: Request,
-    session: Session,
+    session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> dict[str, Any]:
@@ -47,7 +45,7 @@ async def list_chats(
 
 @router.post("/citations")
 async def prepare_citation(
-    request: Request, body: CitationRequest, session: Session
+    request: Request, body: CitationRequest, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -59,7 +57,7 @@ async def prepare_citation(
 
 @router.post("/citations/paragraph")
 async def prepare_paragraph_citation(
-    request: Request, body: ParagraphCitationRequest, session: Session
+    request: Request, body: ParagraphCitationRequest, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -70,7 +68,7 @@ async def prepare_paragraph_citation(
 
 
 @router.get("/drafts/new")
-async def new_draft(request: Request, session: Session) -> dict[str, Any]:
+async def new_draft(request: Request, session: SessionDep) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
     result = drafts.output(await drafts.get(session, uid, None))
@@ -79,7 +77,9 @@ async def new_draft(request: Request, session: Session) -> dict[str, Any]:
 
 
 @router.put("/drafts/new")
-async def write_new_draft(request: Request, body: DraftWrite, session: Session) -> dict[str, Any]:
+async def write_new_draft(
+    request: Request, body: DraftWrite, session: SessionDep
+) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
     result = drafts.output(await drafts.write(session, uid, None, body))
@@ -88,7 +88,7 @@ async def write_new_draft(request: Request, body: DraftWrite, session: Session) 
 
 
 @router.post("/send")
-async def send_message(request: Request, body: SendRequest, session: Session) -> dict[str, Any]:
+async def send_message(request: Request, body: SendRequest, session: SessionDep) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
     result = await service.send(session, uid, body)
@@ -109,7 +109,7 @@ async def chat_capabilities(request: Request) -> dict[str, Any]:
 async def read_chat(
     cid: uuid.UUID,
     request: Request,
-    session: Session,
+    session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     before: datetime | None = None,
 ) -> dict[str, Any]:
@@ -118,7 +118,7 @@ async def read_chat(
 
 @router.patch("/{cid}")
 async def rename(
-    cid: uuid.UUID, request: Request, body: RenameRequest, session: Session
+    cid: uuid.UUID, request: Request, body: RenameRequest, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -130,7 +130,7 @@ async def rename(
 
 
 @router.delete("/{cid}", status_code=204)
-async def delete_chat(cid: uuid.UUID, request: Request, session: Session) -> Response:
+async def delete_chat(cid: uuid.UUID, request: Request, session: SessionDep) -> Response:
     uid = user(request)
     await lock_user(session, uid)
     await service.remove(session, uid, cid)
@@ -139,7 +139,7 @@ async def delete_chat(cid: uuid.UUID, request: Request, session: Session) -> Res
 
 
 @router.get("/{cid}/draft")
-async def get_draft(cid: uuid.UUID, request: Request, session: Session) -> dict[str, Any]:
+async def get_draft(cid: uuid.UUID, request: Request, session: SessionDep) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
     await conversation(session, uid, cid)
@@ -150,7 +150,7 @@ async def get_draft(cid: uuid.UUID, request: Request, session: Session) -> dict[
 
 @router.put("/{cid}/draft")
 async def write_draft(
-    cid: uuid.UUID, request: Request, body: DraftWrite, session: Session
+    cid: uuid.UUID, request: Request, body: DraftWrite, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -162,7 +162,7 @@ async def write_draft(
 
 @router.post("/{cid}/generations/{gid}/cancel")
 async def stop(
-    cid: uuid.UUID, gid: uuid.UUID, request: Request, session: Session
+    cid: uuid.UUID, gid: uuid.UUID, request: Request, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -174,7 +174,7 @@ async def stop(
 
 @router.post("/{cid}/exercises/{eid}/attempts")
 async def submit_attempt(
-    cid: uuid.UUID, eid: uuid.UUID, request: Request, body: AttemptRequest, session: Session
+    cid: uuid.UUID, eid: uuid.UUID, request: Request, body: AttemptRequest, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -186,7 +186,7 @@ async def submit_attempt(
 
 @router.post("/{cid}/attempts/{aid}/evaluate")
 async def evaluate_attempt(
-    cid: uuid.UUID, aid: uuid.UUID, request: Request, body: EvaluationRequest, session: Session
+    cid: uuid.UUID, aid: uuid.UUID, request: Request, body: EvaluationRequest, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)
@@ -201,7 +201,7 @@ async def evaluate_attempt(
 
 @router.get("/citations/{citation_id}")
 async def read_citation(
-    citation_id: uuid.UUID, request: Request, session: Session
+    citation_id: uuid.UUID, request: Request, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     row = await session.scalar(
@@ -214,7 +214,7 @@ async def read_citation(
 
 @router.get("/{cid}/generations/{gid}")
 async def read_generation(
-    cid: uuid.UUID, gid: uuid.UUID, request: Request, session: Session
+    cid: uuid.UUID, gid: uuid.UUID, request: Request, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await conversation(session, uid, cid)
@@ -230,7 +230,7 @@ async def read_generation(
 
 @router.get("/{cid}/exercises/{eid}")
 async def read_exercise(
-    cid: uuid.UUID, eid: uuid.UUID, request: Request, session: Session
+    cid: uuid.UUID, eid: uuid.UUID, request: Request, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await conversation(session, uid, cid)
@@ -249,7 +249,7 @@ async def read_attempts(
     cid: uuid.UUID,
     eid: uuid.UUID,
     request: Request,
-    session: Session,
+    session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> dict[str, Any]:
@@ -271,7 +271,7 @@ async def read_attempts(
 
 @router.post("/{cid}/generations/{gid}/retry")
 async def retry_generation(
-    cid: uuid.UUID, gid: uuid.UUID, request: Request, body: EvaluationRequest, session: Session
+    cid: uuid.UUID, gid: uuid.UUID, request: Request, body: EvaluationRequest, session: SessionDep
 ) -> dict[str, Any]:
     uid = user(request)
     await lock_user(session, uid)

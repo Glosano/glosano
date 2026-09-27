@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.languages import LearningLanguageCode
 from glosano.modules.ai_translation import service as ai_translation_service
 from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
@@ -90,7 +90,7 @@ def _check_source_version(lesson: Lesson, source_version: int) -> None:
 async def lesson_content(
     lesson_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> LessonContentResponse:
     user_id = _require_user(request)
     lesson = await _load_lesson(session, lesson_id, user_id, lock_content=True)
@@ -101,7 +101,7 @@ async def lesson_content(
 async def lesson_token_statuses_route(
     lesson_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> TokenStatusesResponse:
     user_id = _require_user(request)
     lesson = await _load_lesson(session, lesson_id, user_id)
@@ -114,7 +114,7 @@ async def lesson_vocabulary(
     lesson_id: uuid.UUID,
     target: LearningLanguageCode,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> LessonVocabularyResponse:
     user_id = _require_user(request)
     lesson = await _load_lesson(session, lesson_id, user_id)
@@ -130,7 +130,7 @@ async def lesson_vocabulary(
 async def put_reader_position(
     body: ReaderPositionPut,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> None:
     user_id = _require_user(request)
     # Positions may be written for a lesson still processing (e.g. mode preference).
@@ -157,7 +157,7 @@ async def segment_translation(
     segment_id: uuid.UUID,
     body: SegmentTranslationRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> SegmentTranslationResponse:
     user_id = _require_user(request)
     lesson = await _load_lesson(session, lesson_id, user_id)
@@ -189,7 +189,7 @@ async def segment_translation(
 async def bulk_known(
     body: BulkKnownRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> BulkKnownResponse:
     user_id = _require_user(request)
     from sqlalchemy import select
@@ -235,7 +235,7 @@ async def bulk_known(
 async def undo_bulk_known(
     action_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> BulkUndoResponse:
     user_id = _require_user(request)
     try:
@@ -251,7 +251,7 @@ async def undo_bulk_known(
 async def complete_reader_lesson(
     body: CompleteLessonRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> CompleteLessonResponse:
     user_id = _require_user(request)
     lesson = await _load_lesson(session, body.lesson_id, user_id, lock_content=True)
@@ -266,10 +266,10 @@ async def complete_reader_lesson(
 
 @router.get("/lessons/{lesson_id}/completion-summary", response_model=CompleteLessonResponse)
 async def reader_completion_summary(
+    session: SessionDep,
     lesson_id: uuid.UUID,
     request: Request,
     action_id: uuid.UUID | None = None,
-    session: AsyncSession = Depends(get_session),
 ) -> CompleteLessonResponse:
     user_id = _require_user(request)
     await _load_lesson(session, lesson_id, user_id, lock_content=True)

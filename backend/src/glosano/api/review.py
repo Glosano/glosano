@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Literal, cast
+from typing import Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Request, status
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.languages import LearningLanguageCode
 from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
 from glosano.modules.ai_translation.service import AIDisabled
@@ -44,7 +43,7 @@ def _require_user(request: Request) -> uuid.UUID:
 async def queue(
     request: Request,
     lang: LangCode,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
     mode: Literal["due", "new", "practice"] = "due",
     lesson_id: uuid.UUID | None = None,
     kind: ReviewKind = "all",
@@ -85,7 +84,7 @@ async def queue(
 async def answer(
     request: Request,
     body: AnswerRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> AnswerResponse:
     user_id = _require_user(request)
     try:
@@ -109,7 +108,7 @@ async def answer(
 async def counts(
     request: Request,
     lang: LangCode,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
     lesson_id: uuid.UUID | None = None,
     kind: ReviewKind = "all",
 ) -> CountsResponse:
@@ -127,7 +126,7 @@ async def counts(
 async def exercise(
     request: Request,
     body: ExerciseRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> ExerciseResponse:
     user_id = _require_user(request)
     try:
@@ -153,7 +152,7 @@ async def exercise(
 async def exercise_feedback(
     request: Request,
     body: FeedbackRequest,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> FeedbackResponse:
     user_id = _require_user(request)
     try:

@@ -5,10 +5,9 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.languages import LearningLanguageCode
 from glosano.modules.dictionary.links import render_external_links
 from glosano.modules.dictionary.provider import WIKTIONARY_ATTRIBUTION, WiktionaryLocalProvider
@@ -29,11 +28,11 @@ def _require_user(request: Request) -> uuid.UUID:
 
 @router.get("/lookup", response_model=DictionaryLookupResponse)
 async def lookup(
+    session: SessionDep,
     request: Request,
     lang: LangCode,
     target: LangCode,
     text: Annotated[str, Query(min_length=1, max_length=256)],
-    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> DictionaryLookupResponse:
     _require_user(request)
     entries = await WiktionaryLocalProvider(session).lookup(text, lang, target)

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.config import get_settings
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.modules.identity import service
 from glosano.modules.identity.export import export_user_data
 from glosano.modules.identity.middleware import CSRF_COOKIE, SESSION_COOKIE
@@ -29,7 +28,7 @@ router = APIRouter(prefix="/me", tags=["me"])
 @router.get("", response_model=MeResponse)
 async def get_me(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> MeResponse:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -58,7 +57,7 @@ async def get_me(
 async def post_onboarding(
     body: OnboardingRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict[str, object]:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -79,7 +78,7 @@ async def delete_me(
     body: DeleteMeRequest,
     request: Request,
     response: Response,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict[str, object]:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -94,7 +93,7 @@ async def delete_me(
 async def patch_last_language(
     body: SetLastLanguageRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict[str, object]:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -109,7 +108,7 @@ async def patch_last_language(
 async def patch_profile(
     body: UpdateProfileRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> MeResponse:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -124,7 +123,7 @@ async def patch_profile(
 async def patch_preferences(
     body: UpdatePreferencesRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> MeResponse:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -137,7 +136,7 @@ async def patch_preferences(
 async def post_password(
     body: ChangePasswordRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> dict[str, bool]:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:
@@ -154,7 +153,7 @@ async def post_password(
 @router.get("/export")
 async def get_export(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> JSONResponse:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None or await UserRepo(session).get_by_id(user_id) is None:
@@ -172,7 +171,7 @@ async def get_export(
 async def post_learning_language(
     body: AddLearningLanguageRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> MeResponse:
     user_id = getattr(request.state, "user_id", None)
     if user_id is None:

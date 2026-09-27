@@ -9,7 +9,7 @@ authors = [{ name = "Glosano contributors" }]
 
 dependencies = [
     # Web
-    "fastapi>=0.115",
+    "fastapi>=0.121",
     "uvicorn[standard]>=0.32",
     "python-multipart>=0.0.17",
 

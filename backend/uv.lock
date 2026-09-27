@@ -485,71 +485,6 @@ wheels = [
 ]
 
 [[package]]
-name = "glosano"
-version = "0.0.1"
-source = { editable = "." }
-dependencies = [
-    { name = "alembic" },
-    { name = "argon2-cffi" },
-    { name = "asyncpg" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "jieba" },
-    { name = "loguru" },
-    { name = "pydantic", extra = ["email"] },
-    { name = "pydantic-settings" },
-    { name = "python-multipart" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "taskiq" },
-    { name = "taskiq-redis" },
-    { name = "tinysegmenter" },
-    { name = "typer" },
-    { name = "uvicorn", extra = ["standard"] },
-    { name = "youtube-transcript-api" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-    { name = "testcontainers", extra = ["redis"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.14" },
-    { name = "argon2-cffi", specifier = ">=23.1" },
-    { name = "asyncpg", specifier = ">=0.30" },
-    { name = "fastapi", specifier = ">=0.115" },
-    { name = "httpx", specifier = ">=0.28" },
-    { name = "jieba", specifier = "==0.42.1" },
-    { name = "loguru", specifier = ">=0.7" },
-    { name = "pydantic", extras = ["email"], specifier = ">=2.9" },
-    { name = "pydantic-settings", specifier = ">=2.6" },
-    { name = "python-multipart", specifier = ">=0.0.17" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
-    { name = "taskiq", specifier = ">=0.11" },
-    { name = "taskiq-redis", specifier = ">=1.0" },
-    { name = "tinysegmenter", specifier = "==0.4" },
-    { name = "typer", specifier = ">=0.15" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
-    { name = "youtube-transcript-api", specifier = "==1.2.4" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pyright", specifier = ">=1.1.390" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-asyncio", specifier = ">=0.24" },
-    { name = "pytest-cov", specifier = ">=6.0" },
-    { name = "ruff", specifier = ">=0.8" },
-    { name = "testcontainers", extras = ["postgres", "redis"], specifier = ">=4.9" },
-]
-
-[[package]]
 name = "frozenlist"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -620,6 +555,71 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/89/76/c615883b7b521ead2944bb3480398cbb07e12b7b4e4d073d3752eb721558/frozenlist-1.8.0-cp314-cp314t-win_amd64.whl", hash = "sha256:06be8f67f39c8b1dc671f5d83aaefd3358ae5cdcf8314552c57e7ed3e6475bdd", size = 49451 },
     { url = "https://files.pythonhosted.org/packages/e0/a3/5982da14e113d07b325230f95060e2169f5311b1017ea8af2a29b374c289/frozenlist-1.8.0-cp314-cp314t-win_arm64.whl", hash = "sha256:102e6314ca4da683dca92e3b1355490fed5f313b768500084fbe6371fddfdb79", size = 42507 },
     { url = "https://files.pythonhosted.org/packages/9a/9a/e35b4a917281c0b8419d4207f4334c8e8c5dbf4f3f5f9ada73958d937dcc/frozenlist-1.8.0-py3-none-any.whl", hash = "sha256:0c18a16eab41e82c295618a77502e17b195883241c563b00f0aa5106fc4eaa0d", size = 13409 },
+]
+
+[[package]]
+name = "glosano"
+version = "0.0.1"
+source = { editable = "." }
+dependencies = [
+    { name = "alembic" },
+    { name = "argon2-cffi" },
+    { name = "asyncpg" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "jieba" },
+    { name = "loguru" },
+    { name = "pydantic", extra = ["email"] },
+    { name = "pydantic-settings" },
+    { name = "python-multipart" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "taskiq" },
+    { name = "taskiq-redis" },
+    { name = "tinysegmenter" },
+    { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
+    { name = "youtube-transcript-api" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+    { name = "testcontainers", extra = ["redis"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.14" },
+    { name = "argon2-cffi", specifier = ">=23.1" },
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "fastapi", specifier = ">=0.121" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "jieba", specifier = "==0.42.1" },
+    { name = "loguru", specifier = ">=0.7" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.9" },
+    { name = "pydantic-settings", specifier = ">=2.6" },
+    { name = "python-multipart", specifier = ">=0.0.17" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.36" },
+    { name = "taskiq", specifier = ">=0.11" },
+    { name = "taskiq-redis", specifier = ">=1.0" },
+    { name = "tinysegmenter", specifier = "==0.4" },
+    { name = "typer", specifier = ">=0.15" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+    { name = "youtube-transcript-api", specifier = "==1.2.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyright", specifier = ">=1.1.390" },
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "ruff", specifier = ">=0.8" },
+    { name = "testcontainers", extras = ["postgres", "redis"], specifier = ">=4.9" },
 ]
 
 [[package]]

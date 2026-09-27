@@ -8,7 +8,6 @@ from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
     Form,
     HTTPException,
     Query,
@@ -22,7 +21,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.lesson_upload import MAX_LESSON_FILE_BYTES
 from glosano.modules.lesson_library import service, video_import
 from glosano.modules.lesson_library.models import Lesson, LessonImportJob, LessonSource
@@ -90,11 +89,11 @@ async def _summaries(
 
 @router.get("/continue", response_model=LessonContinueResponse)
 async def continue_lessons(
+    session: SessionDep,
     request: Request,
     lang: str,
     q: str | None = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
-    session: AsyncSession = Depends(get_session),
 ) -> LessonContinueResponse:
     user_id = _require_user(request)
     lessons = await LessonRepo(session).list_continue(user_id=user_id, lang=lang, q=q, limit=limit)
@@ -103,13 +102,13 @@ async def continue_lessons(
 
 @router.get("/history", response_model=LessonHistoryResponse)
 async def lesson_history(
+    session: SessionDep,
     request: Request,
     lang: str,
     q: str | None = None,
     tz: str = "UTC",
     before: date | None = None,
     days: Annotated[int, Query(ge=1, le=31)] = 7,
-    session: AsyncSession = Depends(get_session),
 ) -> LessonHistoryResponse:
     user_id = _require_user(request)
     repo = LessonRepo(session)
@@ -134,7 +133,7 @@ async def lesson_history(
 async def create_lesson(
     body: CreateLessonRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> LessonCreatedResponse:
     return await _create_and_enqueue(body, _require_user(request), session)
 
@@ -186,11 +185,11 @@ _FILE_MIME_TYPES = {
     "/import-file", status_code=status.HTTP_202_ACCEPTED, response_model=LessonCreatedResponse
 )
 async def import_lesson_file(
+    session: SessionDep,
     request: Request,
     file: UploadFile,
     language_code: str = Form(),
     title: str | None = Form(default=None),
-    session: AsyncSession = Depends(get_session),
 ) -> LessonCreatedResponse:
     user_id = _require_user(request)
     try:
@@ -246,7 +245,9 @@ async def _enqueue_video(session: AsyncSession, lesson_id: uuid.UUID, job_id: uu
 
 @router.post("/import-youtube", status_code=202, response_model=LessonCreatedResponse)
 async def import_youtube(
-    body: ImportYouTubeRequest, request: Request, session: AsyncSession = Depends(get_session)
+    body: ImportYouTubeRequest,
+    request: Request,
+    session: SessionDep,
 ) -> LessonCreatedResponse:
     try:
         lesson, job, created = await video_import.create_video_import(
@@ -268,7 +269,9 @@ async def import_youtube(
 
 @router.post("/{lesson_id}/retry-import", status_code=202, response_model=LessonCreatedResponse)
 async def retry_import(
-    lesson_id: uuid.UUID, request: Request, session: AsyncSession = Depends(get_session)
+    lesson_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
 ) -> LessonCreatedResponse:
     try:
         lesson, job = await video_import.retry_video_import(
@@ -287,7 +290,7 @@ async def retry_import(
 async def get_lesson(
     lesson_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> LessonStatusResponse:
     user_id = _require_user(request)
     lesson = await LessonRepo(session).get_lesson(lesson_id)
@@ -318,7 +321,9 @@ async def get_lesson(
 
 @router.get("/{lesson_id}/edit", response_model=LessonEditResponse)
 async def get_lesson_for_edit(
-    lesson_id: uuid.UUID, request: Request, session: AsyncSession = Depends(get_session)
+    lesson_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
 ) -> LessonEditResponse:
     try:
         lesson = await service.get_owned_lesson(
@@ -334,7 +339,7 @@ async def update_lesson(
     lesson_id: uuid.UUID,
     body: UpdateLessonRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> LessonEditResponse:
     try:
         lesson = await service.get_owned_lesson(
@@ -376,7 +381,9 @@ async def update_lesson(
 
 @router.delete("/{lesson_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_lesson(
-    lesson_id: uuid.UUID, request: Request, session: AsyncSession = Depends(get_session)
+    lesson_id: uuid.UUID,
+    request: Request,
+    session: SessionDep,
 ) -> Response:
     try:
         await service.delete_lesson(session, lesson_id=lesson_id, user_id=_require_user(request))

@@ -1,12 +1,10 @@
 """Authenticated statistics overview."""
 
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Request
 
-from glosano.core.db import get_session
+from glosano.core.db import SessionDep
 from glosano.core.languages import LearningLanguageCode
 from glosano.modules.statistics.schemas import Overview
 from glosano.modules.statistics.service import get_overview
@@ -18,7 +16,7 @@ router = APIRouter(prefix="/api/stats", tags=["statistics"])
 async def overview(
     request: Request,
     lang: LearningLanguageCode,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: SessionDep,
 ) -> Overview:
     user_id: uuid.UUID | None = getattr(request.state, "user_id", None)
     if user_id is None:
