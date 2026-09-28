@@ -267,49 +267,134 @@ describe('WordCard core', () => {
     expect(screen.getByRole('button', { name: 'Добавить AI перевод: каждый' })).toBeInTheDocument()
   })
 
-  it('shows dictionary attribution only when an expanded dictionary suggestion is visible', async () => {
-    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+  describe('suggestion list', () => {
+    const newWord = {
       item_id: null,
-      status: 'new',
+      status: 'new' as const,
       confidence: null,
       translations: { primary: null, all: [] },
       note: null,
       tags: [],
+    }
+    function dictWith(...translations: string[]) {
+      return {
+        entries: [
+          {
+            headword: 'cada',
+            part_of_speech: 'det',
+            senses: translations.map((translation, sense_index) => ({
+              sense_index,
+              translation,
+              usage_note: null,
+              examples: [],
+            })),
+          },
+        ],
+        attribution: { source: 'Wiktionary', license: 'CC BY-SA 4.0', url: 'https://kaikki.org/' },
+        external_links: [],
+      }
+    }
+    function suggestionTexts() {
+      return Array.from(
+        screen.getByTestId('word-card-suggestions').querySelectorAll('[data-suggestion-text]'),
+      ).map((el) => el.textContent)
+    }
+
+    it('keeps dictionary suggestions and attribution visible below AI hints when collapsed', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newWord)
+      vi.mocked(aiApi.translate).mockResolvedValue({
+        hints: [{ text: 'любой' }, { text: 'каждая' }, { text: 'всякий' }],
+        model: 'test-model',
+        latency_ms: 1,
+      })
+      vi.mocked(dictionaryApi.lookup).mockResolvedValue(dictWith('каждый', 'по'))
+
+      renderCard()
+
+      await screen.findByText('любой')
+      await screen.findByText('каждый')
+      expect(suggestionTexts()).toEqual(['любой', 'каждая', 'всякий', 'каждый', 'по'])
+      expect(screen.getByRole('link', { name: 'Wiktionary' })).toHaveAttribute(
+        'href',
+        'https://kaikki.org/',
+      )
     })
-    vi.mocked(aiApi.translate).mockResolvedValue({
-      hints: [{ text: 'любой' }, { text: 'каждая' }],
-      model: 'test-model',
-      latency_ms: 1,
-    })
-    vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [
-        {
-          headword: 'cada',
-          part_of_speech: 'det',
-          senses: [{ sense_index: 0, translation: 'каждый', usage_note: null, examples: [] }],
-        },
-      ],
-      attribution: {
-        source: 'Wiktionary',
-        license: 'CC BY-SA 4.0',
-        url: 'https://kaikki.org/',
-      },
-      external_links: [],
+
+    it('shows at most 15 suggestions collapsed and all of them expanded', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newWord)
+      const many = Array.from({ length: 18 }, (_, i) => `вариант${i + 1}`)
+      vi.mocked(dictionaryApi.lookup).mockResolvedValue(dictWith(...many))
+
+      renderCard()
+
+      await screen.findByText('вариант1')
+      expect(suggestionTexts()).toHaveLength(15)
+      expect(screen.queryByText('вариант16')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Развернуть' }))
+
+      expect(await screen.findByText('вариант18')).toBeInTheDocument()
+      expect(suggestionTexts()).toHaveLength(18)
     })
 
-    renderCard()
+    it('merges suggestions with the same text into one row with both sources', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newWord)
+      vi.mocked(aiApi.translate).mockResolvedValue({
+        hints: [{ text: 'Каждый' }, { text: 'любой' }],
+        model: 'test-model',
+        latency_ms: 1,
+      })
+      vi.mocked(dictionaryApi.lookup).mockResolvedValue(dictWith('каждый ', 'по', 'по'))
+      vi.mocked(vocabularyApi.createItem).mockResolvedValue({
+        item_id: 'I1',
+        status: 'tracked',
+        confidence: 1,
+      })
+      vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
+        id: 'T1',
+        text: 'Каждый',
+        target_language_code: 'ru',
+        is_primary: true,
+        source_type: 'dictionary',
+      })
 
-    await screen.findByText('любой')
-    expect(screen.queryByText('каждый')).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Wiktionary' })).not.toBeInTheDocument()
+      renderCard()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Развернуть' }))
+      await screen.findByText('любой')
+      await waitFor(() => expect(suggestionTexts()).toEqual(['Каждый', 'любой', 'по']))
+      const merged = screen.getByRole('button', {
+        name: 'Добавить перевод из AI · Wiktionary: Каждый',
+      })
+      // A dictionary match confirms the AI draft, so it is saved as dictionary data.
+      fireEvent.click(merged)
+      await waitFor(() =>
+        expect(vocabularyApi.addTranslation).toHaveBeenCalledWith(
+          'token',
+          'I1',
+          expect.objectContaining({ translation_text: 'Каждый', source_type: 'dictionary' }),
+        ),
+      )
+    })
 
-    expect(await screen.findByText('каждый')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Wiktionary' })).toHaveAttribute(
-      'href',
-      'https://kaikki.org/',
-    )
+    it('reserves a placeholder above dictionary suggestions while AI is loading', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newWord)
+      let resolveAi!: (v: Awaited<ReturnType<typeof aiApi.translate>>) => void
+      vi.mocked(aiApi.translate).mockReturnValue(new Promise((r) => { resolveAi = r }))
+      vi.mocked(dictionaryApi.lookup).mockResolvedValue(dictWith('каждый'))
+
+      renderCard()
+
+      await screen.findByText('каждый')
+      expect(await screen.findByTestId('word-card-ai-pending')).toBeInTheDocument()
+
+      await act(async () => {
+        resolveAi({ hints: [{ text: 'любой' }], model: 'm', latency_ms: 1 })
+      })
+
+      expect(await screen.findByText('любой')).toBeInTheDocument()
+      expect(screen.queryByTestId('word-card-ai-pending')).not.toBeInTheDocument()
+      expect(suggestionTexts()).toEqual(['любой', 'каждый'])
+    })
   })
 
   it('requests AI for known words but not for tracked ones', async () => {

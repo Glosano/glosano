@@ -13,6 +13,9 @@ import { ApiError } from '@/api/client'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
 import type { SelectedItem } from './selectedItem'
 
+/** Suggestions shown before the card is expanded; the expanded card shows all. */
+const COLLAPSED_SUGGESTION_LIMIT = 15
+
 interface Props {
   word: SelectedItem | null
   lang: string
@@ -172,30 +175,36 @@ export function WordCard({
   const dictionarySource = dict.data?.attribution.source || 'Wiktionary'
   type Suggestion = {
     text: string
-    badge: '✦' | '📘'
-    source: 'ai' | 'dictionary'
-    sourceLabel: string
+    fromAi: boolean
+    fromDictionary: boolean
   }
-  const suggestions: Suggestion[] = [
-    ...(ai.data?.hints ?? []).map((h) => ({
-      text: h.text,
-      badge: '✦' as const,
-      source: 'ai' as const,
-      sourceLabel: 'AI',
-    })),
-    ...(dict.data?.entries ?? []).flatMap((e) =>
-      e.senses.map((s) => ({
-        text: s.translation,
-        badge: '📘' as const,
-        source: 'dictionary' as const,
-        sourceLabel: dictionarySource,
-      })),
-    ),
-  ]
-  const visibleSuggestions = expanded ? suggestions : suggestions.slice(0, 2)
-  const showDictionaryAttribution = visibleSuggestions.some(
-    (suggestion) => suggestion.source === 'dictionary',
-  )
+  // AI hints first, dictionary senses below. Same text (case/space-insensitive)
+  // collapses into the first row, which then carries both sources.
+  const suggestions: Suggestion[] = []
+  const byKey = new Map<string, Suggestion>()
+  const addSuggestion = (raw: string, source: 'ai' | 'dictionary') => {
+    const text = raw.trim()
+    if (!text) return
+    const key = text.toLocaleLowerCase()
+    const existing = byKey.get(key)
+    const sug = existing ?? { text, fromAi: false, fromDictionary: false }
+    if (source === 'ai') sug.fromAi = true
+    else sug.fromDictionary = true
+    if (!existing) {
+      byKey.set(key, sug)
+      suggestions.push(sug)
+    }
+  }
+  for (const h of ai.data?.hints ?? []) addSuggestion(h.text, 'ai')
+  for (const e of dict.data?.entries ?? []) {
+    for (const s of e.senses) addSuggestion(s.translation, 'dictionary')
+  }
+  const visibleSuggestions = expanded
+    ? suggestions
+    : suggestions.slice(0, COLLAPSED_SUGGESTION_LIMIT)
+  const showDictionaryAttribution = visibleSuggestions.some((sug) => sug.fromDictionary)
+  // Reserve the AI slot above dictionary rows so they don't jump when AI lands.
+  const aiPending = wantAi && ai.isLoading
   const isIgnored = data?.status === 'ignored'
 
   const content = (
@@ -294,48 +303,66 @@ export function WordCard({
                 )}
               </p>
             )}
-            {visibleSuggestions.length > 0 && (
+            {(visibleSuggestions.length > 0 || aiPending) && (
               <p className="text-sm font-medium">{tr('Подсказки')}</p>
             )}
             <ul className="mt-1 space-y-1">
-              {visibleSuggestions.map((sug, idx) => (
+              {aiPending && (
                 <li
-                  key={`${sug.source}-${idx}`}
-                  className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
+                  data-testid="word-card-ai-pending"
+                  className="flex animate-pulse items-center rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
                 >
-                  <span className="text-primary">
-                    {sug.text}
-                    <span aria-hidden="true" className="ml-2 text-muted-foreground">
-                      {sug.badge}
-                    </span>
-                    <span className="ml-2 text-xs text-muted-foreground">{sug.sourceLabel}</span>
+                  {tr('Переводим…')}
+                  <span aria-hidden="true" className="ml-2">
+                    ✦
                   </span>
-                  <button
-                    type="button"
-                    aria-label={
-                      sug.source === 'ai'
-                        ? tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
-                        : tr('Добавить перевод из {{value0}}: {{value1}}', {
-                            value0: sug.sourceLabel,
-                            value1: sug.text,
-                          })
-                    }
-                    onClick={() =>
-                      void withItem((id) =>
-                        m.saveTranslation.mutateAsync({
-                          itemId: id,
-                          text: sug.text,
-                          source: sug.source,
-                          target,
-                        }),
-                      )
-                    }
-                    className="rounded p-1 hover:bg-accent"
-                  >
-                    +
-                  </button>
                 </li>
-              ))}
+              )}
+              {visibleSuggestions.map((sug) => {
+                const sourceLabel = [sug.fromAi && 'AI', sug.fromDictionary && dictionarySource]
+                  .filter(Boolean)
+                  .join(' · ')
+                // A dictionary match confirms the AI draft, so save it as dictionary data.
+                const saveSource = sug.fromDictionary ? 'dictionary' : 'ai'
+                return (
+                  <li
+                    key={sug.text.toLocaleLowerCase()}
+                    className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
+                  >
+                    <span className="text-primary">
+                      <span data-suggestion-text>{sug.text}</span>
+                      <span aria-hidden="true" className="ml-2 text-muted-foreground">
+                        {[sug.fromAi && '✦', sug.fromDictionary && '📘'].filter(Boolean).join(' ')}
+                      </span>
+                      <span className="ml-2 text-xs text-muted-foreground">{sourceLabel}</span>
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={
+                        sug.fromDictionary
+                          ? tr('Добавить перевод из {{value0}}: {{value1}}', {
+                              value0: sourceLabel,
+                              value1: sug.text,
+                            })
+                          : tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
+                      }
+                      onClick={() =>
+                        void withItem((id) =>
+                          m.saveTranslation.mutateAsync({
+                            itemId: id,
+                            text: sug.text,
+                            source: saveSource,
+                            target,
+                          }),
+                        )
+                      }
+                      className="rounded p-1 hover:bg-accent"
+                    >
+                      +
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
             {showDictionaryAttribution && dict.data?.attribution && (
               <p className="mt-2 text-xs text-muted-foreground">
