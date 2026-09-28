@@ -20,6 +20,8 @@ interface ReaderState {
   font: FontPrefs
   wordCardExpanded: boolean
   videoAdvance: VideoAdvance
+  /** Phones keep the video on screen above the text unless the learner unpins it. */
+  videoPinned: boolean
   setMode: (m: ViewMode) => void
   setPageIndex: (i: number) => void
   setSentenceFlatIndex: (i: number) => void
@@ -28,6 +30,7 @@ interface ReaderState {
   setFont: (f: Partial<FontPrefs>) => void
   setWordCardExpanded: (v: boolean) => void
   setVideoAdvance: (v: VideoAdvance) => void
+  setVideoPinned: (v: boolean) => void
 }
 
 export const useReaderStore = create<ReaderState>()(
@@ -41,6 +44,7 @@ export const useReaderStore = create<ReaderState>()(
       font: { size: 1, lineHeight: 1, serif: false },
       wordCardExpanded: false,
       videoAdvance: 'stop',
+      videoPinned: true,
       setMode: (mode) => set({ mode }),
       setPageIndex: (pageIndex) => set({ pageIndex }),
       setSentenceFlatIndex: (sentenceFlatIndex) => set({ sentenceFlatIndex }),
@@ -49,6 +53,7 @@ export const useReaderStore = create<ReaderState>()(
       setFont: (f) => set((s) => ({ font: { ...s.font, ...f } })),
       setWordCardExpanded: (wordCardExpanded) => set({ wordCardExpanded }),
       setVideoAdvance: (videoAdvance) => set({ videoAdvance }),
+      setVideoPinned: (videoPinned) => set({ videoPinned }),
     }),
     {
       name: 'glosano-reader-prefs',
@@ -57,6 +62,7 @@ export const useReaderStore = create<ReaderState>()(
           font: s.font,
           vocabularyPanelPinned: s.vocabularyPanelPinned,
           videoAdvance: s.videoAdvance,
+          videoPinned: s.videoPinned,
         }) as Partial<ReaderState>,
     },
   ),

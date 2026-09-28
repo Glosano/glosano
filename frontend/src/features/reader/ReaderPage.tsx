@@ -48,7 +48,8 @@ import type { SelectedItem } from './selectedItem'
 import { VideoPlayer, type VideoControls } from './video/VideoPlayer'
 import { activeFragment, intervalFor } from './video/playback'
 import { useVideoPageTransitions } from './video/useVideoPageTransitions'
-import { VideoAdvanceChoice } from './video/VideoAdvanceChoice'
+import { VideoAdvanceMenu } from './video/VideoAdvanceMenu'
+import { PINNED_VIDEO_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 
 interface Props {
   lang: string
@@ -128,6 +129,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const setLastBulkActionId = useReaderStore((s) => s.setLastBulkActionId)
   const videoAdvance = useReaderStore((s) => s.videoAdvance)
   const setVideoAdvance = useReaderStore((s) => s.setVideoAdvance)
+  const videoPinned = useReaderStore((s) => s.videoPinned)
+  const setVideoPinned = useReaderStore((s) => s.setVideoPinned)
+  const canPinVideo = useMediaQuery(PINNED_VIDEO_QUERY)
   const playOnTurn = videoAdvance !== 'stop'
 
   const bulkKnown = useBulkKnown(lessonId, lang)
@@ -1076,112 +1080,110 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         />
       </aside>
       {content?.media && videoInterval && (
-        <>
-          <VideoPlayer
-            key={`${lessonId}:${content.source_version}`}
-            ref={videoControls}
-            media={content.media}
-            interval={videoInterval}
-            resetKey={`${mode}:${videoReset}`}
-            startTime={videoTargetTime}
-            continueUntil={
-              videoAdvance === 'auto' && nextVideoStart != null ? nextVideoStart / 1000 : undefined
+        <VideoPlayer
+          key={`${lessonId}:${content.source_version}`}
+          ref={videoControls}
+          media={content.media}
+          interval={videoInterval}
+          resetKey={`${mode}:${videoReset}`}
+          startTime={videoTargetTime}
+          continueUntil={
+            videoAdvance === 'auto' && nextVideoStart != null ? nextVideoStart / 1000 : undefined
+          }
+          blocked={
+            chatOpen ||
+            !!selectedWord ||
+            !!dragRange ||
+            atEnd ||
+            bulkKnown.isPending ||
+            completeLesson.isPending ||
+            undoBulk.isPending ||
+            autoTransition.failed
+          }
+          onTime={(time) => {
+            const index = activeFragment(flatSentences, time)
+            setActiveSegment(flatSentences[index]?.seg_id ?? null)
+          }}
+          onPlaying={setVideoPlaying}
+          onBoundary={() => {
+            if (videoAdvance !== 'auto' || busy || mutationLock.current) return null
+            const nextIndex = videoUnitIndex + 1
+            const next = videoUnits[nextIndex]
+            const bounds = next && intervalFor(next)
+            if (!bounds) return null
+            const range = videoUnitRange(videoUnitIndex)
+            if (!range) {
+              if (autoTransition.locked) return null
+              showVideoUnit(nextIndex)
+              return bounds
             }
-            blocked={
-              chatOpen ||
-              !!selectedWord ||
-              !!dragRange ||
-              atEnd ||
-              bulkKnown.isPending ||
-              completeLesson.isPending ||
-              undoBulk.isPending ||
-              autoTransition.failed
-            }
-            onTime={(time) => {
-              const index = activeFragment(flatSentences, time)
-              setActiveSegment(flatSentences[index]?.seg_id ?? null)
-            }}
-            onPlaying={setVideoPlaying}
-            onBoundary={() => {
-              if (videoAdvance !== 'auto' || busy || mutationLock.current) return null
-              const nextIndex = videoUnitIndex + 1
-              const next = videoUnits[nextIndex]
-              const bounds = next && intervalFor(next)
-              if (!bounds) return null
-              const range = videoUnitRange(videoUnitIndex)
-              if (!range) {
-                if (autoTransition.locked) return null
-                showVideoUnit(nextIndex)
-                return bounds
-              }
-              return autoTransition.advance(range.from, range.to, () => showVideoUnit(nextIndex))
-                ? bounds
-                : null
-            }}
-            onSeek={
-              videoAdvance === 'auto'
-                ? (time) => {
-                    if (autoTransition.locked) return null
-                    const all = intervalFor(flatSentences)
-                    if (!all) return null
-                    if (time < all.start || time >= all.end) {
-                      const index = time < all.start ? 0 : videoUnits.length - 1
-                      const edge = videoUnits[index]
-                      if (!edge) return null
-                      showVideoUnit(index)
-                      videoControls.current?.seek(time < all.start ? all.start : all.end)
-                      return intervalFor(edge)
-                    }
-                    const index = videoUnits.reduce(
-                      (found, unit, i) =>
-                        (unit[0]?.media_start_ms ?? Infinity) / 1000 <= time ? i : found,
-                      -1,
-                    )
-                    const destination = videoUnits[index]
-                    if (!destination) return null
+            return autoTransition.advance(range.from, range.to, () => showVideoUnit(nextIndex))
+              ? bounds
+              : null
+          }}
+          onSeek={
+            videoAdvance === 'auto'
+              ? (time) => {
+                  if (autoTransition.locked) return null
+                  const all = intervalFor(flatSentences)
+                  if (!all) return null
+                  if (time < all.start || time >= all.end) {
+                    const index = time < all.start ? 0 : videoUnits.length - 1
+                    const edge = videoUnits[index]
+                    if (!edge) return null
                     showVideoUnit(index)
-                    return intervalFor(destination)
+                    videoControls.current?.seek(time < all.start ? all.start : all.end)
+                    return intervalFor(edge)
                   }
-                : undefined
-            }
-            playOnReset={() => {
-              const play = playAfterReset.current
-              playAfterReset.current = false
-              return play
-            }}
-          />
-          <div className="mx-auto mt-3 max-w-[720px] space-y-2 text-sm">
-            <VideoAdvanceChoice
+                  const index = videoUnits.reduce(
+                    (found, unit, i) =>
+                      (unit[0]?.media_start_ms ?? Infinity) / 1000 <= time ? i : found,
+                    -1,
+                  )
+                  const destination = videoUnits[index]
+                  if (!destination) return null
+                  showVideoUnit(index)
+                  return intervalFor(destination)
+                }
+              : undefined
+          }
+          playOnReset={() => {
+            const play = playAfterReset.current
+            playAfterReset.current = false
+            return play
+          }}
+          toolbar={
+            <VideoAdvanceMenu
               mode={mode}
               value={videoAdvance}
               disabled={autoTransition.locked}
               onChange={setVideoAdvance}
             />
-            {autoTransition.saving && (
-              <p role="status">
+          }
+          pin={canPinVideo ? { pinned: videoPinned, onChange: setVideoPinned } : undefined}
+        >
+          {autoTransition.saving && (
+            <p role="status">
+              {tr(
+                mode === 'page' ? 'Сохраняем прогресс страницы…' : 'Сохраняем прогресс фрагмента…',
+              )}
+            </p>
+          )}
+          {autoTransition.failed && (
+            <div role="alert" className="space-y-2 text-destructive">
+              <p>
                 {tr(
                   mode === 'page'
-                    ? 'Сохраняем прогресс страницы…'
-                    : 'Сохраняем прогресс фрагмента…',
+                    ? 'Не удалось сохранить страницу. Повторите сохранение, затем нажмите Play.'
+                    : 'Не удалось сохранить фрагмент. Повторите сохранение, затем нажмите Play.',
                 )}
               </p>
-            )}
-            {autoTransition.failed && (
-              <div role="alert" className="space-y-2 text-destructive">
-                <p>
-                  {tr(
-                    mode === 'page'
-                      ? 'Не удалось сохранить страницу. Повторите сохранение, затем нажмите Play.'
-                      : 'Не удалось сохранить фрагмент. Повторите сохранение, затем нажмите Play.',
-                  )}
-                </p>
-                <Button variant="outline" onClick={autoTransition.retry}>
-                  {tr('Повторить сохранение')}
-                </Button>
-              </div>
-            )}
-          </div>
-        </>
+              <Button variant="outline" onClick={autoTransition.retry}>
+                {tr('Повторить сохранение')}
+              </Button>
+            </div>
+          )}
+        </VideoPlayer>
       )}
 
       {/* Hidden on the end page, which shows its own completed state; opening results

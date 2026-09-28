@@ -7,6 +7,7 @@ import type { Sentence, StatusMap } from '@/api/reader'
 import type { PageSlice } from './pagination'
 import type { PhraseIndex, PhraseMatch } from './phraseMatching'
 import { SentenceTokens } from './SentenceTokens'
+import { pinnedVideoBottom } from './video/pinnedVideo'
 import type { DragRange } from './usePhraseSelection'
 import { learningContentDirection } from '@/lib/languages'
 import { mediaTime } from '@/lib/mediaTime'
@@ -72,8 +73,12 @@ export function PageView({
       return
     const target = root.current?.querySelector<HTMLElement>('[aria-current="true"]')
     if (!target) return
+    // On phones the pinned video covers the top of the viewport.
+    const covered = pinnedVideoBottom()
+    const top = covered ? covered + 16 : 100
     const rect = target.getBoundingClientRect()
-    if (rect.top >= 100 && rect.bottom <= window.innerHeight - 100) return
+    if (rect.top >= top && rect.bottom <= window.innerHeight - 100) return
+    target.style.scrollMarginTop = covered ? `${top}px` : ''
     target.scrollIntoView?.({
       block: 'nearest',
       behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches

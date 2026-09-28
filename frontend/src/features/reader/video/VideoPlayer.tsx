@@ -1,9 +1,26 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { Pause, Play, RotateCcw } from 'lucide-react'
+import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
+import {
+  Ellipsis,
+  ExternalLink,
+  LoaderCircle,
+  Pause,
+  Pin,
+  PinOff,
+  Play,
+  RotateCcw,
+} from 'lucide-react'
 import type { LessonMedia } from '@/api/lessons'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useTranslation } from '@/lib/i18n'
 import { mediaTime } from '@/lib/mediaTime'
+import { cn } from '@/lib/utils'
 import { observePlayback, type Interval, type Observation } from './playback'
 import { createYouTubePlayer, type YouTubePlayer } from './youtubePlayer'
 
@@ -26,6 +43,12 @@ interface Props {
   onSeek?(time: number): Interval | null
   /** Asked once per resetKey change: true starts playback from the new interval. */
   playOnReset?(): boolean
+  /** Controls owned by the page, shown before the overflow menu. */
+  toolbar?: ReactNode
+  /** Page statuses shown under the controls, inside the pinned block. */
+  children?: ReactNode
+  /** Offered on phones: keeps the player on screen while the text scrolls. */
+  pin?: { pinned: boolean; onChange(pinned: boolean): void }
 }
 
 export function VideoPlayer(props: Props) {
@@ -269,9 +292,26 @@ export function VideoPlayer(props: Props) {
     api.play()
   }
 
+  const pinned = props.pin?.pinned ?? false
+  const captions = t(props.media.is_generated ? 'Автоматические субтитры' : 'Авторские субтитры')
+  const playLabel = playing ? t('Пауза') : t('Воспроизвести фрагмент')
   return (
-    <section aria-label={t('Видеоплеер')} className="mx-auto mt-4 max-w-[720px] space-y-3">
-      <div className="relative aspect-video min-h-[200px] overflow-hidden rounded-xl bg-neutral-950 text-white">
+    <section
+      aria-label={t('Видеоплеер')}
+      data-video-pinned={pinned ? '' : undefined}
+      className={cn(
+        'space-y-2',
+        pinned
+          ? 'sticky top-0 z-30 -mx-4 bg-background pb-2 sm:-mx-6'
+          : 'mx-auto mt-4 max-w-[720px]',
+      )}
+    >
+      <div
+        className={cn(
+          'relative aspect-video min-h-[200px] overflow-hidden bg-neutral-950 text-white',
+          !pinned && 'rounded-xl',
+        )}
+      >
         <div ref={host} className="absolute inset-0" />
         {!loaded && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
@@ -284,51 +324,95 @@ export function VideoPlayer(props: Props) {
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={cn('flex items-center gap-1', pinned && 'px-2')}>
         <Button
-          size="lg"
+          size="icon-lg"
           disabled={loading || props.blocked}
+          aria-busy={loading || undefined}
           onClick={() => (playing ? pause() : void play())}
-          aria-label={playing ? t('Пауза') : t('Воспроизвести фрагмент')}
+          aria-label={playLabel}
+          title={playLabel}
         >
-          {playing ? <Pause aria-hidden /> : <Play aria-hidden />}
-          {loading ? t('Загрузка…') : playing ? t('Пауза') : t('Воспроизвести')}
+          {loading ? (
+            <LoaderCircle className="animate-spin" aria-hidden />
+          ) : playing ? (
+            <Pause aria-hidden />
+          ) : (
+            <Play aria-hidden />
+          )}
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
+          size="icon-lg"
           disabled={loading || props.blocked}
           onClick={() => void play(true)}
           aria-label={t('Повторить фрагмент')}
+          title={t('Повторить фрагмент')}
         >
           <RotateCcw aria-hidden />
-          {t('Повторить фрагмент')}
         </Button>
-        <span dir="ltr" className="text-xs tabular-nums text-muted-foreground">
+        <span dir="ltr" className="px-1 text-xs tabular-nums text-muted-foreground">
           {mediaTime(time * 1000)} / {mediaTime(props.interval.end * 1000)}
         </span>
-        <span className="text-xs text-muted-foreground">
-          {props.media.language_code} ·{' '}
-          {t(props.media.is_generated ? 'Автоматические субтитры' : 'Авторские субтитры')}
-        </span>
+        <div className="ml-auto flex items-center gap-1">
+          {props.toolbar}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-lg" aria-label={t('Ещё')} title={t('Ещё')}>
+                <Ellipsis aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-auto min-w-48"
+              collisionPadding={{ bottom: 72 }}
+            >
+              <DropdownMenuLabel className="font-normal text-muted-foreground">
+                {props.media.language_code} · {captions}
+              </DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <a href={props.media.canonical_url} target="_blank" rel="noreferrer">
+                  <ExternalLink aria-hidden />
+                  {t('Открыть на YouTube')}
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {props.pin && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              aria-label={t('Закрепить видео')}
+              title={t('Закрепить видео')}
+              aria-pressed={pinned}
+              onClick={() => props.pin?.onChange(!pinned)}
+            >
+              {pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />}
+            </Button>
+          )}
+        </div>
       </div>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {t('Не удалось открыть видео. Текст доступен для изучения.')}{' '}
-          <a
-            href={props.media.canonical_url}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            {t('Открыть на YouTube')}
-          </a>
-        </p>
-      )}
-      {autoplayBlocked && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('Браузер остановил запуск. Нажмите «Воспроизвести» ещё раз.')}
-        </p>
-      )}
+      <div className={cn('space-y-2 text-sm empty:hidden', pinned && 'px-4 sm:px-6')}>
+        {error && (
+          <p role="alert" className="text-destructive">
+            {t('Не удалось открыть видео. Текст доступен для изучения.')}{' '}
+            <a
+              href={props.media.canonical_url}
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              {t('Открыть на YouTube')}
+            </a>
+          </p>
+        )}
+        {autoplayBlocked && (
+          <p role="status" className="text-muted-foreground">
+            {t('Браузер остановил запуск. Нажмите ▶ ещё раз.')}
+          </p>
+        )}
+        {props.children}
+      </div>
     </section>
   )
 }

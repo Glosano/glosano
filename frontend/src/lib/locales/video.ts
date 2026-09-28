@@ -4,7 +4,6 @@ export const videoMessages: Record<string, string> = {
   'Обработка урока…': 'Processing lesson…',
   Видеоплеер: 'Video player',
   'Воспроизвести фрагмент': 'Play fragment',
-  Воспроизвести: 'Play',
   'Повторить фрагмент': 'Replay fragment',
   Пауза: 'Pause',
   'Авторские субтитры': 'Creator captions',
@@ -12,12 +11,13 @@ export const videoMessages: Record<string, string> = {
   'Не удалось открыть видео. Текст доступен для изучения.':
     'Could not open the video. You can still study the text.',
   'Открыть на YouTube': 'Open on YouTube',
-  'Браузер остановил запуск. Нажмите «Воспроизвести» ещё раз.':
-    'Your browser blocked playback. Press Play again.',
-  Воспроизведение: 'Playback',
+  'Браузер остановил запуск. Нажмите ▶ ещё раз.': 'Your browser blocked playback. Press ▶ again.',
   Стоп: 'Stop',
   'Играть при листании': 'Play on turn',
   'Листать автоматически': 'Advance automatically',
+  'Режим листания': 'Page turning',
+  Ещё: 'More',
+  'Закрепить видео': 'Pin video',
   'Новые слова покинутой страницы становятся известными. Действие можно отменить.':
     'New words on the page you leave become known. You can undo this.',
   'Новые слова покинутого фрагмента становятся известными. Действие можно отменить.':

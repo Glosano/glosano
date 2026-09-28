@@ -13,6 +13,7 @@ import { ChatWorkspace } from '@/features/chat/ChatWorkspace'
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { LessonDetail } from '@/api/lessons'
@@ -100,6 +101,7 @@ import { ApiError } from '@/api/client'
 import { useReaderStore } from './readerStore'
 import { ReaderPage } from './ReaderPage'
 import { setUiLanguage } from '@/lib/i18n'
+import { clearMediaQueries, mockMediaQueries } from '@/test/mockMediaQueries'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -232,6 +234,11 @@ async function startVideo() {
   })
 }
 
+async function chooseAdvance(name: string) {
+  await userEvent.click(await screen.findByRole('button', { name: /^Режим листания: / }))
+  await userEvent.click(screen.getByRole('menuitemradio', { name }))
+}
+
 describe('ReaderPage', () => {
   beforeEach(() => {
     setUiLanguage('ru')
@@ -251,6 +258,7 @@ describe('ReaderPage', () => {
       font: { size: 1, lineHeight: 1, serif: false },
       wordCardExpanded: false,
       videoAdvance: 'stop',
+      videoPinned: true,
     })
   })
 
@@ -281,7 +289,7 @@ describe('ReaderPage', () => {
 
   it('auto turns pages, marks the departed page and highlights the playing fragment', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    await chooseAdvance('Листать автоматически')
     await startVideo()
     act(() => {
       video.time = 2.02
@@ -308,7 +316,7 @@ describe('ReaderPage', () => {
 
   it('follows a manual video seek without marking skipped pages known', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    await chooseAdvance('Листать автоматически')
     await startVideo()
     act(() => {
       video.time = 3.2
@@ -325,7 +333,7 @@ describe('ReaderPage', () => {
       vi.mocked(readerApi.bulkKnown)
         .mockRejectedValueOnce(new Error('Response lost'))
         .mockRejectedValueOnce(new ApiError(409, detail))
-      fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+      await chooseAdvance('Листать автоматически')
       await startVideo()
       act(() => {
         video.time = 2.02
@@ -346,7 +354,7 @@ describe('ReaderPage', () => {
     await startVideo()
     fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
     expect(video.state).toBe(2)
-    expect(screen.getByRole('radio', { name: 'Стоп' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Режим листания: Стоп' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Воспроизвести аудио' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Воспроизвести фрагмент' }))
     act(() => {
@@ -364,7 +372,7 @@ describe('ReaderPage', () => {
   it('Undo pauses playback and keeps the chosen advance mode', async () => {
     videoLesson()
     vi.mocked(readerApi.undoBulk).mockResolvedValue({ undone_count: 250 })
-    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    await chooseAdvance('Листать автоматически')
     await startVideo()
     act(() => {
       video.time = 2.02
@@ -374,12 +382,14 @@ describe('ReaderPage', () => {
     fireEvent.click(within(toast).getByRole('button', { name: 'Отменить' }))
     await waitFor(() => expect(readerApi.undoBulk).toHaveBeenCalled())
     expect(video.state).toBe(2)
-    expect(screen.getByRole('radio', { name: 'Листать автоматически' })).toBeChecked()
+    expect(
+      screen.getByRole('button', { name: 'Режим листания: Листать автоматически' }),
+    ).toBeInTheDocument()
   })
 
   it('does not complete the material when the final video fragment ends', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    await chooseAdvance('Листать автоматически')
     await startVideo()
     act(() => {
       video.time = 3.7
@@ -418,7 +428,7 @@ describe('ReaderPage', () => {
     'plays the next %s after a manual Next when play on turn is chosen',
     async (mode, next, slot) => {
       videoLesson()
-      fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+      await chooseAdvance('Играть при листании')
       if (mode === 'sentence')
         fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
       expect(video.state).toBe(2)
@@ -435,7 +445,7 @@ describe('ReaderPage', () => {
 
   it('plays the previous fragment after a manual Prev when play on turn is chosen', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+    await chooseAdvance('Играть при листании')
     fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
     fireEvent.click(screen.getByRole('button', { name: 'Следующий фрагмент' }))
     await waitFor(() => expect(video.state).toBe(1))
@@ -448,7 +458,7 @@ describe('ReaderPage', () => {
   it('neither advances nor plays when saving a manual Next fails', async () => {
     videoLesson()
     vi.mocked(readerApi.bulkKnown).mockRejectedValueOnce(new Error('Network'))
-    fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+    await chooseAdvance('Играть при листании')
     fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
     const next = screen.getByRole('button', { name: 'Следующий фрагмент' })
     fireEvent.click(next)
@@ -460,13 +470,16 @@ describe('ReaderPage', () => {
 
   it('auto advances fragments, marks the departed fragment and keeps playing', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    await chooseAdvance('Листать автоматически')
     fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+    // The auto-mode hint now lives inside the menu, so reopen it to read it.
+    await userEvent.click(screen.getByRole('button', { name: /^Режим листания: / }))
     expect(
       screen.getByText(
         'Новые слова покинутого фрагмента становятся известными. Действие можно отменить.',
       ),
     ).toBeVisible()
+    await userEvent.keyboard('{Escape}')
     await startVideo()
     act(() => {
       video.time = 2.02
@@ -490,7 +503,7 @@ describe('ReaderPage', () => {
 
   it('follows a manual seek in fragment mode without marking skipped fragments', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    await chooseAdvance('Листать автоматически')
     fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
     await startVideo()
     act(() => {
@@ -505,11 +518,45 @@ describe('ReaderPage', () => {
 
   it('remembers the chosen advance mode between visits', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+    await chooseAdvance('Играть при листании')
     expect(useReaderStore.getState().videoAdvance).toBe('play')
     expect(JSON.parse(localStorage.getItem('glosano-reader-prefs')!).state.videoAdvance).toBe(
       'play',
     )
+  })
+
+  it('pins the video on phones and lets the learner unpin it', async () => {
+    mockMediaQueries(['(max-width: 767px) and (min-height: 560px)'])
+    try {
+      videoLesson()
+      const player = await screen.findByRole('region', { name: 'Видеоплеер' })
+      expect(player).toHaveAttribute('data-video-pinned')
+      fireEvent.click(screen.getByRole('button', { name: 'Закрепить видео' }))
+      expect(player).not.toHaveAttribute('data-video-pinned')
+      expect(useReaderStore.getState().videoPinned).toBe(false)
+    } finally {
+      clearMediaQueries()
+    }
+  })
+
+  it('does not pin the video on short phone screens', async () => {
+    mockMediaQueries(['(max-width: 767px)'])
+    try {
+      videoLesson()
+      const player = await screen.findByRole('region', { name: 'Видеоплеер' })
+      expect(player).not.toHaveAttribute('data-video-pinned')
+      expect(screen.queryByRole('button', { name: 'Закрепить видео' })).not.toBeInTheDocument()
+    } finally {
+      clearMediaQueries()
+    }
+  })
+
+  it('never pins the video on wide screens', async () => {
+    videoLesson()
+    const player = await screen.findByRole('region', { name: 'Видеоплеер' })
+    expect(useReaderStore.getState().videoPinned).toBe(true)
+    expect(player).not.toHaveAttribute('data-video-pinned')
+    expect(screen.queryByRole('button', { name: 'Закрепить видео' })).not.toBeInTheDocument()
   })
 
   it('switches reader labels and all translation targets live without changing saved translations', async () => {

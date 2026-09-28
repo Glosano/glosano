@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { createRef } from 'react'
 import { VideoPlayer, type VideoControls } from './VideoPlayer'
 import { setUiLanguage } from '@/lib/i18n'
@@ -67,6 +68,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'performance'] })
 })
 afterEach(() => {
+  cleanup()
   vi.useRealTimers()
   setUiLanguage('ru')
 })
@@ -243,4 +245,80 @@ it('starts at the last requested timestamp when initialization and seeking are d
   })
   expect(fake.seeks).toEqual([20])
   expect(fake.state).toBe(1)
+})
+
+it('shows icon controls, the toolbar slot, statuses and the overflow menu', async () => {
+  render(
+    <VideoPlayer
+      media={{ ...media, is_generated: true }}
+      interval={{ start: 1, end: 2 }}
+      resetKey="one"
+      onTime={() => {}}
+      toolbar={<button type="button">Mode</button>}
+    >
+      <p role="status">Saving</p>
+    </VideoPlayer>,
+  )
+  expect(screen.getByRole('button', { name: 'Play fragment' }).textContent).toBe('')
+  expect(screen.getByRole('button', { name: 'Replay fragment' }).textContent).toBe('')
+  expect(screen.getByRole('button', { name: 'Mode' })).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent('Saving')
+  expect(screen.queryByText(/Automatic captions/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Pin video' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'More' }))
+  expect(screen.getByText('en · Automatic captions')).toBeInTheDocument()
+  expect(screen.getByRole('menuitem', { name: 'Open on YouTube' })).toHaveAttribute(
+    'href',
+    media.canonical_url,
+  )
+})
+
+it('keeps the loading play button findable, disabled and busy', async () => {
+  let release!: () => void
+  fake.delay = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  render(
+    <VideoPlayer media={media} interval={{ start: 1, end: 2 }} resetKey="one" onTime={() => {}} />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Play fragment' }))
+  const play = screen.getByRole('button', { name: 'Play fragment' })
+  expect(play).toBeDisabled()
+  expect(play).toHaveAttribute('aria-busy', 'true')
+  await act(async () => release())
+  await screen.findByRole('button', { name: 'Pause' })
+})
+
+it('pins the section when asked and toggles the pin', () => {
+  const onChange = vi.fn()
+  const view = render(
+    <VideoPlayer
+      media={media}
+      interval={{ start: 1, end: 2 }}
+      resetKey="one"
+      onTime={() => {}}
+      pin={{ pinned: true, onChange }}
+    />,
+  )
+  const section = screen.getByRole('region', { name: 'Video player' })
+  expect(section).toHaveAttribute('data-video-pinned')
+  expect(section).toHaveClass('sticky', 'top-0')
+  expect(section.querySelector('.aspect-video')).toHaveClass('min-h-[200px]')
+  const toggle = screen.getByRole('button', { name: 'Pin video' })
+  expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(toggle)
+  expect(onChange).toHaveBeenCalledWith(false)
+
+  view.rerender(
+    <VideoPlayer
+      media={media}
+      interval={{ start: 1, end: 2 }}
+      resetKey="one"
+      onTime={() => {}}
+      pin={{ pinned: false, onChange }}
+    />,
+  )
+  expect(section).not.toHaveAttribute('data-video-pinned')
+  expect(section).not.toHaveClass('sticky')
+  expect(section.querySelector('.aspect-video')).toHaveClass('min-h-[200px]')
 })
