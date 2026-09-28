@@ -48,6 +48,7 @@ import type { SelectedItem } from './selectedItem'
 import { VideoPlayer, type VideoControls } from './video/VideoPlayer'
 import { activeFragment, intervalFor } from './video/playback'
 import { useVideoPageTransitions } from './video/useVideoPageTransitions'
+import { VideoAdvanceChoice } from './video/VideoAdvanceChoice'
 
 interface Props {
   lang: string
@@ -107,7 +108,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const restoreReaderFocus = useRef(false)
   const [bulkErrorVisible, setBulkErrorVisible] = useState(false)
   const videoControls = useRef<VideoControls>(null)
-  const [autoPages, setAutoPages] = useState(false)
+  const playAfterReset = useRef(false)
   const [activeSegment, setActiveSegment] = useState<string | null>(null)
   const [videoReset, setVideoReset] = useState(0)
   const [videoTargetTime, setVideoTargetTime] = useState<number | null>(null)
@@ -125,6 +126,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const setSentenceFlatIndex = useReaderStore((s) => s.setSentenceFlatIndex)
   const setVocabularyPanelPinned = useReaderStore((s) => s.setVocabularyPanelPinned)
   const setLastBulkActionId = useReaderStore((s) => s.setLastBulkActionId)
+  const videoAdvance = useReaderStore((s) => s.videoAdvance)
+  const setVideoAdvance = useReaderStore((s) => s.setVideoAdvance)
+  const playOnTurn = videoAdvance !== 'stop'
 
   const bulkKnown = useBulkKnown(lessonId, lang)
   const completeLesson = useCompleteLesson(lessonId, lang)
@@ -156,7 +160,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     restoreReaderFocus.current = false
     setSelectedWord(null)
     setSelectionRange(null)
-    setAutoPages(false)
+    playAfterReset.current = false
     setActiveSegment(null)
     setVideoTargetTime(null)
     setVideoPlaying(false)
@@ -225,7 +229,6 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       ),
     )
     videoControls.current?.pause()
-    setAutoPages(false)
     setPageIndex(page >= 0 ? page : 0)
     setSentenceFlatIndex(sentenceIndex)
     setSelectionRange(
@@ -246,18 +249,21 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const currentSentence = flatSentences[clampedSentenceIndex]
   const canPrevSentence = clampedSentenceIndex > 0
   const canNextSentence = clampedSentenceIndex < flatSentences.length - 1
-  const videoInterval = intervalFor(
-    mode === 'page'
-      ? (currentPage?.sentences.map((entry) => entry.sentence) ?? [])
-      : currentSentence
-        ? [currentSentence]
-        : [],
+  // What the video plays and turns through: pages in page mode, fragments in sentence mode.
+  const videoUnits = useMemo(
+    () =>
+      mode === 'page'
+        ? pages.map((page) => page.sentences.map((entry) => entry.sentence))
+        : flatSentences.map((sentence) => [sentence]),
+    [mode, pages, flatSentences],
   )
+  const videoUnitIndex = mode === 'page' ? pageIndex : clampedSentenceIndex
+  const videoInterval = intervalFor(videoUnits[videoUnitIndex] ?? [])
+  const nextVideoStart = videoUnits[videoUnitIndex + 1]?.[0]?.media_start_ms
   const autoTransition = useVideoPageTransitions({
     lessonId,
     lang,
     sourceVersion: content?.source_version ?? 1,
-    onPage: setPageIndex,
     pause: () => videoControls.current?.pause(),
     onSaved: (result) => {
       if (result.undone) return
@@ -266,10 +272,27 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     },
   })
 
-  function resetVideo() {
+  /** Manual navigation: pause, move the player to the new interval and, if asked, play it. */
+  function resetVideo(play = false) {
+    playAfterReset.current = play
     videoControls.current?.pause()
     setVideoTargetTime(null)
     setVideoReset((value) => value + 1)
+  }
+  // Ordinal range a departed video page or fragment marks known; null when it has no words.
+  function videoUnitRange(index: number) {
+    if (mode === 'page') {
+      const page = pages[index]
+      return page?.wordCount ? { from: page.fromOrdinal, to: page.toOrdinal } : null
+    }
+    const words = flatSentences[index]?.tokens.filter(isWord) ?? []
+    const first = words[0]
+    const last = words.at(-1)
+    return first && last ? { from: first.i, to: last.i } : null
+  }
+  function showVideoUnit(index: number) {
+    if (mode === 'page') setPageIndex(index)
+    else setSentenceFlatIndex(index)
   }
   function toggleMode() {
     if (busy) return
@@ -284,7 +307,6 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       )
       if (index >= 0) setPageIndex(index)
     }
-    setAutoPages(false)
     resetVideo()
     if (focus?.media_start_ms != null) setVideoTargetTime(focus.media_start_ms / 1000)
     setMode(mode === 'page' ? 'sentence' : 'page')
@@ -427,7 +449,6 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
 
   function openChat() {
     videoControls.current?.pause()
-    setAutoPages(false)
     setChatOpen(true)
   }
   function returnToReader() {
@@ -606,7 +627,6 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   function handleUndoAction(actionId: string | null | undefined) {
     if (!actionId || mutationLock.current || busy) return
     videoControls.current?.pause()
-    setAutoPages(false)
     mutationLock.current = true
     if (showResults) restoreReaderFocus.current = true
     undoBulk.mutate(actionId, {
@@ -696,7 +716,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       return
     }
     if (!canPrev || mutationLock.current || busy) return
-    resetVideo()
+    resetVideo(playOnTurn)
     closeCard()
     setPageIndex(Math.max(0, pageIndex - 1))
   }
@@ -713,6 +733,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     if (currentPage.wordCount === 0) {
       // Empty-page marker from pagination (ordinals are 0/-1) — nothing to
       // mark known, just advance.
+      resetVideo(playOnTurn)
       closeCard()
       setPageIndex(Math.min(pages.length - 1, pageIndex + 1))
       return
@@ -746,7 +767,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           manualRequests.current.delete(
             `${content?.source_version}:${currentPage.fromOrdinal}:${currentPage.toOrdinal}`,
           )
-          resetVideo()
+          resetVideo(playOnTurn)
           closeCard()
           setPageIndex(Math.min(pages.length - 1, pageIndex + 1))
           // Arm undo even when created_count === 0 (e.g. all words already
@@ -770,7 +791,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       return
     }
     if (!canPrevSentence || mutationLock.current || busy) return
-    resetVideo()
+    resetVideo(playOnTurn)
     closeCard()
     setSentenceFlatIndex(Math.max(0, clampedSentenceIndex - 1))
   }
@@ -789,6 +810,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
     const lastWord = words[words.length - 1]
     if (!firstWord || !lastWord) {
       // Punctuation-only sentence — nothing to mark known, just advance.
+      resetVideo(playOnTurn)
       closeCard()
       setSentenceFlatIndex(Math.min(flatSentences.length - 1, clampedSentenceIndex + 1))
       return
@@ -819,7 +841,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         onSuccess: (result) => {
           if (activeLesson.current !== lessonId) return
           manualRequests.current.delete(`${content?.source_version}:${firstWord.i}:${lastWord.i}`)
-          resetVideo()
+          resetVideo(playOnTurn)
           closeCard()
           setSentenceFlatIndex(Math.min(flatSentences.length - 1, clampedSentenceIndex + 1))
           // Arm undo even when created_count === 0 — same reasoning as in
@@ -1063,9 +1085,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             resetKey={`${mode}:${videoReset}`}
             startTime={videoTargetTime}
             continueUntil={
-              autoPages && mode === 'page' && canNext
-                ? (pages[pageIndex + 1]?.sentences[0]?.sentence.media_start_ms ?? 0) / 1000
-                : undefined
+              videoAdvance === 'auto' && nextVideoStart != null ? nextVideoStart / 1000 : undefined
             }
             blocked={
               chatOpen ||
@@ -1083,81 +1103,77 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             }}
             onPlaying={setVideoPlaying}
             onBoundary={() => {
-              if (
-                !autoPages ||
-                mode !== 'page' ||
-                !canNext ||
-                !currentPage ||
-                busy ||
-                mutationLock.current
-              )
-                return null
-              const next = pages[pageIndex + 1]
-              const bounds = next && intervalFor(next.sentences.map((entry) => entry.sentence))
+              if (videoAdvance !== 'auto' || busy || mutationLock.current) return null
+              const nextIndex = videoUnitIndex + 1
+              const next = videoUnits[nextIndex]
+              const bounds = next && intervalFor(next)
               if (!bounds) return null
-              return autoTransition.advance(
-                currentPage.fromOrdinal,
-                currentPage.toOrdinal,
-                pageIndex + 1,
-              )
+              const range = videoUnitRange(videoUnitIndex)
+              if (!range) {
+                if (autoTransition.locked) return null
+                showVideoUnit(nextIndex)
+                return bounds
+              }
+              return autoTransition.advance(range.from, range.to, () => showVideoUnit(nextIndex))
                 ? bounds
                 : null
             }}
             onSeek={
-              autoPages && mode === 'page'
+              videoAdvance === 'auto'
                 ? (time) => {
                     if (autoTransition.locked) return null
                     const all = intervalFor(flatSentences)
                     if (!all) return null
                     if (time < all.start || time >= all.end) {
-                      const index = time < all.start ? 0 : pages.length - 1
-                      const edgePage = pages[index]
-                      if (!edgePage) return null
-                      setPageIndex(index)
+                      const index = time < all.start ? 0 : videoUnits.length - 1
+                      const edge = videoUnits[index]
+                      if (!edge) return null
+                      showVideoUnit(index)
                       videoControls.current?.seek(time < all.start ? all.start : all.end)
-                      return intervalFor(edgePage.sentences.map((entry) => entry.sentence))
+                      return intervalFor(edge)
                     }
-                    const index = pages.reduce(
-                      (found, page, i) =>
-                        (page.sentences[0]?.sentence.media_start_ms ?? Infinity) / 1000 <= time
-                          ? i
-                          : found,
+                    const index = videoUnits.reduce(
+                      (found, unit, i) =>
+                        (unit[0]?.media_start_ms ?? Infinity) / 1000 <= time ? i : found,
                       -1,
                     )
-                    const destination = pages[index]
+                    const destination = videoUnits[index]
                     if (!destination) return null
-                    setPageIndex(index)
-                    return intervalFor(destination.sentences.map((entry) => entry.sentence))
+                    showVideoUnit(index)
+                    return intervalFor(destination)
                   }
                 : undefined
             }
+            playOnReset={() => {
+              const play = playAfterReset.current
+              playAfterReset.current = false
+              return play
+            }}
           />
           <div className="mx-auto mt-3 max-w-[720px] space-y-2 text-sm">
-            {mode === 'page' && (
-              <>
-                <label className="flex cursor-pointer items-center gap-2 font-medium">
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    checked={autoPages}
-                    disabled={autoTransition.locked}
-                    onChange={(event) => setAutoPages(event.target.checked)}
-                    className="size-4 accent-primary"
-                  />
-                  {tr('Листать автоматически')}
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  {tr(
-                    'Новые слова покинутой страницы становятся известными. Действие можно отменить.',
-                  )}
-                </p>
-              </>
+            <VideoAdvanceChoice
+              mode={mode}
+              value={videoAdvance}
+              disabled={autoTransition.locked}
+              onChange={setVideoAdvance}
+            />
+            {autoTransition.saving && (
+              <p role="status">
+                {tr(
+                  mode === 'page'
+                    ? 'Сохраняем прогресс страницы…'
+                    : 'Сохраняем прогресс фрагмента…',
+                )}
+              </p>
             )}
-            {autoTransition.saving && <p role="status">{tr('Сохраняем прогресс страницы…')}</p>}
             {autoTransition.failed && (
               <div role="alert" className="space-y-2 text-destructive">
                 <p>
-                  {tr('Не удалось сохранить страницу. Повторите сохранение, затем нажмите Play.')}
+                  {tr(
+                    mode === 'page'
+                      ? 'Не удалось сохранить страницу. Повторите сохранение, затем нажмите Play.'
+                      : 'Не удалось сохранить фрагмент. Повторите сохранение, затем нажмите Play.',
+                  )}
                 </p>
                 <Button variant="outline" onClick={autoTransition.retry}>
                   {tr('Повторить сохранение')}

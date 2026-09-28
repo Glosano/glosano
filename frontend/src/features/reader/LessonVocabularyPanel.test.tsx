@@ -202,12 +202,13 @@ describe('LessonVocabularyPanel', () => {
     expect(screen.getByTestId('test-card')).toBeInTheDocument()
   })
 
-  it('persists and rehydrates only panel pinning alongside font preferences', async () => {
+  it('persists and rehydrates reader preferences but not the view mode', async () => {
     localStorage.clear()
     useReaderStore.setState({
       mode: 'sentence',
       vocabularyPanelPinned: false,
       font: { size: 2, lineHeight: 0, serif: true },
+      videoAdvance: 'auto',
     })
     useReaderStore.getState().setVocabularyPanelPinned(true)
 
@@ -215,18 +216,21 @@ describe('LessonVocabularyPanel', () => {
     expect(stored.state).toEqual({
       vocabularyPanelPinned: true,
       font: { size: 2, lineHeight: 0, serif: true },
+      videoAdvance: 'auto',
     })
 
     useReaderStore.setState({
       mode: 'page',
       vocabularyPanelPinned: false,
       font: { size: 0, lineHeight: 2, serif: false },
+      videoAdvance: 'stop',
     })
     localStorage.setItem('glosano-reader-prefs', JSON.stringify(stored))
     await useReaderStore.persist.rehydrate()
 
     expect(useReaderStore.getState().vocabularyPanelPinned).toBe(true)
     expect(useReaderStore.getState().font).toEqual({ size: 2, lineHeight: 0, serif: true })
+    expect(useReaderStore.getState().videoAdvance).toBe('auto')
     expect(useReaderStore.getState().mode).toBe('page')
   })
 })

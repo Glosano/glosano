@@ -24,6 +24,8 @@ interface Props {
   onPlaying?(playing: boolean): void
   onBoundary?(): Interval | null
   onSeek?(time: number): Interval | null
+  /** Asked once per resetKey change: true starts playback from the new interval. */
+  playOnReset?(): boolean
 }
 
 export function VideoPlayer(props: Props) {
@@ -107,6 +109,7 @@ export function VideoPlayer(props: Props) {
         ? start
         : bound.current.start,
     )
+    if (latest.current.playOnReset?.()) void play()
     // resetKey represents manual navigation; automatic paging changes only the bounds.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.resetKey])

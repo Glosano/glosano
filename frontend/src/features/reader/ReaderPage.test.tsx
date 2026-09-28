@@ -250,6 +250,7 @@ describe('ReaderPage', () => {
       lastBulkActionId: null,
       font: { size: 1, lineHeight: 1, serif: false },
       wordCardExpanded: false,
+      videoAdvance: 'stop',
     })
   })
 
@@ -280,7 +281,7 @@ describe('ReaderPage', () => {
 
   it('auto turns pages, marks the departed page and highlights the playing fragment', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
     await startVideo()
     act(() => {
       video.time = 2.02
@@ -307,7 +308,7 @@ describe('ReaderPage', () => {
 
   it('follows a manual video seek without marking skipped pages known', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
     await startVideo()
     act(() => {
       video.time = 3.2
@@ -324,7 +325,7 @@ describe('ReaderPage', () => {
       vi.mocked(readerApi.bulkKnown)
         .mockRejectedValueOnce(new Error('Response lost'))
         .mockRejectedValueOnce(new ApiError(409, detail))
-      fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+      fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
       await startVideo()
       act(() => {
         video.time = 2.02
@@ -345,7 +346,7 @@ describe('ReaderPage', () => {
     await startVideo()
     fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
     expect(video.state).toBe(2)
-    expect(screen.queryByRole('switch', { name: 'Листать автоматически' })).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Стоп' })).toBeChecked()
     expect(screen.queryByRole('button', { name: 'Воспроизвести аудио' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Воспроизвести фрагмент' }))
     act(() => {
@@ -360,10 +361,10 @@ describe('ReaderPage', () => {
     expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('Word0')
   })
 
-  it('Undo pauses playback and disables automatic paging', async () => {
+  it('Undo pauses playback and keeps the chosen advance mode', async () => {
     videoLesson()
     vi.mocked(readerApi.undoBulk).mockResolvedValue({ undone_count: 250 })
-    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
     await startVideo()
     act(() => {
       video.time = 2.02
@@ -373,12 +374,12 @@ describe('ReaderPage', () => {
     fireEvent.click(within(toast).getByRole('button', { name: 'Отменить' }))
     await waitFor(() => expect(readerApi.undoBulk).toHaveBeenCalled())
     expect(video.state).toBe(2)
-    expect(screen.getByRole('switch', { name: 'Листать автоматически' })).not.toBeChecked()
+    expect(screen.getByRole('radio', { name: 'Листать автоматически' })).toBeChecked()
   })
 
   it('does not complete the material when the final video fragment ends', async () => {
     videoLesson()
-    fireEvent.click(await screen.findByRole('switch', { name: 'Листать автоматически' }))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
     await startVideo()
     act(() => {
       video.time = 3.7
@@ -400,6 +401,115 @@ describe('ReaderPage', () => {
     expect(screen.getByRole('button', { name: 'Следующая страница' })).toBeEnabled()
     expect(screen.queryByTestId('end-of-material')).not.toBeInTheDocument()
     expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it('keeps the video paused after a manual Next when stop is chosen', async () => {
+    videoLesson()
+    await startVideo()
+    fireEvent.click(screen.getByRole('button', { name: 'Следующая страница' }))
+    await waitFor(() => expect(screen.getByTestId('page-view-slot')).toHaveTextContent('Word250'))
+    expect(video.state).toBe(2)
+  })
+
+  it.each([
+    ['page', 'Следующая страница', 'page-view-slot'],
+    ['sentence', 'Следующий фрагмент', 'sentence-view-slot'],
+  ])(
+    'plays the next %s after a manual Next when play on turn is chosen',
+    async (mode, next, slot) => {
+      videoLesson()
+      fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+      if (mode === 'sentence')
+        fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+      expect(video.state).toBe(2)
+      fireEvent.click(screen.getByRole('button', { name: next }))
+      await waitFor(() => expect(video.state).toBe(1))
+      expect(video.time).toBe(2)
+      expect(screen.getByTestId(slot)).toHaveTextContent('Word250')
+      expect(readerApi.bulkKnown).toHaveBeenCalledWith(
+        expect.objectContaining({ from_ordinal: 0, to_ordinal: 249 }),
+        expect.anything(),
+      )
+    },
+  )
+
+  it('plays the previous fragment after a manual Prev when play on turn is chosen', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+    fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Следующий фрагмент' }))
+    await waitFor(() => expect(video.state).toBe(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Предыдущий фрагмент' }))
+    await waitFor(() => expect(video.time).toBe(1))
+    expect(video.state).toBe(1)
+    expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('Word0')
+  })
+
+  it('neither advances nor plays when saving a manual Next fails', async () => {
+    videoLesson()
+    vi.mocked(readerApi.bulkKnown).mockRejectedValueOnce(new Error('Network'))
+    fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+    fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+    const next = screen.getByRole('button', { name: 'Следующий фрагмент' })
+    fireEvent.click(next)
+    await waitFor(() => expect(readerApi.bulkKnown).toHaveBeenCalled())
+    await waitFor(() => expect(next).toBeEnabled())
+    expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('Word0')
+    expect(video.state).toBe(2)
+  })
+
+  it('auto advances fragments, marks the departed fragment and keeps playing', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+    expect(
+      screen.getByText(
+        'Новые слова покинутого фрагмента становятся известными. Действие можно отменить.',
+      ),
+    ).toBeVisible()
+    await startVideo()
+    act(() => {
+      video.time = 2.02
+      vi.advanceTimersByTime(100)
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('Word250'),
+    )
+    await waitFor(() =>
+      expect(readerApi.bulkKnown).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from_ordinal: 0,
+          to_ordinal: 249,
+          request_id: expect.any(String),
+        }),
+        expect.anything(),
+      ),
+    )
+    expect(video.state).toBe(1)
+  })
+
+  it('follows a manual seek in fragment mode without marking skipped fragments', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Листать автоматически' }))
+    fireEvent.click(screen.getByRole('button', { name: 'По фрагментам' }))
+    await startVideo()
+    act(() => {
+      video.time = 3.2
+      vi.advanceTimersByTime(100)
+    })
+    await waitFor(() =>
+      expect(screen.getByTestId('sentence-view-slot')).toHaveTextContent('Word500'),
+    )
+    expect(readerApi.bulkKnown).not.toHaveBeenCalled()
+  })
+
+  it('remembers the chosen advance mode between visits', async () => {
+    videoLesson()
+    fireEvent.click(await screen.findByRole('radio', { name: 'Играть при листании' }))
+    expect(useReaderStore.getState().videoAdvance).toBe('play')
+    expect(JSON.parse(localStorage.getItem('glosano-reader-prefs')!).state.videoAdvance).toBe(
+      'play',
+    )
   })
 
   it('switches reader labels and all translation targets live without changing saved translations', async () => {

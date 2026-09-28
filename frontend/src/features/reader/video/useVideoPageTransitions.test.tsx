@@ -32,19 +32,19 @@ it('advances once, blocks another pending boundary and retries the same page req
         lessonId: 'L',
         lang: 'en',
         sourceVersion: 3,
-        onPage: changed,
         pause,
         onSaved: saved,
       }),
     { wrapper },
   )
   act(() => {
-    expect(hook.result.current.advance(0, 249, 1)).toBe(true)
+    expect(hook.result.current.advance(0, 249, () => changed(1))).toBe(true)
   })
   expect(changed).toHaveBeenCalledWith(1)
   act(() => {
-    expect(hook.result.current.advance(250, 499, 2)).toBe(false)
+    expect(hook.result.current.advance(250, 499, () => changed(2))).toBe(false)
   })
+  expect(changed).toHaveBeenCalledTimes(1)
   await waitFor(() => expect(readerApi.bulkKnown).toHaveBeenCalledTimes(1))
   const first = vi.mocked(readerApi.bulkKnown).mock.calls[0]![0]
   await act(async () => {
@@ -78,14 +78,13 @@ it('ignores late success after changing material', async () => {
         lessonId,
         lang: 'en',
         sourceVersion: 1,
-        onPage: () => {},
         pause: () => {},
         onSaved: saved,
       }),
     { wrapper, initialProps: { lessonId: 'old' } },
   )
   act(() => {
-    hook.result.current.advance(0, 5, 1)
+    hook.result.current.advance(0, 5, () => {})
   })
   await act(async () => {})
   hook.rerender({ lessonId: 'new' })

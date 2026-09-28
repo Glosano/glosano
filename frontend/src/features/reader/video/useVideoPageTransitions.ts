@@ -8,7 +8,6 @@ interface Options {
   lessonId: string
   lang: string
   sourceVersion: number
-  onPage(index: number): void
   pause(): void
   onSaved(result: BulkKnownResult): void
 }
@@ -48,7 +47,8 @@ export function useVideoPageTransitions(options: Options) {
     saving: phase === 'saving',
     failed: phase === 'failed',
     error: mutation.error,
-    advance(from: number, to: number, nextPage: number): boolean {
+    /** Marks the departed page or fragment known and lets `move` show the next one. */
+    advance(from: number, to: number, move: () => void): boolean {
       if (request.current) return false
       const body = {
         lesson_id: options.lessonId,
@@ -58,7 +58,7 @@ export function useVideoPageTransitions(options: Options) {
         request_id: randomId(),
       }
       request.current = body
-      options.onPage(nextPage)
+      move()
       save(body)
       return true
     },

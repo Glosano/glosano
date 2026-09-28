@@ -14,12 +14,20 @@ export const videoMessages: Record<string, string> = {
   'Открыть на YouTube': 'Open on YouTube',
   'Браузер остановил запуск. Нажмите «Воспроизвести» ещё раз.':
     'Your browser blocked playback. Press Play again.',
-  'Листать автоматически': 'Turn pages automatically',
+  Воспроизведение: 'Playback',
+  Стоп: 'Stop',
+  'Играть при листании': 'Play on turn',
+  'Листать автоматически': 'Advance automatically',
   'Новые слова покинутой страницы становятся известными. Действие можно отменить.':
     'New words on the page you leave become known. You can undo this.',
+  'Новые слова покинутого фрагмента становятся известными. Действие можно отменить.':
+    'New words in the fragment you leave become known. You can undo this.',
   'Сохраняем прогресс страницы…': 'Saving page progress…',
+  'Сохраняем прогресс фрагмента…': 'Saving fragment progress…',
   'Не удалось сохранить страницу. Повторите сохранение, затем нажмите Play.':
     'Could not save the page. Retry saving, then press Play.',
+  'Не удалось сохранить фрагмент. Повторите сохранение, затем нажмите Play.':
+    'Could not save the fragment. Retry saving, then press Play.',
   'Повторить сохранение': 'Retry saving',
   'Воспроизвести с {{time}}': 'Play from {{time}}',
   'По фрагментам': 'By fragment',
