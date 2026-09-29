@@ -322,3 +322,54 @@ it('pins the section when asked and toggles the pin', () => {
   expect(section).not.toHaveClass('sticky')
   expect(section.querySelector('.aspect-video')).toHaveClass('min-h-[200px]')
 })
+
+it('shrinks the pinned video to the mini size without recreating the player host', () => {
+  const onChange = vi.fn()
+  const props = { media, interval: { start: 1, end: 2 }, resetKey: 'one', onTime: () => {} }
+  const view = render(
+    <VideoPlayer
+      {...props}
+      pin={{ pinned: true, onChange: () => {} }}
+      size={{ mini: false, onChange }}
+    />,
+  )
+  const section = screen.getByRole('region', { name: 'Video player' })
+  const host = section.querySelector('.aspect-video > div')
+  expect(section).not.toHaveAttribute('data-video-mini')
+  const toggle = screen.getByRole('button', { name: 'Shrink video' })
+  expect(toggle).toHaveAttribute('aria-pressed', 'false')
+  fireEvent.click(toggle)
+  expect(onChange).toHaveBeenCalledWith(true)
+
+  view.rerender(
+    <VideoPlayer
+      {...props}
+      pin={{ pinned: true, onChange: () => {} }}
+      size={{ mini: true, onChange }}
+    />,
+  )
+  expect(section).toHaveAttribute('data-video-mini')
+  expect(section.querySelector('.aspect-video')).toHaveClass('w-[356px]', 'min-h-[200px]')
+  expect(section.querySelector('.aspect-video > div')).toBe(host)
+  expect(screen.getByRole('button', { name: 'Shrink video' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+})
+
+it('offers the mini size only while the video is pinned', () => {
+  render(
+    <VideoPlayer
+      media={media}
+      interval={{ start: 1, end: 2 }}
+      resetKey="one"
+      onTime={() => {}}
+      pin={{ pinned: false, onChange: () => {} }}
+      size={{ mini: true, onChange: () => {} }}
+    />,
+  )
+  const section = screen.getByRole('region', { name: 'Video player' })
+  expect(section).not.toHaveAttribute('data-video-mini')
+  expect(section.querySelector('.aspect-video')).not.toHaveClass('w-[356px]')
+  expect(screen.queryByRole('button', { name: 'Shrink video' })).not.toBeInTheDocument()
+})

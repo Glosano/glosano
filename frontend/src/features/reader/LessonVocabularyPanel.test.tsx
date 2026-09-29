@@ -210,6 +210,7 @@ describe('LessonVocabularyPanel', () => {
       font: { size: 2, lineHeight: 0, serif: true },
       videoAdvance: 'auto',
       videoPinned: true,
+      videoMini: true,
     })
     useReaderStore.getState().setVocabularyPanelPinned(true)
 
@@ -219,6 +220,7 @@ describe('LessonVocabularyPanel', () => {
       font: { size: 2, lineHeight: 0, serif: true },
       videoAdvance: 'auto',
       videoPinned: true,
+      videoMini: true,
     })
 
     useReaderStore.setState({
@@ -227,6 +229,7 @@ describe('LessonVocabularyPanel', () => {
       font: { size: 0, lineHeight: 2, serif: false },
       videoAdvance: 'stop',
       videoPinned: true,
+      videoMini: false,
     })
     localStorage.setItem('glosano-reader-prefs', JSON.stringify(stored))
     await useReaderStore.persist.rehydrate()
@@ -235,6 +238,7 @@ describe('LessonVocabularyPanel', () => {
     expect(useReaderStore.getState().font).toEqual({ size: 2, lineHeight: 0, serif: true })
     expect(useReaderStore.getState().videoAdvance).toBe('auto')
     expect(useReaderStore.getState().videoPinned).toBe(true)
+    expect(useReaderStore.getState().videoMini).toBe(true)
     expect(useReaderStore.getState().mode).toBe('page')
   })
 })

@@ -6,7 +6,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  useReaderStore.setState({ videoAdvance: 'stop', videoPinned: true })
+  useReaderStore.setState({ videoAdvance: 'stop', videoPinned: true, videoMini: false })
 })
 
 it('pins the video by default and persists the choice', () => {
@@ -38,4 +38,11 @@ it('defaults videoPinned to true when a fresh store loads older saved preference
   await fresh.persist.rehydrate()
   expect(fresh.getState().videoAdvance).toBe('play')
   expect(fresh.getState().videoPinned).toBe(true)
+  expect(fresh.getState().videoMini).toBe(false)
+})
+
+it('persists the mini video size', () => {
+  useReaderStore.getState().setVideoMini(true)
+  const saved = JSON.parse(localStorage.getItem('glosano-reader-prefs') ?? '{}')
+  expect(saved.state.videoMini).toBe(true)
 })

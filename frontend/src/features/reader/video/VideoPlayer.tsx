@@ -3,6 +3,8 @@ import {
   Ellipsis,
   ExternalLink,
   LoaderCircle,
+  Maximize2,
+  Minimize2,
   Pause,
   Pin,
   PinOff,
@@ -49,6 +51,8 @@ interface Props {
   children?: ReactNode
   /** Offered on phones: keeps the player on screen while the text scrolls. */
   pin?: { pinned: boolean; onChange(pinned: boolean): void }
+  /** Offered on wide phones: shrinks the pinned player to YouTube's minimum size. */
+  size?: { mini: boolean; onChange(mini: boolean): void }
 }
 
 export function VideoPlayer(props: Props) {
@@ -293,23 +297,27 @@ export function VideoPlayer(props: Props) {
   }
 
   const pinned = props.pin?.pinned ?? false
+  // Only a pinned player shrinks; elsewhere it already scrolls out of the text's way.
+  const mini = pinned && (props.size?.mini ?? false)
   const captions = t(props.media.is_generated ? 'Автоматические субтитры' : 'Авторские субтитры')
   const playLabel = playing ? t('Пауза') : t('Воспроизвести фрагмент')
   return (
     <section
       aria-label={t('Видеоплеер')}
       data-video-pinned={pinned ? '' : undefined}
+      data-video-mini={mini ? '' : undefined}
       className={cn(
-        'space-y-2',
         pinned
           ? 'sticky top-0 z-30 -mx-4 bg-background pb-2 sm:-mx-6'
           : 'mx-auto mt-4 max-w-[720px]',
+        mini ? 'flex flex-wrap items-center gap-2 p-2' : 'space-y-2',
       )}
     >
       <div
         className={cn(
           'relative aspect-video min-h-[200px] overflow-hidden bg-neutral-950 text-white',
           !pinned && 'rounded-xl',
+          mini && 'w-[356px] shrink-0 rounded-md',
         )}
       >
         <div ref={host} className="absolute inset-0" />
@@ -324,7 +332,12 @@ export function VideoPlayer(props: Props) {
           </div>
         )}
       </div>
-      <div className={cn('flex items-center gap-1', pinned && 'px-2')}>
+      <div
+        className={cn(
+          'flex items-center gap-1',
+          mini ? 'min-w-0 flex-1 flex-wrap' : pinned && 'px-2',
+        )}
+      >
         <Button
           size="icon-lg"
           disabled={loading || props.blocked}
@@ -390,9 +403,23 @@ export function VideoPlayer(props: Props) {
               {pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />}
             </Button>
           )}
+          {pinned && props.size && (
+            <Button
+              variant="ghost"
+              size="icon-lg"
+              aria-label={t('Уменьшить видео')}
+              title={t('Уменьшить видео')}
+              aria-pressed={mini}
+              onClick={() => props.size?.onChange(!mini)}
+            >
+              {mini ? <Maximize2 aria-hidden /> : <Minimize2 aria-hidden />}
+            </Button>
+          )}
         </div>
       </div>
-      <div className={cn('space-y-2 text-sm empty:hidden', pinned && 'px-4 sm:px-6')}>
+      <div
+        className={cn('space-y-2 text-sm empty:hidden', mini ? 'w-full' : pinned && 'px-4 sm:px-6')}
+      >
         {error && (
           <p role="alert" className="text-destructive">
             {t('Не удалось открыть видео. Текст доступен для изучения.')}{' '}

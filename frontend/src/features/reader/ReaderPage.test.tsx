@@ -259,6 +259,7 @@ describe('ReaderPage', () => {
       wordCardExpanded: false,
       videoAdvance: 'stop',
       videoPinned: true,
+      videoMini: false,
     })
   })
 
@@ -534,6 +535,34 @@ describe('ReaderPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Закрепить видео' }))
       expect(player).not.toHaveAttribute('data-video-pinned')
       expect(useReaderStore.getState().videoPinned).toBe(false)
+    } finally {
+      clearMediaQueries()
+    }
+  })
+
+  it('lets the learner shrink the pinned video on wide phones', async () => {
+    mockMediaQueries(['(max-width: 767px) and (min-height: 560px)', '(min-width: 480px)'])
+    try {
+      videoLesson()
+      const player = await screen.findByRole('region', { name: 'Видеоплеер' })
+      fireEvent.click(screen.getByRole('button', { name: 'Уменьшить видео' }))
+      expect(player).toHaveAttribute('data-video-mini')
+      expect(useReaderStore.getState().videoMini).toBe(true)
+      fireEvent.click(screen.getByRole('button', { name: 'Закрепить видео' }))
+      expect(player).not.toHaveAttribute('data-video-mini')
+      expect(screen.queryByRole('button', { name: 'Уменьшить видео' })).not.toBeInTheDocument()
+    } finally {
+      clearMediaQueries()
+    }
+  })
+
+  it('does not offer the mini video on narrow phones', async () => {
+    mockMediaQueries(['(max-width: 767px) and (min-height: 560px)'])
+    try {
+      videoLesson()
+      const player = await screen.findByRole('region', { name: 'Видеоплеер' })
+      expect(player).toHaveAttribute('data-video-pinned')
+      expect(screen.queryByRole('button', { name: 'Уменьшить видео' })).not.toBeInTheDocument()
     } finally {
       clearMediaQueries()
     }

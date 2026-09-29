@@ -22,6 +22,8 @@ interface ReaderState {
   videoAdvance: VideoAdvance
   /** Phones keep the video on screen above the text unless the learner unpins it. */
   videoPinned: boolean
+  /** Wide phones can shrink the pinned video to its minimum size to leave room for text. */
+  videoMini: boolean
   setMode: (m: ViewMode) => void
   setPageIndex: (i: number) => void
   setSentenceFlatIndex: (i: number) => void
@@ -31,6 +33,7 @@ interface ReaderState {
   setWordCardExpanded: (v: boolean) => void
   setVideoAdvance: (v: VideoAdvance) => void
   setVideoPinned: (v: boolean) => void
+  setVideoMini: (v: boolean) => void
 }
 
 export const useReaderStore = create<ReaderState>()(
@@ -45,6 +48,7 @@ export const useReaderStore = create<ReaderState>()(
       wordCardExpanded: false,
       videoAdvance: 'stop',
       videoPinned: true,
+      videoMini: false,
       setMode: (mode) => set({ mode }),
       setPageIndex: (pageIndex) => set({ pageIndex }),
       setSentenceFlatIndex: (sentenceFlatIndex) => set({ sentenceFlatIndex }),
@@ -54,6 +58,7 @@ export const useReaderStore = create<ReaderState>()(
       setWordCardExpanded: (wordCardExpanded) => set({ wordCardExpanded }),
       setVideoAdvance: (videoAdvance) => set({ videoAdvance }),
       setVideoPinned: (videoPinned) => set({ videoPinned }),
+      setVideoMini: (videoMini) => set({ videoMini }),
     }),
     {
       name: 'glosano-reader-prefs',
@@ -63,6 +68,7 @@ export const useReaderStore = create<ReaderState>()(
           vocabularyPanelPinned: s.vocabularyPanelPinned,
           videoAdvance: s.videoAdvance,
           videoPinned: s.videoPinned,
+          videoMini: s.videoMini,
         }) as Partial<ReaderState>,
     },
   ),

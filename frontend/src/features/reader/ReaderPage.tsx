@@ -49,7 +49,7 @@ import { VideoPlayer, type VideoControls } from './video/VideoPlayer'
 import { activeFragment, intervalFor } from './video/playback'
 import { useVideoPageTransitions } from './video/useVideoPageTransitions'
 import { VideoAdvanceMenu } from './video/VideoAdvanceMenu'
-import { PINNED_VIDEO_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
+import { MINI_VIDEO_QUERY, PINNED_VIDEO_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 
 interface Props {
   lang: string
@@ -132,6 +132,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const videoPinned = useReaderStore((s) => s.videoPinned)
   const setVideoPinned = useReaderStore((s) => s.setVideoPinned)
   const canPinVideo = useMediaQuery(PINNED_VIDEO_QUERY)
+  const videoMini = useReaderStore((s) => s.videoMini)
+  const setVideoMini = useReaderStore((s) => s.setVideoMini)
+  const canShrinkVideo = useMediaQuery(MINI_VIDEO_QUERY)
   const playOnTurn = videoAdvance !== 'stop'
 
   const bulkKnown = useBulkKnown(lessonId, lang)
@@ -1161,6 +1164,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             />
           }
           pin={canPinVideo ? { pinned: videoPinned, onChange: setVideoPinned } : undefined}
+          size={
+            canPinVideo && canShrinkVideo ? { mini: videoMini, onChange: setVideoMini } : undefined
+          }
         >
           {autoTransition.saving && (
             <p role="status">

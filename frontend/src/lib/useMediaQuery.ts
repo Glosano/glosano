@@ -27,5 +27,7 @@ export function useMediaQuery(query: string, fallback = false): boolean {
 export const COMPACT_QUERY = '(max-width: 767px)'
 /** Phone-width screens tall enough to keep the video pinned above the text. */
 export const PINNED_VIDEO_QUERY = '(max-width: 767px) and (min-height: 560px)'
+/** Screens wide enough that the minimum-size video is noticeably smaller than full width. */
+export const MINI_VIDEO_QUERY = '(min-width: 480px)'
 /** Touch-first input: on-screen keyboards make Enter-to-send error-prone. */
 export const COARSE_POINTER_QUERY = '(pointer: coarse)'

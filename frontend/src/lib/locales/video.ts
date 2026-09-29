@@ -18,6 +18,7 @@ export const videoMessages: Record<string, string> = {
   'Режим листания': 'Page turning',
   Ещё: 'More',
   'Закрепить видео': 'Pin video',
+  'Уменьшить видео': 'Shrink video',
   'Новые слова покинутой страницы становятся известными. Действие можно отменить.':
     'New words on the page you leave become known. You can undo this.',
   'Новые слова покинутого фрагмента становятся известными. Действие можно отменить.':
