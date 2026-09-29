@@ -540,6 +540,43 @@ describe('ReaderPage', () => {
     }
   })
 
+  it('keeps playing while the learner scrolls the text with a finger', async () => {
+    videoLesson()
+    await startVideo()
+    const word = screen.getByRole('button', { name: 'Word0' })
+    fireEvent(
+      word,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        pointerType: 'touch',
+        button: 0,
+        buttons: 1,
+      }),
+    )
+    fireEvent.touchStart(word, { touches: [{ clientX: 20, clientY: 400 }] })
+    fireEvent.touchMove(word, { touches: [{ clientX: 20, clientY: 250 }] })
+    fireEvent.touchEnd(word, { touches: [], changedTouches: [{ clientX: 20, clientY: 250 }] })
+    fireEvent(word, new PointerEvent('pointercancel', { bubbles: true, pointerType: 'touch' }))
+    expect(video.state).toBe(1)
+  })
+
+  it('pauses when the learner opens a word while the video plays', async () => {
+    videoLesson()
+    await startVideo()
+    fireEvent.click(screen.getByRole('button', { name: 'Word0' }))
+    expect(video.state).toBe(2)
+  })
+
+  it('pauses when a long press starts selecting a phrase', async () => {
+    videoLesson()
+    await startVideo()
+    const word = screen.getByRole('button', { name: 'Word0' })
+    fireEvent.touchStart(word, { touches: [{ clientX: 20, clientY: 400 }] })
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)))
+    expect(video.state).toBe(2)
+    fireEvent.touchCancel(word)
+  })
+
   it('lets the learner shrink the pinned video on wide phones', async () => {
     mockMediaQueries(['(max-width: 767px) and (min-height: 560px)', '(min-width: 480px)'])
     try {

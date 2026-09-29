@@ -1097,6 +1097,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             chatOpen ||
             !!selectedWord ||
             !!dragRange ||
+            !!touchRange ||
             atEnd ||
             bulkKnown.isPending ||
             completeLesson.isPending ||
@@ -1242,7 +1243,6 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           'py-6 [@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]',
           fontClass,
         )}
-        onPointerDownCapture={() => videoControls.current?.pause()}
         onTouchStart={swipeHandlers.onTouchStart}
         onTouchMove={swipeHandlers.onTouchMove}
         onTouchEnd={swipeHandlers.onTouchEnd}
