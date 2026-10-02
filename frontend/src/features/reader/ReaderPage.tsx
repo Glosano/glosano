@@ -462,6 +462,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   }
   function returnToReader() {
     setChatOpen(false)
+    closeCard()
     readerPage.current?.focus({ preventScroll: true })
   }
   async function addToChat(newConversation: boolean) {
