@@ -26,6 +26,7 @@ interface Props {
   /** Явное действие со статусом («добавили в обучение») — ридер по нему
       гасит подсветку выделения, не закрывая карточку. */
   onStatusApplied?: () => void
+  onTranslationSelected?: () => void
   sentenceText: string | null
   embedded?: boolean
   closeLabel?: string
@@ -41,6 +42,7 @@ export function WordCard({
   segId,
   onClose,
   onStatusApplied,
+  onTranslationSelected,
   sentenceText,
   embedded = false,
   closeLabel,
@@ -108,6 +110,7 @@ export function WordCard({
   const aiDisabled = ai.error instanceof ApiError && ai.error.status === 503
 
   const [saveError, setSaveError] = useState(false)
+  const [suggestionError, setSuggestionError] = useState(false)
 
   const tagsRef = useRef<WordTagsHandle>(null)
   const [noteDraft, setNoteDraft] = useState('')
@@ -325,17 +328,7 @@ export function WordCard({
                 // A dictionary match confirms the AI draft, so save it as dictionary data.
                 const saveSource = sug.fromDictionary ? 'dictionary' : 'ai'
                 return (
-                  <li
-                    key={sug.text.toLocaleLowerCase()}
-                    className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
-                  >
-                    <span className="text-primary">
-                      <span data-suggestion-text>{sug.text}</span>
-                      <span aria-hidden="true" className="ml-2 text-muted-foreground">
-                        {[sug.fromAi && '✦', sug.fromDictionary && '📘'].filter(Boolean).join(' ')}
-                      </span>
-                      <span className="ml-2 text-xs text-muted-foreground">{sourceLabel}</span>
-                    </span>
+                  <li key={sug.text.toLocaleLowerCase()}>
                     <button
                       type="button"
                       aria-label={
@@ -346,7 +339,8 @@ export function WordCard({
                             })
                           : tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
                       }
-                      onClick={() =>
+                      onClick={() => {
+                        setSuggestionError(false)
                         void withItem((id) =>
                           m.saveTranslation.mutateAsync({
                             itemId: id,
@@ -355,15 +349,31 @@ export function WordCard({
                             target,
                           }),
                         )
-                      }
-                      className="rounded p-1 hover:bg-accent"
+                          .then(() => onTranslationSelected?.())
+                          .catch(() => setSuggestionError(true))
+                      }}
+                      className="flex w-full items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                     >
-                      +
+                      <span className="text-primary">
+                        <span data-suggestion-text>{sug.text}</span>
+                        <span aria-hidden="true" className="ml-2 text-muted-foreground">
+                          {[sug.fromAi && '✦', sug.fromDictionary && '📘'].filter(Boolean).join(' ')}
+                        </span>
+                        <span className="ml-2 text-xs text-muted-foreground">{sourceLabel}</span>
+                      </span>
+                      <span aria-hidden="true" className="shrink-0 p-1">
+                        +
+                      </span>
                     </button>
                   </li>
                 )
               })}
             </ul>
+            {suggestionError && (
+              <p role="alert" className="mt-2 text-sm text-destructive">
+                {tr('Не удалось сохранить')}
+              </p>
+            )}
             {showDictionaryAttribution && dict.data?.attribution && (
               <p className="mt-2 text-xs text-muted-foreground">
                 {tr('Источник:')}{' '}

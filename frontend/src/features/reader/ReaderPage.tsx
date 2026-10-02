@@ -92,6 +92,8 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   const preparedSelections = useChatStore((state) => state.citationTexts)
   const readerPage = useRef<HTMLDivElement>(null)
   const [selectedWord, setSelectedWord] = useState<SelectedItem | null>(null)
+  const selectedWordRef = useRef(selectedWord)
+  selectedWordRef.current = selectedWord
   // Вхождение, из которого открыта карточка: держит подсветку выделения,
   // пока карточка открыта; гаснет при закрытии или при выборе статуса
   // (дальше слово помечает статусный цвет).
@@ -1410,6 +1412,15 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             segId={selectedSegId}
             onClose={closeCard}
             onStatusApplied={() => setSelectionRange(null)}
+            onTranslationSelected={() => {
+              if (
+                activeLesson.current === lessonId &&
+                selectedWordRef.current === selectedWord &&
+                !useReaderStore.getState().vocabularyPanelPinned
+              ) {
+                closeCard()
+              }
+            }}
             sentenceText={selectedSentenceText}
             embedded
             closeLabel={vocabularyPanelPinned ? tr('К списку') : tr('Закрыть карточку')}
