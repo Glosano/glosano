@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/api/review', () => ({
   reviewApi: {
     counts: vi.fn(),
+    selectedQueue: vi.fn(),
     queue: vi.fn(),
     exercise: vi.fn(),
     exerciseFeedback: vi.fn(),
@@ -23,7 +24,7 @@ import { ModeSelect } from './ModeSelect'
 import { NewWordsSession } from './NewWordsSession'
 import { QuizSession } from './QuizSession'
 import { TranslationSession } from './TranslationSession'
-import { SessionSummary } from './sessionUi'
+import { FillBlankSession } from './FillBlankSession'
 
 const item = {
   review_item_id: 'R1',
@@ -71,11 +72,11 @@ describe('Review localization', () => {
     })
     show(<ModeSelect lang="pt" />)
     expect(await screen.findByText('Flashcards')).toBeInTheDocument()
-    expect(screen.getByText('Classic flip cards')).toBeInTheDocument()
-    expect(screen.getAllByText('AI is disabled')).toHaveLength(4)
+    expect(screen.getByText('Recall the meaning and reveal the answer')).toBeInTheDocument()
+    expect(screen.getAllByText('AI is disabled')).toHaveLength(5)
     act(() => setUiLanguage('ru'))
     expect(screen.getByText('Карточки')).toBeInTheDocument()
-    expect(screen.getAllByText('AI отключён')).toHaveLength(4)
+    expect(screen.getAllByText('AI отключён')).toHaveLength(5)
   })
 
   it('replaces a pending old-locale example without translating the studied word or saved text', async () => {
@@ -118,7 +119,7 @@ describe('Review localization', () => {
     show(<QuizSession lang="pt" kind="cloze" />)
     fireEvent.click(await screen.findByRole('button', { name: 'Todo' }))
     expect(screen.getByText('❌ Correct answer: Cada')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '5 — Perfect' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '5 — Recalled immediately' })).toBeInTheDocument()
     act(() => setUiLanguage('ru'))
     expect(await screen.findByRole('button', { name: 'Todo' })).toBeEnabled()
     expect(screen.queryByText('❌ Correct answer: Cada')).not.toBeInTheDocument()
@@ -163,28 +164,23 @@ describe('Review localization', () => {
     expect(reviewApi.answer).not.toHaveBeenCalled()
   })
 
-  it('discards a generated writing instruction on a live locale switch', async () => {
+  it('localizes the independent fill exercise and hint', async () => {
     vi.mocked(reviewApi.exercise).mockResolvedValue({
-      payload: { text: 'Write a sentence using cada.' },
+      payload: {
+        before: '',
+        answer: 'Cada',
+        after: ' dia é único.',
+        translation: 'Every day is unique.',
+      },
       model: 'm',
       latency_ms: 1,
     })
-    show(
-      <SessionSummary
-        results={[{ item, quality: 2 }]}
-        restart={() => {}}
-        graduated={false}
-        dismissGraduation={() => {}}
-        showWriting
-      />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Writing exercise for your mistakes' }))
-    expect(await screen.findByText('Write a sentence using cada.')).toBeInTheDocument()
-    act(() => setUiLanguage('ru'))
-    expect(screen.queryByText('Write a sentence using cada.')).not.toBeInTheDocument()
+    show(<FillBlankSession lang="pt" />)
     expect(
-      screen.getByRole('button', { name: 'Письменное упражнение по ошибкам' }),
+      await screen.findByRole('textbox', { name: 'Enter the missing word' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Средняя оценка: 2,0')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Hint' }))
+    expect(screen.getByText('Every day is unique.')).toBeInTheDocument()
+    expect(reviewApi.answer).not.toHaveBeenCalled()
   })
 })

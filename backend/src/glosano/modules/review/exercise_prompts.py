@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from typing import Any
 
 from glosano.modules.ai_translation.prompts import LANGUAGE_NAMES
@@ -24,6 +26,7 @@ MAX_TOKENS_BY_KIND: dict[str, int] = {
     "translation_task": 300,
     "writing": 1200,
     "feedback": 500,
+    "fill_blank": 600,
 }
 
 
@@ -131,6 +134,39 @@ def build_writing_prompt(
     )
 
 
+def build_fill_blank_prompt(
+    *, word: str, translation: str | None, notes: str | None, learn_lang: str, target_lang: str
+) -> str:
+    return (
+        f"{_word_block(word, translation, notes)}\n"
+        f"Write one short natural {_lang(learn_lang)} sentence using this EXACT word form "
+        "or entire phrase exactly once. Do not conjugate, inflect or replace it. "
+        "Choose enough context to help recall its intended meaning. Split the sentence "
+        "into before, answer, after: their concatenation must be the complete sentence. "
+        "Preserve spaces around the answer in before/after. No underscores or other gaps. "
+        "The answer must not appear elsewhere in before/after. "
+        f"Translate the full sentence into {_lang(target_lang)}.\n"
+        'JSON schema: {"before": str, "answer": str, "after": str, "translation": str}'
+    )
+
+
+def normalize_fill_answer(value: str) -> str:
+    return " ".join(unicodedata.normalize("NFC", value).lower().split())
+
+
+def validate_fill_answer(
+    payload: dict[str, Any], expected: str, *, learn_lang: str | None = None
+) -> None:
+    if normalize_fill_answer(payload["answer"]) != normalize_fill_answer(expected):
+        raise ValueError("answer must match the studied form")
+    literal = re.escape(normalize_fill_answer(expected))
+    # Chinese/Japanese sentences do not separate words with spaces: Unicode
+    # word boundaries would miss a revealed answer next to another character.
+    pattern = literal if learn_lang in ("zh-Hans", "ja") else rf"(?<!\w){literal}(?!\w)"
+    if any(re.search(pattern, normalize_fill_answer(payload[key])) for key in ("before", "after")):
+        raise ValueError("the answer must not be revealed in the sentence context")
+
+
 def build_feedback_prompt(
     *,
     word: str,
@@ -170,6 +206,7 @@ _REQUIRED_KEYS: dict[str, set[str]] = {
     "translation_task": {"sentence_translation"},
     "writing": {"text"},
     "feedback": {"feedback"},
+    "fill_blank": {"before", "after", "answer", "translation"},
 }
 
 
@@ -178,6 +215,17 @@ def validate_payload(kind: str, payload: dict[str, Any]) -> None:
     missing = _REQUIRED_KEYS[kind] - payload.keys()
     if missing:
         raise ValueError(f"missing keys: {sorted(missing)}")
+    if kind == "fill_blank":
+        for key in _REQUIRED_KEYS[kind]:
+            value = payload[key]
+            if not isinstance(value, str) or len(value) > 1000:
+                raise ValueError("fill fields must be strings of at most 1000 characters")
+        if not payload["answer"].strip() or not payload["translation"].strip():
+            raise ValueError("answer and translation must not be empty")
+        if not (payload["before"] + payload["after"]).strip():
+            raise ValueError("sentence context must not be empty")
+        if "_" in payload["before"] + payload["after"]:
+            raise ValueError("only one implicit gap is allowed")
     if kind in ("cloze", "reverse"):
         options = payload["options"]
         if not isinstance(options, list) or len(options) != 4:

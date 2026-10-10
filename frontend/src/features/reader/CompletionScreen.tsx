@@ -179,7 +179,20 @@ export function CompletionScreen({
         </p>
       )}
       <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
-        <Button asChild>
+        <Button asChild disabled={busy || changed}>
+          <Link
+            to="/learn/$lang/review"
+            params={{ lang }}
+            search={{ lessonId, mode: 'cards', from: 'completion' }}
+            aria-disabled={busy || changed}
+            onClick={(e) => {
+              if (busy || changed) e.preventDefault()
+            }}
+          >
+            {t('Повторить лексику')}
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
           <Link to="/learn/$lang/library" params={{ lang }}>
             <ArrowLeft aria-hidden="true" className="size-4" />
             {t('В библиотеку')}

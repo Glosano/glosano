@@ -1,3 +1,5 @@
+import { exerciseErrorKey } from './exerciseError'
+import { ignoreReviewKey } from './keyboard'
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -30,7 +32,7 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
   const [revealed, setRevealed] = useState(false)
 
   const exercise = useQuery({
-    queryKey: ['exercise', language, 'example', s.current?.review_item_id ?? null],
+    queryKey: ['exercise', s.sessionKey, language, 'example', s.current?.review_item_id ?? null],
     queryFn: () =>
       reviewApi.exercise<ExampleExercise>({
         kind: 'example',
@@ -38,15 +40,16 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
       }),
     enabled: s.current !== undefined,
     staleTime: Infinity,
+    gcTime: 0,
     retry: false,
   })
 
-  useEffect(() => setRevealed(false), [s.current?.review_item_id])
+  useEffect(() => setRevealed(false), [s.current?.review_item_id, s.sessionKey])
 
   // хоткеи: Space — раскрыть; 0..5 — оценка после раскрытия
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (ignoreReviewKey(e)) return
       if (!s.current || !exercise.data) return
       if (e.key === ' ') {
         e.preventDefault()
@@ -66,15 +69,16 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
   const item = s.current!
 
   return (
-    <SessionShell subtitle={subtitle} idx={s.idx} total={s.total}>
-      <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
+    <SessionShell subtitle={subtitle} idx={s.idx} total={s.total} session={s}>
+      <div className="min-h-56 w-full rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
+        <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
         <p className="text-center text-2xl font-medium">{item.text}</p>
         {exercise.isPending && (
           <p className="mt-4 text-center text-sm text-muted-foreground">{t('Готовим пример…')}</p>
         )}
         {exercise.isError && (
           <div className="mt-4 text-center">
-            <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
+            <p className="text-sm text-destructive">{t(exerciseErrorKey(exercise.error))}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
                 {t('Повторить')}
@@ -99,10 +103,18 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
             ) : (
               <>
                 <hr className="my-4 border-border" />
-                {item.translation && <p className="text-center text-xl">{item.translation}</p>}
-                <p className="mt-2 text-center text-sm text-muted-foreground">
-                  {exercise.data.payload.base_form} → {exercise.data.payload.base_form_translation}
+                <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
+                <p className="text-center text-xl">
+                  {item.translation ?? t('Перевод не сохранён')}
                 </p>
+                {exercise.data.payload.base_form.normalize('NFC').toLowerCase() !==
+                  item.text.normalize('NFC').toLowerCase() && (
+                  <p className="mt-2 text-center text-sm text-muted-foreground">
+                    {exercise.data.payload.base_form} →{' '}
+                    {exercise.data.payload.base_form_translation}
+                  </p>
+                )}
+                <p className="mt-3 text-xs text-muted-foreground">{t('AI-перевод примера')}</p>
                 <p className="mt-1 text-center text-sm text-muted-foreground">
                   {exercise.data.payload.sentence_translation}
                 </p>

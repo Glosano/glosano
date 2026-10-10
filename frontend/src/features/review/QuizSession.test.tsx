@@ -5,24 +5,49 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/review', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  reviewApi: { counts: vi.fn(), queue: vi.fn(), answer: vi.fn(), exercise: vi.fn(), exerciseFeedback: vi.fn() },
+  reviewApi: {
+    counts: vi.fn(),
+    selectedQueue: vi.fn(),
+    queue: vi.fn(),
+    answer: vi.fn(),
+    exercise: vi.fn(),
+    exerciseFeedback: vi.fn(),
+  },
 }))
 
 // SessionStates рендерит <Link> из tanstack router на переходном empty-состоянии
 // сессии (session === null сразу после загрузки очереди), поэтому нужен стаб
 // с router-контекстом даже там, где сам экран это не проверяет.
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, className, to }: { children?: ReactNode; className?: string; to?: string }) => (
-    <a className={className} href={to}>{children}</a>
+  Link: ({
+    children,
+    className,
+    to,
+  }: {
+    children?: ReactNode
+    className?: string
+    to?: string
+  }) => (
+    <a className={className} href={to}>
+      {children}
+    </a>
   ),
 }))
 
 import { reviewApi } from '@/api/review'
 import { QuizSession } from './QuizSession'
+import { ReviewNavigationContext } from './reviewNavigation'
+const practice = vi.fn()
 
 const ITEM = {
-  review_item_id: 'R1', item_kind: 'token' as const, item_id: 'I1',
-  text: 'cada', confidence: 1, translation: 'каждый', notes: null, context_sentence: null,
+  review_item_id: 'R1',
+  item_kind: 'token' as const,
+  item_id: 'I1',
+  text: 'cada',
+  confidence: 1,
+  translation: 'каждый',
+  notes: null,
+  context_sentence: null,
 }
 const DAILY = { limit: 20, done_today: 0, limit_reached: false }
 const CLOZE = {
@@ -36,14 +61,17 @@ const CLOZE = {
       { text: 'Pouco', is_correct: false },
     ],
   },
-  model: 'm', latency_ms: 5,
+  model: 'm',
+  latency_ms: 5,
 }
 
 function renderQuiz(kind: 'cloze' | 'reverse' = 'cloze') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <QuizSession lang="pt" kind={kind} />
+      <ReviewNavigationContext.Provider value={{ choose: vi.fn(), practice }}>
+        <QuizSession lang="pt" kind={kind} />
+      </ReviewNavigationContext.Provider>
     </QueryClientProvider>,
   )
 }
@@ -54,7 +82,10 @@ describe('QuizSession (cloze)', () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
     vi.mocked(reviewApi.exercise).mockResolvedValue(CLOZE)
     vi.mocked(reviewApi.answer).mockResolvedValue({
-      new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+      new_confidence: 2,
+      new_status: 'tracked',
+      due_at: '2026-07-21T12:00:00Z',
+      done_today: 1,
     })
   })
 
@@ -63,10 +94,10 @@ describe('QuizSession (cloze)', () => {
     expect(await screen.findByText('___ dia é único.')).toBeTruthy()
     expect(reviewApi.exercise).toHaveBeenCalledWith({ kind: 'cloze', review_item_id: 'R1' })
     // до выбора GradeBar нет
-    expect(screen.queryByRole('button', { name: /5.*Идеально/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /5.*Вспомнил сразу/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Cada' }))
     expect(await screen.findByText('✅ Верно!')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /5.*Идеально/ }))
+    fireEvent.click(screen.getByRole('button', { name: /5.*Вспомнил сразу/ }))
     await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 5))
   })
 
@@ -107,7 +138,10 @@ describe('QuizSession (reverse)', () => {
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
     vi.mocked(reviewApi.exercise).mockResolvedValue(REVERSE)
     vi.mocked(reviewApi.answer).mockResolvedValue({
-      new_confidence: 2, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+      new_confidence: 2,
+      new_status: 'tracked',
+      due_at: '2026-07-21T12:00:00Z',
+      done_today: 1,
     })
   })
 
@@ -131,59 +165,55 @@ describe('QuizSession final screen — writing exercise', () => {
     vi.mocked(reviewApi.exercise).mockResolvedValue(CLOZE)
   })
 
-  it('shows writing exercise button on mistake (quality < 4), renders text on click', async () => {
+  it('opens the interactive practice for the exact difficult selection without generating static text', async () => {
     vi.mocked(reviewApi.answer).mockResolvedValue({
-      new_confidence: 1, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+      new_confidence: 1,
+      new_status: 'tracked',
+      due_at: '2026-07-21T12:00:00Z',
+      done_today: 1,
     })
     renderQuiz()
     fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
-    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
-    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
-    expect(await screen.findByText('Сессия завершена')).toBeTruthy()
-
-    const writingButton = screen.getByRole('button', { name: 'Письменное упражнение по ошибкам' })
-    vi.mocked(reviewApi.exercise).mockResolvedValue({
-      payload: { text: '1. ___ dia...\nОтветы: Cada' }, model: 'm', latency_ms: 5,
-    })
-    fireEvent.click(writingButton)
-    await waitFor(() =>
-      expect(reviewApi.exercise).toHaveBeenCalledWith({ kind: 'writing', review_item_ids: ['R1'] }),
-    )
-    expect(await screen.findByText(/Ответы: Cada/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /^3/ }))
+    await screen.findByText('Сессия завершена')
+    expect(screen.queryByRole('button', { name: /Повторить ошибки/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Закрепить трудные слова/ }))
+    expect(practice).toHaveBeenCalledWith(['R1'])
+    expect(reviewApi.exercise).toHaveBeenCalledTimes(1)
   })
 
-  it('shows only the retry CTA (not the original button) after writing mutation fails', async () => {
-    vi.mocked(reviewApi.answer).mockResolvedValue({
-      new_confidence: 1, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
-    })
+  it('holding an option key does not grade the answer', async () => {
     renderQuiz()
-    fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
-    fireEvent.click(screen.getByRole('button', { name: /^2/ }))
-    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
-    expect(await screen.findByText('Сессия завершена')).toBeTruthy()
-
-    vi.mocked(reviewApi.exercise).mockRejectedValue(new Error('boom'))
-    fireEvent.click(screen.getByRole('button', { name: 'Письменное упражнение по ошибкам' }))
-    expect(await screen.findByText('Не удалось сгенерировать упражнение')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Письменное упражнение по ошибкам' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Повторить' })).toBeTruthy()
+    await screen.findByRole('button', { name: 'Cada' })
+    fireEvent.keyDown(window, { key: '2' })
+    fireEvent.keyDown(window, { key: '2', repeat: true })
+    expect(reviewApi.answer).not.toHaveBeenCalled()
+    fireEvent.keyUp(window, { key: '2' })
+    fireEvent.keyDown(window, { key: '4' })
+    await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
   })
 
   it('hides writing exercise button when all answers are correct (quality >= 4)', async () => {
     vi.mocked(reviewApi.answer).mockResolvedValue({
-      new_confidence: 3, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+      new_confidence: 3,
+      new_status: 'tracked',
+      due_at: '2026-07-21T12:00:00Z',
+      done_today: 1,
     })
     renderQuiz()
     fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
     fireEvent.click(screen.getByRole('button', { name: /^5/ }))
     await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 5))
     expect(await screen.findByText('Сессия завершена')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Письменное упражнение по ошибкам' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Закрепить трудные слова/ })).toBeNull()
   })
 
-  it('в скоупе урока на финальном экране кнопка "Пройти ещё раз", а не "Повторить ошибки"', async () => {
+  it('в скоупе урока доступны только фактические ошибки', async () => {
     vi.mocked(reviewApi.answer).mockResolvedValue({
-      new_confidence: 1, new_status: 'tracked', due_at: '2026-07-21T12:00:00Z', done_today: 1,
+      new_confidence: 1,
+      new_status: 'tracked',
+      due_at: '2026-07-21T12:00:00Z',
+      done_today: 1,
     })
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
@@ -194,7 +224,7 @@ describe('QuizSession final screen — writing exercise', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Cada' }))
     fireEvent.click(screen.getByRole('button', { name: /^2/ }))
     await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 2))
-    expect(await screen.findByRole('button', { name: 'Пройти ещё раз' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Повторить ошибки' })).toBeNull()
+    expect(await screen.findByRole('button', { name: /Повторить ошибки/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Пройти ещё раз' })).toBeNull()
   })
 })

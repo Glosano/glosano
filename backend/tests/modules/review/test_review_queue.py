@@ -697,3 +697,108 @@ async def test_counts_kind_filter(monkeypatch: pytest.MonkeyPatch) -> None:
         assert (phrase_counts.new, phrase_counts.practice) == (2, 2)
         assert (token_counts.due, token_counts.new, token_counts.practice) == (1, 1, 1)
         assert phrase_counts.due == 1
+
+
+async def test_selected_retry_preserves_only_due_errors_after_new():
+    from glosano.modules.review.service import answer, get_selected_queue
+
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        a = await _tracked_token(s, user_id, "um")
+        b = await _tracked_token(s, user_id, "dois")
+        rows = (
+            (await s.execute(select(ReviewItem).where(ReviewItem.user_id == user_id)))
+            .scalars()
+            .all()
+        )
+        by_item = {ri.item_id: ri.id for ri in rows}
+        await answer(s, user_id=user_id, review_item_id=by_item[a.id], quality=2, now=NOW)
+        await answer(s, user_id=user_id, review_item_id=by_item[b.id], quality=3, now=NOW)
+        new_items, _ = await get_queue(s, user_id=user_id, language_code="pt", mode="new", now=NOW)
+        assert new_items == []
+        retry, _ = await get_selected_queue(
+            s,
+            user_id=user_id,
+            language_code="pt",
+            review_item_ids=[by_item[b.id], by_item[a.id], by_item[a.id]],
+            now=NOW,
+        )
+        assert [i.text for i in retry] == ["um"]
+        practice, _ = await get_selected_queue(
+            s,
+            user_id=user_id,
+            language_code="pt",
+            review_item_ids=[by_item[b.id], by_item[a.id]],
+            practice=True,
+            now=NOW,
+        )
+        assert [i.text for i in practice] == ["dois", "um"]
+
+
+async def test_fill_ignores_confidence_and_daily_limit_without_writing_events():
+    from glosano.modules.review.service import get_selected_queue
+
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        item = await _tracked_token(s, user_id, "um")
+        phrase = await vocab.create_item(
+            s,
+            user_id=user_id,
+            kind="phrase",
+            language_code="pt",
+            text="bom dia",
+            status="tracked",
+            confidence=0,
+        )
+        ri = (
+            (await s.execute(select(ReviewItem).where(ReviewItem.item_id == item.id)))
+            .scalars()
+            .one()
+        )
+        await _set_daily_limit(s, user_id, 1)
+        await _exhaust_daily_limit(s, user_id, ri.id, 1)
+        before = (
+            (await s.execute(select(ReviewEvent).where(ReviewEvent.user_id == user_id)))
+            .scalars()
+            .all()
+        )
+        items, daily = await get_queue(s, user_id=user_id, language_code="pt", mode="fill", now=NOW)
+        assert {i.item_id for i in items} == {item.id, phrase.id}
+        assert not daily.limit_reached
+        retry, day = await get_selected_queue(
+            s, user_id=user_id, language_code="pt", review_item_ids=[ri.id], now=NOW
+        )
+        assert retry == [] and day.limit_reached
+        counts = await get_counts(s, user_id=user_id, language_code="pt", now=NOW)
+        assert counts.fill == 2 and counts.session_sizes["fill"] == 2
+        assert counts.session_sizes["new"] == 0
+        after = (
+            (await s.execute(select(ReviewEvent).where(ReviewEvent.user_id == user_id)))
+            .scalars()
+            .all()
+        )
+        assert [e.id for e in before] == [e.id for e in after]
+        assert item.confidence == 1 and phrase.confidence == 0
+
+
+async def test_selected_queue_rejects_foreign_language_and_missing_ids():
+    from glosano.modules.review.service import ReviewItemNotFound, get_selected_queue
+
+    async with session_scope() as s:
+        owner = await _make_user(s)
+        stranger = await _make_user(s)
+        item = await _tracked_token(s, owner, "um")
+        ri = (
+            (await s.execute(select(ReviewItem).where(ReviewItem.item_id == item.id)))
+            .scalars()
+            .one()
+        )
+        for user_id, lang, rid in [
+            (stranger, "pt", ri.id),
+            (owner, "en", ri.id),
+            (owner, "pt", uuid.uuid4()),
+        ]:
+            with pytest.raises(ReviewItemNotFound):
+                await get_selected_queue(
+                    s, user_id=user_id, language_code=lang, review_item_ids=[rid], practice=True
+                )

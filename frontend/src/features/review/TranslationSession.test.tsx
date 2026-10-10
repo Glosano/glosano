@@ -5,13 +5,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/review', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  reviewApi: { counts: vi.fn(), queue: vi.fn(), answer: vi.fn(), exercise: vi.fn(), exerciseFeedback: vi.fn() },
+  reviewApi: {
+    counts: vi.fn(),
+    selectedQueue: vi.fn(),
+    queue: vi.fn(),
+    answer: vi.fn(),
+    exercise: vi.fn(),
+    exerciseFeedback: vi.fn(),
+  },
 }))
 
 // Пустой экран в скоупе урока рендерит <Link> из tanstack router (LessonEmptyState).
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, className, to }: { children?: ReactNode; className?: string; to?: string }) => (
-    <a className={className} href={to}>{children}</a>
+  Link: ({
+    children,
+    className,
+    to,
+  }: {
+    children?: ReactNode
+    className?: string
+    to?: string
+  }) => (
+    <a className={className} href={to}>
+      {children}
+    </a>
   ),
 }))
 
@@ -19,8 +36,14 @@ import { reviewApi } from '@/api/review'
 import { TranslationSession } from './TranslationSession'
 
 const ITEM = {
-  review_item_id: 'R1', item_kind: 'token' as const, item_id: 'I1',
-  text: 'cada', confidence: 4, translation: 'каждый', notes: null, context_sentence: null,
+  review_item_id: 'R1',
+  item_kind: 'token' as const,
+  item_id: 'I1',
+  text: 'cada',
+  confidence: 4,
+  translation: 'каждый',
+  notes: null,
+  context_sentence: null,
 }
 const DAILY = { limit: 20, done_today: 0, limit_reached: false }
 
@@ -38,7 +61,9 @@ describe('TranslationSession', () => {
     vi.clearAllMocks()
     vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM], daily: DAILY })
     vi.mocked(reviewApi.exercise).mockResolvedValue({
-      payload: { sentence_translation: 'Каждый день уникален.' }, model: 'm', latency_ms: 5,
+      payload: { sentence_translation: 'Каждый день уникален.' },
+      model: 'm',
+      latency_ms: 5,
     })
     vi.mocked(reviewApi.exerciseFeedback).mockResolvedValue({
       feedback: 'Хорошо. Пропущена диакритика в único.',
@@ -66,7 +91,9 @@ describe('TranslationSession', () => {
 
   it('в скоупе урока показывает подзаголовок "Слова урока" и передаёт lessonId в очередь', async () => {
     renderSession('L1')
-    await waitFor(() => expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice', undefined))
+    await waitFor(() =>
+      expect(reviewApi.queue).toHaveBeenCalledWith('pt', 'L1', 'practice', undefined),
+    )
     expect(await screen.findByText(/Слова урока/)).toBeTruthy()
   })
 
@@ -78,9 +105,7 @@ describe('TranslationSession', () => {
       screen.getByText(/Здесь появятся слова и фразы, которые вы добавите в этом уроке/),
     ).toBeInTheDocument()
     expect(screen.getByText(/доступны в общем повторении/)).toBeInTheDocument()
-    expect(
-      screen.queryByText('Нет предложений для практики'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Нет предложений для практики')).not.toBeInTheDocument()
     const link = screen.getByRole('link', { name: /Повторить весь словарь/ })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute('href', '/learn/$lang/review')

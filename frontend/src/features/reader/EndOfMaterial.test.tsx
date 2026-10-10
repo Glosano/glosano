@@ -85,7 +85,10 @@ describe('EndOfMaterial', () => {
     expect(screen.getByRole('heading', { name: 'Материал завершён' })).toHaveFocus()
     const review = screen.getByText('Повторить лексику урока').closest('a')
     expect(review).toHaveAttribute('data-to', '/learn/$lang/review')
-    expect(review).toHaveAttribute('data-search', JSON.stringify({ lessonId: 'lesson-1' }))
+    expect(review).toHaveAttribute(
+      'data-search',
+      JSON.stringify({ lessonId: 'lesson-1', mode: 'cards', from: 'completion' }),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Вернуться к тексту' }))
     expect(props.onBack).toHaveBeenCalledOnce()
   })

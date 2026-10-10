@@ -5,7 +5,7 @@ import { ReviewPage } from '@/features/review/ReviewPage'
 
 import { learnLangRoute } from './learn.$lang'
 
-const MODES = ['cards', 'new', 'cloze', 'reverse', 'translation'] as const
+const MODES = ['cards', 'new', 'cloze', 'reverse', 'translation', 'fill'] as const
 const KINDS = ['token', 'phrase'] as const
 
 export const learnReviewRoute = createRoute({
@@ -13,7 +13,10 @@ export const learnReviewRoute = createRoute({
   path: 'review',
   validateSearch: (
     search: Record<string, unknown>,
-  ): { lessonId?: string; mode?: ReviewMode; kind?: ReviewItemKind } => ({
+  ): { lessonId?: string; mode?: ReviewMode; kind?: ReviewItemKind; from?: 'completion' } => ({
+    ...(search.from === 'completion' && typeof search.lessonId === 'string' && search.lessonId
+      ? { from: 'completion' as const }
+      : {}),
     ...(typeof search.lessonId === 'string' && search.lessonId
       ? { lessonId: search.lessonId }
       : {}),
@@ -24,7 +27,9 @@ export const learnReviewRoute = createRoute({
   }),
   component: function ReviewView() {
     const params = useParams({ from: '/learn/$lang/review' })
-    const { lessonId, mode, kind } = useSearch({ from: '/learn/$lang/review' })
-    return <ReviewPage lang={params.lang} lessonId={lessonId} mode={mode} itemKind={kind} />
+    const { lessonId, mode, kind, from } = useSearch({ from: '/learn/$lang/review' })
+    return (
+      <ReviewPage lang={params.lang} lessonId={lessonId} mode={mode} itemKind={kind} from={from} />
+    )
   },
 })

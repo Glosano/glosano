@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from glosano.core.languages import LearningLanguageCode
+
 
 class QueueItemOut(BaseModel):
     review_item_id: uuid.UUID
@@ -18,6 +20,8 @@ class QueueItemOut(BaseModel):
     translation: str | None
     notes: str | None
     context_sentence: str | None
+    context_lesson_id: uuid.UUID | None = None
+    context_segment_id: uuid.UUID | None = None
 
 
 class DailyOut(BaseModel):
@@ -29,6 +33,20 @@ class DailyOut(BaseModel):
 class QueueResponse(BaseModel):
     items: list[QueueItemOut]
     daily: DailyOut
+
+
+class SelectedQueueRequest(BaseModel):
+    lang: LearningLanguageCode
+    review_item_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    practice: bool = False
+    lesson_id: uuid.UUID | None = None
+    kind: Literal["token", "phrase", "all"] = "all"
+
+    @model_validator(mode="after")
+    def _practice_bound(self) -> SelectedQueueRequest:
+        if self.practice and len(self.review_item_ids) > 20:
+            raise ValueError("practice accepts at most 20 items")
+        return self
 
 
 class AnswerRequest(BaseModel):
@@ -48,10 +66,14 @@ class CountsResponse(BaseModel):
     new: int
     practice: int
     ai_enabled: bool
+    fill: int
+    session_sizes: dict[str, int]
+    daily: DailyOut
+    lesson_title: str | None = None
 
 
 class ExerciseRequest(BaseModel):
-    kind: Literal["example", "cloze", "reverse", "translation_task", "writing"]
+    kind: Literal["example", "cloze", "reverse", "translation_task", "writing", "fill_blank"]
     review_item_id: uuid.UUID | None = None
     review_item_ids: list[uuid.UUID] | None = Field(default=None, max_length=20)
 

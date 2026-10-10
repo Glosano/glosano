@@ -59,7 +59,7 @@ async def _load_context(
     if ri is None or ri.user_id != user_id or not ri.is_active:
         raise ReviewItemNotFound(str(review_item_id))
     item = await session.get(VOCAB_MODEL_BY_KIND[ri.item_kind], ri.item_id)
-    if item is None or item.user_id != user_id:
+    if item is None or item.user_id != user_id or item.status != "tracked":
         raise ReviewItemNotFound(str(review_item_id))
     profile = await session.get(UserProfile, user_id)
     target = profile.ui_language_code if profile is not None else "en"
@@ -112,6 +112,7 @@ async def _call_llm(
     user_prompt: str,
     subject_text: str,
     provider: LLMProvider | None,
+    learn_lang: str | None = None,
 ) -> ExerciseResult:
     """Общий путь: kill-switch -> провайдер -> parse+validate (+1 ретрай) -> audit."""
     settings = get_settings()
@@ -155,6 +156,8 @@ async def _call_llm(
         try:
             payload = ep.extract_json(completion.text)
             ep.validate_payload(kind, payload)
+            if kind == "fill_blank":
+                ep.validate_fill_answer(payload, subject_text, learn_lang=learn_lang)
         except ValueError as exc:
             last_error = exc
             logger.warning("exercise parse failed (kind={}, attempt={}/2)", kind, attempt + 1)
@@ -195,11 +198,13 @@ async def generate_exercise(
     else:
         assert review_item_id is not None  # валидируется на API-слое
         ctx = await _load_context(session, user_id=user_id, review_item_id=review_item_id)
+        learn_lang = ctx.learn_lang
         builders = {
             "example": ep.build_example_prompt,
             "cloze": ep.build_cloze_prompt,
             "reverse": ep.build_reverse_prompt,
             "translation_task": ep.build_translation_task_prompt,
+            "fill_blank": ep.build_fill_blank_prompt,
         }
         prompt = builders[kind](
             word=ctx.word,
@@ -216,6 +221,7 @@ async def generate_exercise(
         user_prompt=prompt,
         subject_text=subject,
         provider=provider,
+        learn_lang=learn_lang,
     )
     if kind in ("cloze", "reverse"):
         options = list(result.payload["options"])

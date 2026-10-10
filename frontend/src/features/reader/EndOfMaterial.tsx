@@ -65,7 +65,11 @@ export function EndOfMaterial({
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/learn/$lang/review" params={{ lang }} search={{ lessonId }}>
+              <Link
+                to="/learn/$lang/review"
+                params={{ lang }}
+                search={{ lessonId, mode: 'cards', from: 'completion' }}
+              >
                 {tr('Повторить лексику урока')}
               </Link>
             </Button>

@@ -7,10 +7,10 @@ describe('GradeBar', () => {
   it('renders six grade buttons and reports clicks', () => {
     const onGrade = vi.fn()
     render(<GradeBar onGrade={onGrade} disabled={false} />)
-    const btn5 = screen.getByRole('button', { name: /5.*Идеально/ })
+    const btn5 = screen.getByRole('button', { name: /5.*Вспомнил сразу/ })
     fireEvent.click(btn5)
     expect(onGrade).toHaveBeenCalledWith(5)
-    fireEvent.click(screen.getByRole('button', { name: /0.*Полный провал/ }))
+    fireEvent.click(screen.getByRole('button', { name: /0.*Не вспомнил/ }))
     expect(onGrade).toHaveBeenCalledWith(0)
     expect(screen.getAllByRole('button')).toHaveLength(6)
   })
@@ -18,7 +18,7 @@ describe('GradeBar', () => {
   it('disables all buttons while answering', () => {
     const onGrade = vi.fn()
     render(<GradeBar onGrade={onGrade} disabled />)
-    const btn = screen.getByRole('button', { name: /3.*С трудом/ }) as HTMLButtonElement
+    const btn = screen.getByRole('button', { name: /3.*Вспомнил с трудом/ }) as HTMLButtonElement
     expect(btn.disabled).toBe(true)
     fireEvent.click(btn)
     expect(onGrade).not.toHaveBeenCalled()

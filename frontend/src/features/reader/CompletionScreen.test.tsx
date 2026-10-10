@@ -7,7 +7,14 @@ import { setUiLanguage } from '@/lib/i18n'
 import { CompletionScreen } from './CompletionScreen'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children }: { children: ReactNode }) => <a href="/learn/en/library">{children}</a>,
+  Link: ({ children, to, search }: { children: ReactNode; to: string; search?: unknown }) => (
+    <a
+      href={to === '/learn/$lang/library' ? '/learn/en/library' : to}
+      data-search={JSON.stringify(search)}
+    >
+      {children}
+    </a>
+  ),
 }))
 
 const result: CompleteLessonResult = {
@@ -118,4 +125,17 @@ it('rejects results belonging to another completion instead of showing mismatche
   )
   expect(screen.queryByText('Слов в тексте')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Отменить завершение' })).toBeDisabled()
+})
+
+it('opens the current material vocabulary directly without completing it again', async () => {
+  const complete = vi.spyOn(readerApi, 'complete')
+  show()
+  await screen.findByText('Слов в тексте')
+  const link = screen.getByRole('link', { name: 'Повторить лексику' })
+  expect(link).toHaveAttribute('href', '/learn/$lang/review')
+  expect(link).toHaveAttribute(
+    'data-search',
+    JSON.stringify({ lessonId: 'lesson', mode: 'cards', from: 'completion' }),
+  )
+  expect(complete).not.toHaveBeenCalled()
 })

@@ -1,3 +1,5 @@
+import { exerciseErrorKey } from './exerciseError'
+import { ignoreReviewKey } from './keyboard'
 import { useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -44,19 +46,20 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
   const [picked, setPicked] = useState<number | null>(null)
 
   const exercise = useQuery({
-    queryKey: ['exercise', language, kind, s.current?.review_item_id ?? null],
+    queryKey: ['exercise', s.sessionKey, language, kind, s.current?.review_item_id ?? null],
     queryFn: () =>
       reviewApi.exercise<QuizPayload>({ kind, review_item_id: s.current!.review_item_id }),
     enabled: s.current !== undefined,
     staleTime: Infinity,
+    gcTime: 0,
     retry: false,
   })
 
-  useEffect(() => setPicked(null), [s.current?.review_item_id])
+  useEffect(() => setPicked(null), [s.current?.review_item_id, s.sessionKey])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (ignoreReviewKey(e)) return
       if (!s.current || !exercise.data) return
       if (picked === null && /^[1-4]$/.test(e.key)) {
         setPicked(Number(e.key) - 1)
@@ -79,8 +82,9 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
   const isCorrect = picked !== null && options[picked]?.is_correct
 
   return (
-    <SessionShell subtitle={subtitle} idx={s.idx} total={s.total}>
-      <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
+    <SessionShell subtitle={subtitle} idx={s.idx} total={s.total} session={s}>
+      <div className="min-h-56 w-full rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
+        <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
         {kind === 'reverse' && <p className="text-center text-2xl font-medium">{item.text}</p>}
         {exercise.isPending && (
           <p className="mt-4 text-center text-sm text-muted-foreground">
@@ -89,7 +93,7 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
         )}
         {exercise.isError && (
           <div className="mt-4 text-center">
-            <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
+            <p className="text-sm text-destructive">{t(exerciseErrorKey(exercise.error))}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
                 {t('Повторить')}
@@ -145,6 +149,9 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
                 {s.answerError && (
                   <p className="mt-2 text-center text-sm text-destructive">{s.answerError}</p>
                 )}
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {t('Выбор проверен. Теперь оцените, насколько легко вы вспомнили слово.')}
+                </p>
                 <GradeBar onGrade={s.grade} disabled={s.answering} />
               </>
             )}

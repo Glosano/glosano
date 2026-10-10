@@ -1,6 +1,7 @@
+import { exerciseErrorKey } from './exerciseError'
 import { useI18n } from '@/lib/i18n'
 import { learningLanguageLabel } from '@/lib/languages'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { reviewApi, type ReviewItemKind } from '@/api/review'
@@ -38,18 +39,24 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
     queryFn: () => reviewApi.queue(lang, lessonId, 'practice', itemKind),
     staleTime: Infinity,
     gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
+  const instance = useId()
+  const [finished, setFinished] = useState(false)
+  const [checkedCount, setCheckedCount] = useState(0)
+  const [skipped, setSkipped] = useState(0)
   const [idx, setIdx] = useState(0)
   const [userText, setUserText] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
 
   const items = queue.data?.items ?? []
   const total = items.length
-  const current = items[idx]
+  const current = finished ? undefined : items[idx]
 
   const exercise = useQuery({
-    queryKey: ['exercise', language, 'translation_task', current?.review_item_id ?? null],
+    queryKey: ['exercise', instance, language, 'translation_task', current?.review_item_id ?? null],
     queryFn: () =>
       reviewApi.exercise<TranslationTaskExercise>({
         kind: 'translation_task',
@@ -72,24 +79,45 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
         sentence_translation: exercise.data!.payload.sentence_translation,
         user_text: userText,
       }),
-    onSuccess: (res) => setFeedback(res.feedback),
+    onSuccess: (res) => {
+      setFeedback(res.feedback)
+      setCheckedCount((value) => value + 1)
+    },
   })
 
-  const next = () => setIdx((i) => i + 1)
+  const next = () => {
+    if (feedbackMutation.isPending) return
+    if (feedback === null) setSkipped((value) => value + 1)
+    setIdx((i) => i + 1)
+    feedbackMutation.reset()
+  }
 
   const restart = () => {
     setIdx(0)
+    setFinished(false)
+    setCheckedCount(0)
+    setSkipped(0)
     setUserText('')
     setFeedback(null)
     void queue.refetch()
   }
 
   if (queue.isPending) {
-    return <SessionShell subtitle={subtitle}>{t('Загрузка…')}</SessionShell>
+    return (
+      <SessionShell
+        subtitle={subtitle}
+        intro={t('Дополнительная практика — без изменения расписания.')}
+      >
+        {t('Загрузка…')}
+      </SessionShell>
+    )
   }
   if (queue.isError) {
     return (
-      <SessionShell subtitle={subtitle}>
+      <SessionShell
+        subtitle={subtitle}
+        intro={t('Дополнительная практика — без изменения расписания.')}
+      >
         <p className="text-destructive">{t('Не удалось загрузить очередь')}</p>
         <button type="button" className="mt-2 underline" onClick={() => void queue.refetch()}>
           {t('Повторить')}
@@ -100,21 +128,37 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
   if (total === 0) {
     if (lessonId) {
       return (
-        <SessionShell subtitle={subtitle}>
+        <SessionShell
+          subtitle={subtitle}
+          intro={t('Дополнительная практика — без изменения расписания.')}
+        >
           <LessonEmptyState lang={lang} />
         </SessionShell>
       )
     }
     return (
-      <SessionShell subtitle={subtitle}>
+      <SessionShell
+        subtitle={subtitle}
+        intro={t('Дополнительная практика — без изменения расписания.')}
+      >
         <p className="text-lg font-medium">{t('Нет предложений для практики')}</p>
       </SessionShell>
     )
   }
   if (!current) {
     return (
-      <SessionShell subtitle={subtitle}>
+      <SessionShell
+        subtitle={subtitle}
+        intro={t('Дополнительная практика — без изменения расписания.')}
+      >
         <p className="text-lg font-medium">{t('Практика завершена')}</p>
+        <p className="mt-3">
+          {t('Попыток: {{count}} · Пропущено: {{skipped}} · Осталось: {{remaining}}', {
+            count: checkedCount,
+            skipped,
+            remaining: total - checkedCount - skipped,
+          })}
+        </p>
         <button type="button" className="mt-3 underline" onClick={restart}>
           {t('Ещё раз')}
         </button>
@@ -123,14 +167,22 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
   }
 
   return (
-    <SessionShell subtitle={subtitle} idx={idx} total={total}>
-      <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
+    <SessionShell
+      subtitle={subtitle}
+      intro={t('Дополнительная практика — без изменения расписания.')}
+      idx={idx}
+      total={total}
+      finish={() => setFinished(true)}
+      busy={feedbackMutation.isPending}
+    >
+      <div className="min-h-56 w-full rounded-lg border border-border bg-card p-6 shadow-sm">
+        <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
         {exercise.isPending && (
           <p className="text-center text-sm text-muted-foreground">{t('Готовим предложение…')}</p>
         )}
         {exercise.isError && (
           <div className="text-center">
-            <p className="text-sm text-destructive">{t('Не удалось сгенерировать упражнение')}</p>
+            <p className="text-sm text-destructive">{t(exerciseErrorKey(exercise.error))}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
                 {t('Повторить')}
@@ -177,7 +229,8 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
               </>
             ) : (
               <>
-                <p className="mt-4 text-center text-sm">{feedback}</p>
+                <p className="mt-4 text-xs text-muted-foreground">{t('AI-проверка')}</p>
+                <p className="mt-1 text-center text-sm">{feedback}</p>
                 <button type="button" className="mt-3 underline" onClick={next}>
                   {t('Дальше')}
                 </button>

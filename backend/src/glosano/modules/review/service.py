@@ -13,7 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import ColumnElement, func, select, tuple_, update
+from sqlalchemy import ColumnElement, func, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.config import get_settings
@@ -140,6 +140,8 @@ class QueueItem:
     translation: str | None
     notes: str | None
     context_sentence: str | None
+    context_lesson_id: uuid.UUID | None = None
+    context_segment_id: uuid.UUID | None = None
 
 
 @dataclass
@@ -155,6 +157,10 @@ class CountsInfo:
     new: int
     practice: int
     ai_enabled: bool
+    fill: int
+    session_sizes: dict[str, int]
+    daily: DailyInfo
+    lesson_title: str | None
 
 
 def _day_start_utc(now: datetime) -> datetime:
@@ -222,21 +228,25 @@ async def _build_queue_items(
         for ri, item in rows
         if item.created_from_segment_id is not None
     }
-    contexts: dict[uuid.UUID, str] = {}
+    contexts: dict[uuid.UUID, tuple[str, uuid.UUID]] = {}
     if seg_by_key:
         ctx_rows = await session.execute(
-            select(LessonSegment.id, LessonSegment.text).where(
-                LessonSegment.id.in_(set(seg_by_key.values()))
+            select(LessonSegment.id, LessonSegment.text, LessonSegment.lesson_id)
+            .join(Lesson, Lesson.id == LessonSegment.lesson_id)
+            .where(
+                LessonSegment.id.in_(set(seg_by_key.values())),
+                or_(Lesson.owner_user_id == user_id, Lesson.visibility == "shared"),
             )
         )
-        for seg_id, seg_text in ctx_rows.all():
-            contexts[seg_id] = seg_text
+        for seg_id, seg_text, lesson_id in ctx_rows.all():
+            contexts[seg_id] = (seg_text, lesson_id)
 
     out: list[QueueItem] = []
     for ri, item in rows:
         key = (ri.item_kind, ri.item_id)
         text_value = item.token_text if isinstance(item, TokenItem) else item.display_text
         seg_id = seg_by_key.get(key)
+        context = contexts.get(seg_id) if seg_id else None
         out.append(
             QueueItem(
                 review_item_id=ri.id,
@@ -246,7 +256,9 @@ async def _build_queue_items(
                 confidence=item.confidence if item.confidence is not None else 0,
                 translation=translations.get(key),
                 notes=notes.get(key),
-                context_sentence=contexts.get(seg_id) if seg_id else None,
+                context_sentence=context[0] if context else None,
+                context_lesson_id=context[1] if context else None,
+                context_segment_id=seg_id if context else None,
             )
         )
     return out
@@ -311,18 +323,17 @@ async def get_queue(
             daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
         return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
-    if mode == "practice":
+    if mode in ("practice", "fill"):
+        practice_limit = PRACTICE_SESSION_LIMIT if mode == "practice" else NEW_SESSION_LIMIT
         pairs: list[tuple[ReviewItem, TokenItem | PhraseItem]] = []
         for item_kind, model in _vocab_models(kind):
-            stmt = (
-                _mode_stmt(item_kind, model)
-                .where(model.confidence >= 4)
-                .order_by(func.random())
-                .limit(PRACTICE_SESSION_LIMIT)
-            )
+            stmt = _mode_stmt(item_kind, model)
+            if mode == "practice":
+                stmt = stmt.where(model.confidence >= 4)
+            stmt = stmt.order_by(func.random()).limit(practice_limit)
             pairs.extend((ri, it) for ri, it in (await session.execute(stmt)).all())
         random.shuffle(pairs)
-        pairs = pairs[:PRACTICE_SESSION_LIMIT]
+        pairs = pairs[:practice_limit]
         daily = DailyInfo(limit=daily.limit, done_today=daily.done_today, limit_reached=False)
         return await _build_queue_items(session, user_id=user_id, rows=pairs), daily
 
@@ -499,4 +510,82 @@ async def get_counts(
     due = await _count(lambda m: due_extra)
     new = await _count(lambda m: [ReviewItem.last_reviewed_at.is_(None)])
     practice = await _count(lambda m: [m.confidence >= 4])
-    return CountsInfo(due=due, new=new, practice=practice, ai_enabled=get_settings().llm_enabled)
+    fill = await _count(lambda m: [])
+    daily = await _daily_info(session, user_id=user_id, now=now)
+    remaining = max(0, daily.limit - daily.done_today)
+    return CountsInfo(
+        due=due,
+        new=new,
+        practice=practice,
+        fill=fill,
+        ai_enabled=get_settings().llm_enabled,
+        daily=daily,
+        lesson_title=lesson.title if lesson else None,
+        session_sizes={
+            "due": due if lesson else min(due, MAX_QUEUE_SIZE, remaining),
+            "new": min(new, NEW_SESSION_LIMIT, new if lesson else remaining),
+            "practice": min(practice, PRACTICE_SESSION_LIMIT),
+            "fill": min(fill, NEW_SESSION_LIMIT),
+        },
+    )
+
+
+async def get_selected_queue(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    language_code: str,
+    review_item_ids: list[uuid.UUID],
+    practice: bool = False,
+    lesson_id: uuid.UUID | None = None,
+    kind: str = "all",
+    now: datetime | None = None,
+) -> tuple[list[QueueItem], DailyInfo]:
+    """Exact retry selection; never replace unavailable items with the main queue."""
+    now = now or datetime.now(UTC)
+    ids = list(dict.fromkeys(review_item_ids))
+    daily = await _daily_info(session, user_id=user_id, now=now)
+    lesson = await session.get(Lesson, lesson_id) if lesson_id else None
+    if lesson_id and (lesson is None or lesson.owner_user_id != user_id):
+        raise LessonNotFound(str(lesson_id))
+    records = (
+        (await session.execute(select(ReviewItem).where(ReviewItem.id.in_(ids)))).scalars().all()
+    )
+    if len(records) != len(ids):
+        raise ReviewItemNotFound("selection")
+    for record in records:
+        if (
+            record.user_id != user_id
+            or record.language_code != language_code
+            or (kind != "all" and record.item_kind != kind)
+        ):
+            raise ReviewItemNotFound(str(record.id))
+    pairs: dict[uuid.UUID, tuple[ReviewItem, TokenItem | PhraseItem]] = {}
+    for item_kind, model in _vocab_models(kind):
+        rows = await session.execute(
+            select(ReviewItem, model)
+            .join(model, ReviewItem.item_id == model.id)
+            .where(ReviewItem.id.in_(ids), ReviewItem.item_kind == item_kind)
+        )
+        for ri, item in rows:
+            if item.user_id != user_id or item.language_code != language_code:
+                raise ReviewItemNotFound(str(ri.id))
+            if lesson and (
+                item.created_from_lesson_id != lesson.id
+                or item.language_code != lesson.language_code
+            ):
+                raise ReviewItemNotFound(str(ri.id))
+            # Another tab may already have answered an error successfully.
+            if (
+                ri.is_active
+                and item.status == "tracked"
+                and (practice or lesson or ri.due_at <= now)
+            ):
+                pairs[ri.id] = (ri, item)
+    limit = NEW_SESSION_LIMIT if practice else MAX_QUEUE_SIZE
+    if not practice and not lesson:
+        limit = min(limit, max(0, daily.limit - daily.done_today))
+    else:
+        daily = DailyInfo(daily.limit, daily.done_today, False)
+    selected = [pairs[rid] for rid in ids if rid in pairs][:limit]
+    return await _build_queue_items(session, user_id=user_id, rows=selected), daily

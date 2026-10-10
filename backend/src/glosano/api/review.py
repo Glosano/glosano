@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import asdict
 from typing import Literal, cast
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -23,6 +24,7 @@ from glosano.modules.review.schemas import (
     FeedbackResponse,
     QueueItemOut,
     QueueResponse,
+    SelectedQueueRequest,
 )
 
 router = APIRouter(prefix="/api/review", tags=["review"])
@@ -44,7 +46,7 @@ async def queue(
     request: Request,
     lang: LangCode,
     session: SessionDep,
-    mode: Literal["due", "new", "practice"] = "due",
+    mode: Literal["due", "new", "practice", "fill"] = "due",
     lesson_id: uuid.UUID | None = None,
     kind: ReviewKind = "all",
 ) -> QueueResponse:
@@ -60,24 +62,35 @@ async def queue(
         )
     except service.LessonNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None
+    return _queue_response(items, daily)
+
+
+def _queue_response(items: list[service.QueueItem], daily: service.DailyInfo) -> QueueResponse:
     return QueueResponse(
-        items=[
-            QueueItemOut(
-                review_item_id=i.review_item_id,
-                item_kind=cast('Literal["token", "phrase"]', i.item_kind),
-                item_id=i.item_id,
-                text=i.text,
-                confidence=i.confidence,
-                translation=i.translation,
-                notes=i.notes,
-                context_sentence=i.context_sentence,
-            )
-            for i in items
-        ],
+        items=[QueueItemOut(**asdict(i)) for i in items],
         daily=DailyOut(
             limit=daily.limit, done_today=daily.done_today, limit_reached=daily.limit_reached
         ),
     )
+
+
+@router.post("/queue/selected", response_model=QueueResponse)
+async def selected_queue(
+    request: Request, body: SelectedQueueRequest, session: SessionDep
+) -> QueueResponse:
+    try:
+        items, daily = await service.get_selected_queue(
+            session,
+            user_id=_require_user(request),
+            language_code=body.lang,
+            review_item_ids=body.review_item_ids,
+            practice=body.practice,
+            lesson_id=body.lesson_id,
+            kind=body.kind,
+        )
+    except (service.LessonNotFound, service.ReviewItemNotFound):
+        raise HTTPException(status.HTTP_404_NOT_FOUND) from None
+    return _queue_response(items, daily)
 
 
 @router.post("/answer", response_model=AnswerResponse)
@@ -119,7 +132,7 @@ async def counts(
         )
     except service.LessonNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND) from None
-    return CountsResponse(due=c.due, new=c.new, practice=c.practice, ai_enabled=c.ai_enabled)
+    return CountsResponse(**asdict(c))
 
 
 @router.post("/exercise", response_model=ExerciseResponse)

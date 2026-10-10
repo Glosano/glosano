@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/api/review', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   reviewApi: {
     counts: vi.fn(),
+    selectedQueue: vi.fn(),
     queue: vi.fn(),
     answer: vi.fn(),
     exercise: vi.fn(),
@@ -86,4 +87,38 @@ describe('useReviewSession status (регресс: isPending/session race)', () 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['word-card'] })
     expect(reviewApi.queue).toHaveBeenCalledTimes(1)
   })
+})
+
+it('guards simultaneous grades and keeps skips/unanswered distinct', async () => {
+  vi.clearAllMocks()
+  const second = { ...ITEM, review_item_id: 'R2' }
+  const third = { ...ITEM, review_item_id: 'R3' }
+  vi.mocked(reviewApi.queue).mockResolvedValue({ items: [ITEM, second, third], daily: DAILY })
+  let complete!: (value: Awaited<ReturnType<typeof reviewApi.answer>>) => void
+  vi.mocked(reviewApi.answer).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        complete = resolve
+      }),
+  )
+  const { result } = renderSession([])
+  await waitFor(() => expect(result.current.status).toBe('active'))
+  act(() => {
+    result.current.grade(4)
+    result.current.grade(5)
+    result.current.skip()
+    result.current.finish()
+  })
+  await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledTimes(1))
+  expect(result.current.current?.review_item_id).toBe('R1')
+  await act(async () =>
+    complete({ new_confidence: 2, new_status: 'tracked', due_at: '2026-10-11', done_today: 1 }),
+  )
+  await waitFor(() => expect(result.current.current?.review_item_id).toBe('R2'))
+  act(() => result.current.skip())
+  act(() => result.current.finish())
+  expect(result.current.status).toBe('done')
+  expect(result.current.results).toHaveLength(1)
+  expect(result.current.skipped).toBe(1)
+  expect(result.current.remaining).toBe(1)
 })

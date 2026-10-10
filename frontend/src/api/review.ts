@@ -9,6 +9,8 @@ export interface ReviewQueueItem {
   translation: string | null
   notes: string | null
   context_sentence: string | null
+  context_lesson_id?: string | null
+  context_segment_id?: string | null
 }
 
 export interface ReviewDaily {
@@ -29,7 +31,7 @@ export interface ReviewAnswerResponse {
   done_today: number
 }
 
-export type ReviewMode = 'cards' | 'new' | 'cloze' | 'reverse' | 'translation'
+export type ReviewMode = 'cards' | 'new' | 'cloze' | 'reverse' | 'translation' | 'fill'
 
 /** Повтор только слов или только фраз (вкладки словаря); без него — вперемешку. */
 export type ReviewItemKind = 'token' | 'phrase'
@@ -39,6 +41,10 @@ export interface ReviewCounts {
   new: number
   practice: number
   ai_enabled: boolean
+  fill?: number
+  session_sizes?: { due: number; new: number; practice: number; fill: number }
+  daily?: ReviewDaily
+  lesson_title?: string | null
 }
 
 export interface ExerciseOption {
@@ -64,6 +70,13 @@ export interface ReverseExercise {
   options: ExerciseOption[]
 }
 
+export interface FillBlankExercise {
+  before: string
+  after: string
+  answer: string
+  translation: string
+}
+
 export interface ExerciseResponse<P> {
   payload: P
   model: string
@@ -71,6 +84,23 @@ export interface ExerciseResponse<P> {
 }
 
 export const reviewApi = {
+  selectedQueue: (
+    lang: string,
+    ids: string[],
+    practice: boolean,
+    lessonId?: string,
+    kind?: ReviewItemKind,
+  ) =>
+    api<ReviewQueueResponse>('/api/review/queue/selected', {
+      method: 'POST',
+      body: JSON.stringify({
+        lang,
+        review_item_ids: ids,
+        practice,
+        lesson_id: lessonId,
+        kind: kind ?? 'all',
+      }),
+    }),
   queue: (lang: string, lessonId?: string, mode?: string, kind?: ReviewItemKind) => {
     const q = new URLSearchParams({ lang })
     if (lessonId) q.set('lesson_id', lessonId)
@@ -89,8 +119,8 @@ export const reviewApi = {
     if (kind) q.set('kind', kind)
     return api<ReviewCounts>(`/api/review/counts?${q.toString()}`)
   },
-  exercise: <P,>(body: {
-    kind: 'example' | 'cloze' | 'reverse' | 'translation_task' | 'writing'
+  exercise: <P>(body: {
+    kind: 'example' | 'cloze' | 'reverse' | 'translation_task' | 'writing' | 'fill_blank'
     review_item_id?: string
     review_item_ids?: string[]
   }) =>

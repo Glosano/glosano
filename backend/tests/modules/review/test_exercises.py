@@ -278,3 +278,33 @@ def test_writing_instructions_and_feedback_follow_target_language():
         )
         assert f"Answer in {language}" in feedback
         assert "Portuguese" in feedback
+
+
+async def test_fill_retries_a_changed_form_and_does_not_score(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(get_settings(), "llm_enabled", True)
+    good = {
+        "before": "",
+        "answer": "Cada",
+        "after": " dia é único.",
+        "translation": "Каждый день уникален.",
+    }
+    provider = FakeProvider([json.dumps({**good, "answer": "todos"}), json.dumps(good)])
+    async with session_scope() as s:
+        user_id, ri_id = await _setup_item(s)
+        ri = await s.get(ReviewItem, ri_id)
+        assert ri is not None
+        before = (ri.due_at, ri.last_reviewed_at, ri.algorithm_state_json.copy())
+        result = await generate_exercise(
+            s, user_id=user_id, kind="fill_blank", review_item_id=ri_id, provider=provider
+        )
+        assert result.payload == good
+        assert len(provider.calls) == 2
+        assert (ri.due_at, ri.last_reviewed_at, ri.algorithm_state_json) == before
+        events = (
+            (await s.execute(select(ReviewEvent).where(ReviewEvent.user_id == user_id)))
+            .scalars()
+            .all()
+        )
+        assert events == []

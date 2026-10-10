@@ -1,14 +1,21 @@
 import { useI18n } from '@/lib/i18n'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   reviewApi,
+  type ReviewAnswerResponse,
   type ReviewDaily,
   type ReviewItemKind,
   type ReviewQueueItem,
 } from '@/api/review'
 import { invalidateVocabularyViews } from '@/lib/invalidateVocabularyViews'
+
+export interface SessionAnswer {
+  item: ReviewQueueItem
+  quality: number
+  response: ReviewAnswerResponse
+}
 
 export interface ReviewSessionResult {
   status: 'loading' | 'error' | 'empty' | 'limit' | 'active' | 'done'
@@ -16,13 +23,20 @@ export interface ReviewSessionResult {
   current: ReviewQueueItem | undefined
   idx: number
   total: number
-  results: { item: ReviewQueueItem; quality: number }[] // накопленные ответы сессии
+  results: SessionAnswer[]
+  skipped: number
+  remaining: number
+  retryRemaining: number
+  selectionSize: number | undefined
+  selectedIds: string[] | undefined
+  sessionKey: string
   answering: boolean
   answerError: string | null
-  graduated: boolean // показать тост
+  graduated: boolean
   dismissGraduation: () => void
-  grade: (quality: number) => void // POST answer + переход к следующей
-  skip: () => void // пропустить карточку БЕЗ события
+  grade: (quality: number) => void
+  skip: () => void
+  finish: () => void
   restart: () => void
   retryQueue: () => void
 }
@@ -30,7 +44,9 @@ export interface ReviewSessionResult {
 interface SessionState {
   items: ReviewQueueItem[]
   idx: number
-  results: { item: ReviewQueueItem; quality: number }[]
+  results: SessionAnswer[]
+  skipped: number
+  finished: boolean
 }
 
 export function useReviewSession(
@@ -40,128 +56,146 @@ export function useReviewSession(
   const { language, t } = useI18n()
   const { serverMode, lessonId, itemKind } = opts
   const queryClient = useQueryClient()
-  const { data, isPending, isError, refetch, dataUpdatedAt } = useQuery({
-    queryKey: ['review-queue', lang, serverMode, lessonId ?? null, itemKind ?? null, language],
+  const instance = useId()
+  const [round, setRound] = useState(0)
+  const [selection, setSelection] = useState<string[] | null>(null)
+  const [retryRemaining, setRetryRemaining] = useState<string[]>([])
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: [
+      'review-queue',
+      lang,
+      serverMode,
+      lessonId ?? null,
+      itemKind ?? null,
+      language,
+      instance,
+      round,
+    ],
     queryFn: () =>
-      reviewApi.queue(lang, lessonId, serverMode === 'due' ? undefined : serverMode, itemKind),
+      selection
+        ? reviewApi.selectedQueue(lang, selection, false, lessonId, itemKind)
+        : reviewApi.queue(lang, lessonId, serverMode === 'due' ? undefined : serverMode, itemKind),
     staleTime: Infinity,
     gcTime: 0,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
-  // Сессия — локальный снапшот очереди: рефетчи посреди сессии её не трогают.
   const [session, setSession] = useState<SessionState | null>(null)
-  // Отслеживаем момент последнего сидирования, чтобы restart() не пересеял сессию
-  // тем же устаревшим data, пока идёт refetch (TanStack хранит старые данные in-flight).
-  const seededAtRef = useRef(0)
+  const [answerError, setAnswerError] = useState<string | null>(null)
+  const [graduated, setGraduated] = useState(false)
+  const answeringRef = useRef(false)
+  const [doneToday, setDoneToday] = useState<number | null>(null)
 
   useEffect(() => {
-    if (data && session === null && data.items.length > 0 && dataUpdatedAt > seededAtRef.current) {
-      seededAtRef.current = dataUpdatedAt
-      setSession({ items: data.items, idx: 0, results: [] })
+    if (data && session === null && data.items.length > 0) {
+      setSession({ items: data.items, idx: 0, results: [], skipped: 0, finished: false })
     }
-  }, [data, dataUpdatedAt, session])
-
-  const [answerError, setAnswerError] = useState<string | null>(null)
-  // Graduation-тост (spec §6): показываем при new_status === 'known', сбрасываем
-  // на следующем ответе (пересчитывается в onSuccess) либо по авто-таймеру.
-  const [graduated, setGraduated] = useState(false)
-
-  const restart = useCallback(() => {
-    setSession(null)
-    // Устаревший graduation-тост от прошлой сессии не должен всплыть на первой
-    // карточке новой — сбрасываем явно, а не полагаемся на следующий ответ.
-    setGraduated(false)
-    // Подсветка/списки могли устареть после ответов — сбрасываем перед новой очередью.
-    void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
-    void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
-    void queryClient.invalidateQueries({ queryKey: ['phrases'] })
-    void refetch()
-  }, [queryClient, refetch])
+  }, [data, session])
 
   const answerMutation = useMutation({
     mutationFn: ({ id, quality }: { id: string; quality: number }) => reviewApi.answer(id, quality),
-    onSuccess: async (res, { quality }) => {
+    retry: false,
+    onSuccess: async (res, { id, quality }) => {
       setAnswerError(null)
       setGraduated(res.new_status === 'known')
+      setDoneToday(res.done_today)
       setSession((s) => {
-        if (s === null) return s
-        const current = s.items[s.idx]
-        if (!current) return s
+        const current = s?.items[s.idx]
+        if (!s || !current || current.review_item_id !== id) return s
         return {
           ...s,
           idx: s.idx + 1,
-          results: [...s.results, { item: current, quality }],
+          results: [...s.results, { item: current, quality, response: res }],
         }
       })
       await invalidateVocabularyViews(queryClient)
+      await queryClient.invalidateQueries({ queryKey: ['review-counts'] })
     },
     onError: () => setAnswerError('Не удалось сохранить ответ'),
+    onSettled: () => {
+      answeringRef.current = false
+    },
   })
 
-  // Сессия завершена: подсветка reader и списки словаря должны подтянуть
-  // новые confidence/status (spec §6). Держим инвалидацию вне setSession —
-  // апдейтер должен оставаться чистым (StrictMode/concurrent re-invocation).
-  useEffect(() => {
-    if (session && session.idx >= session.items.length) {
-      void queryClient.invalidateQueries({ queryKey: ['reader-statuses'] })
-      void queryClient.invalidateQueries({ queryKey: ['vocab-list'] })
-      void queryClient.invalidateQueries({ queryKey: ['phrases'] })
-    }
-  }, [session, queryClient])
-
-  const current = session?.items[session.idx]
-  const { isPending: isAnswering, mutate: mutateAnswer } = answerMutation
-
+  const current = session?.finished ? undefined : session?.items[session.idx]
+  const { mutate: mutateAnswer } = answerMutation
   const grade = useCallback(
     (quality: number) => {
-      if (!current || isAnswering) return
+      if (
+        !current ||
+        answeringRef.current ||
+        !Number.isInteger(quality) ||
+        quality < 0 ||
+        quality > 5
+      )
+        return
+      answeringRef.current = true
       mutateAnswer({ id: current.review_item_id, quality })
     },
-    [current, isAnswering, mutateAnswer],
+    [current, mutateAnswer],
   )
 
   const skip = useCallback(() => {
-    setSession((s) => {
-      if (s === null) return s
-      return { ...s, idx: s.idx + 1 }
-    })
+    if (answeringRef.current) return
+    setAnswerError(null)
+    setGraduated(false)
+    setSession((s) =>
+      !s || s.finished || s.idx >= s.items.length
+        ? s
+        : { ...s, idx: s.idx + 1, skipped: s.skipped + 1 },
+    )
   }, [])
+  const finish = useCallback(() => {
+    if (!answeringRef.current) setSession((s) => (s ? { ...s, finished: true } : s))
+  }, [])
+  const restart = useCallback(() => {
+    if (answeringRef.current) return
+    const ids = [
+      ...new Set([
+        ...(session?.results.filter((r) => r.quality <= 2).map((r) => r.item.review_item_id) ?? []),
+        ...retryRemaining,
+      ]),
+    ]
+    if (!ids.length) return
+    setSelection(ids.slice(0, 100))
+    setRetryRemaining(ids.slice(100))
+    setSession(null)
+    setAnswerError(null)
+    setGraduated(false)
+    setDoneToday(null)
+    setRound((value) => value + 1)
+  }, [session, retryRemaining])
 
   let status: ReviewSessionResult['status']
-  if (isPending) {
-    status = 'loading'
-  } else if (isError || !data) {
-    status = 'error'
-  } else if (session === null) {
-    // Между разрешением запроса (isPending=false) и проходом passive-эффекта,
-    // который сидирует session, есть транзитный рендер: данные уже есть, а
-    // session ещё null. Если очередь непустая, это не 'empty' — просто кадр
-    // до сидирования; статус 'loading' точнее и не должен доезжать до UI как
-    // «нет карточек».
-    status = data.items.length > 0 ? 'loading' : data.daily.limit_reached ? 'limit' : 'empty'
-  } else if (current) {
-    status = 'active'
-  } else {
-    status = 'done'
-  }
-
-  const dismissGraduation = useCallback(() => setGraduated(false), [])
-  const retryQueue = useCallback(() => void refetch(), [refetch])
+  if (isPending) status = 'loading'
+  else if (isError || !data) status = 'error'
+  else if (!session)
+    status = data.items.length ? 'loading' : data.daily.limit_reached ? 'limit' : 'empty'
+  else status = current ? 'active' : 'done'
 
   return {
     status,
-    daily: data?.daily,
+    daily: data ? { ...data.daily, done_today: doneToday ?? data.daily.done_today } : undefined,
     current,
     idx: session?.idx ?? 0,
     total: session?.items.length ?? 0,
     results: session?.results ?? [],
+    skipped: session?.skipped ?? 0,
+    remaining: session ? session.items.length - session.idx : 0,
+    retryRemaining: retryRemaining.length,
+    selectionSize: selection?.length,
+    selectedIds: selection ?? undefined,
+    sessionKey: `${instance}:${round}`,
     answering: answerMutation.isPending,
     answerError: answerError ? t(answerError) : null,
     graduated,
-    dismissGraduation,
+    dismissGraduation: useCallback(() => setGraduated(false), []),
     grade,
     skip,
+    finish,
     restart,
-    retryQueue,
+    retryQueue: useCallback(() => {
+      void refetch()
+    }, [refetch]),
   }
 }
