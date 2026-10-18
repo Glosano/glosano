@@ -1,7 +1,7 @@
 import { useTranslation } from '@/lib/i18n'
 import type { VocabListItem } from '@/api/vocabulary'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
-import { learningLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 
 const CONTEXT_MAX = 80
 
@@ -110,9 +110,7 @@ export function VocabularyTable({
             <div>
               {item.primary_translation !== null ? (
                 <span className="flex items-center gap-1.5 text-[var(--vocab-translation-fg)]">
-                  <span aria-hidden="true">
-                    {learningLanguageFlag(item.primary_translation.target_language_code)}
-                  </span>
+                  <ForeignLanguageFlag code={item.primary_translation.target_language_code} />
                   <span>{item.primary_translation.text}</span>
                 </span>
               ) : (

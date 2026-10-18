@@ -68,14 +68,23 @@ describe('ReviewCard', () => {
     expect(screen.getByText('Перевод не сохранён')).toBeTruthy()
   })
 
-  it('marks the saved translation with its language flag, also for a fallback language', () => {
+  it('flags a saved translation that is not in the native language', () => {
     useUserStore.setState({
       user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
     })
     renderCard({ flipped: true })
     const flag = screen.getByText('🇷🇺')
     expect(flag).toHaveAttribute('aria-hidden', 'true')
-    expect(flag.parentElement).toHaveTextContent('каждый')
+    expect(flag.closest('p')).toHaveTextContent('каждый')
+  })
+
+  it('shows no flag for a translation in the native language', () => {
+    useUserStore.setState({
+      user: { ui_language_code: 'ru', native_language_code: 'ru' } as MeResponse,
+    })
+    renderCard({ flipped: true })
+    expect(screen.getByText('каждый')).toBeInTheDocument()
+    expect(screen.queryByText('🇷🇺')).not.toBeInTheDocument()
   })
 
   it('shows error on back', () => {

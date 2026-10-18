@@ -1,5 +1,5 @@
 import { useTranslation } from '@/lib/i18n'
-import { translationLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useQuery } from '@tanstack/react-query'
 import { readerApi } from '@/api/reader'
@@ -39,10 +39,8 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
           <hr className="my-4 border-border" />
           <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
           <p dir="auto" className="mt-1 text-center text-xl">
-            {item.translation !== null && item.translation_language_code !== null && (
-              <span aria-hidden="true" className="mr-2">
-                {translationLanguageFlag(item.translation_language_code)}
-              </span>
+            {item.translation !== null && (
+              <ForeignLanguageFlag code={item.translation_language_code} className="mr-2" />
             )}
             {item.translation ?? t('Перевод не сохранён')}
           </p>

@@ -18,6 +18,7 @@ Before proposing or writing any code, read:
 8. `docs/adr/ADR-0005-word-status-model-lingq-levels.md` — current word status model: `new / tracked / known / ignored` with confidence `0..5`.
 9. `docs/adr/ADR-0006-tech-stack.md` — Python + React tech stack, repository layout, tooling.
 10. `docs/adr/ADR-0030-native-language-translation-target.md` — native language is the translation target; supersedes ADR-0011.
+11. `docs/adr/ADR-0031-foreign-translation-flags.md` — a translation shows its language flag only when it is not in the native language.
 
 Product direction is fixed by those documents. Do not reintroduce options that were explicitly rejected. If a decision needs to change, write a new ADR or revise the existing one with a clear status transition — never silently override.
 

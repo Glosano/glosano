@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, expect, it, vi } from 'vitest'
+import type { MeResponse } from '@/api/me'
+import { useUserStore } from '@/stores/userStore'
 import type { LessonVocabularyItem } from '@/api/reader'
 
 vi.mock('@/api/vocabulary', () => ({ vocabularyApi: { createItem: vi.fn(), patchItem: vi.fn() } }))
@@ -134,7 +136,14 @@ it('renders known and ignored as accessible indicators instead of direct actions
   ).not.toBeInTheDocument()
 })
 
-it('marks a saved translation with the flag of its language, including a fallback one', () => {
+afterEach(() => {
+  useUserStore.getState().reset()
+})
+
+it('flags a saved translation only when it is not in the native language', () => {
+  useUserStore.setState({
+    user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+  })
   renderRow({
     ...item,
     item_id: 'i1',
@@ -144,5 +153,19 @@ it('marks a saved translation with the flag of its language, including a fallbac
   })
   const flag = screen.getByText('🇷🇺')
   expect(flag).toHaveAttribute('aria-hidden', 'true')
-  expect(screen.getByRole('button', { name: 'Открыть карточку Casa' })).toHaveTextContent('дом')
+  expect(screen.getByRole('button', { name: /Открыть карточку Casa/ })).toHaveTextContent('дом')
+  cleanup()
+
+  useUserStore.setState({
+    user: { ui_language_code: 'ru', native_language_code: 'ru' } as MeResponse,
+  })
+  renderRow({
+    ...item,
+    item_id: 'i1',
+    status: 'tracked',
+    confidence: 2,
+    primary_translation: { text: 'дом', target_language_code: 'ru' },
+  })
+  expect(screen.getByText('дом')).toBeInTheDocument()
+  expect(screen.queryByText('🇷🇺')).not.toBeInTheDocument()
 })

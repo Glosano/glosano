@@ -3,7 +3,7 @@ import { Volume2 } from 'lucide-react'
 
 import type { StatusMap, WordToken } from '@/api/reader'
 import { vocabularyApi } from '@/api/vocabulary'
-import { translationLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { cn } from '@/lib/utils'
 
 import { wordLookupKey } from './useWordCard'
@@ -61,9 +61,10 @@ export function SentenceVocabList({ words, statuses, lang, target, onWordClick }
                 </span>
                 {translation && (
                   <span className="mt-0.5 block text-sm text-muted-foreground">
-                    <span aria-hidden="true" className="mr-1.5">
-                      {translationLanguageFlag(translation.target_language_code)}
-                    </span>
+                    <ForeignLanguageFlag
+                      code={translation.target_language_code}
+                      className="mr-1.5"
+                    />
                     {translation.text}
                   </span>
                 )}

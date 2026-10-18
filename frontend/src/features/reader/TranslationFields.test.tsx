@@ -133,15 +133,15 @@ describe('TranslationFields', () => {
     await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1))
   })
 
-  it('labels every variant with its language flag and name', () => {
+  it('labels every variant with its language and flags only non-native ones', () => {
     setup([tr('T1', 'привет', true, 'ru'), tr('T2', 'привіт', true, 'uk')], 'uk')
     const ru = screen.getByRole('textbox', { name: 'Перевод: Русский' })
     const uk = screen.getByRole('textbox', { name: 'Перевод: Украинский' })
     expect(ru).toHaveValue('привет')
     expect(uk).toHaveValue('привіт')
     const flags = screen.getAllByText(/🇷🇺|🇺🇦/)
-    expect(flags.map((f) => f.textContent)).toEqual(['🇷🇺', '🇺🇦'])
-    for (const flag of flags) expect(flag).toHaveAttribute('aria-hidden', 'true')
+    expect(flags.map((f) => f.textContent)).toEqual(['🇷🇺'])
+    expect(flags[0]).toHaveAttribute('aria-hidden', 'true')
     // A native-language variant exists, so no always-empty field.
     expect(screen.queryByPlaceholderText('Введите новый перевод здесь')).not.toBeInTheDocument()
   })
@@ -150,7 +150,8 @@ describe('TranslationFields', () => {
     const { onCreate, onUpdate } = setup([tr('T1', 'привет', true, 'ru')], 'uk')
     const empty = screen.getByRole('textbox', { name: 'Новый перевод: Украинский' })
     expect(empty).toHaveAttribute('placeholder', 'Введите новый перевод здесь')
-    expect(screen.getAllByText('🇺🇦')).toHaveLength(1)
+    expect(screen.queryByText('🇺🇦')).not.toBeInTheDocument()
+    expect(screen.getByText('🇷🇺')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.change(empty, { target: { value: 'привіт' } })
     fireEvent.keyDown(empty, { key: 'Enter' })
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith('привіт'))

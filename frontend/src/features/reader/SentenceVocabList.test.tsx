@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MeResponse } from '@/api/me'
+import { useUserStore } from '@/stores/userStore'
 
 import type { StatusMap, WordToken } from '@/api/reader'
 import type { WordLookup } from '@/api/vocabulary'
@@ -51,6 +53,10 @@ function renderList(overrides: Partial<Parameters<typeof SentenceVocabList>[0]> 
 }
 
 describe('SentenceVocabList', () => {
+  afterEach(() => {
+    useUserStore.getState().reset()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(vocabularyApi.lookup).mockResolvedValue(emptyLookup)
@@ -89,7 +95,10 @@ describe('SentenceVocabList', () => {
     expect(await screen.findByText('мир')).toBeInTheDocument()
   })
 
-  it('marks the primary translation with the flag of its language', async () => {
+  it('flags the primary translation only when it is not in the native language', async () => {
+    useUserStore.setState({
+      user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+    })
     vi.mocked(vocabularyApi.lookup).mockImplementation((_lang, text) =>
       Promise.resolve({
         ...emptyLookup,
@@ -111,8 +120,9 @@ describe('SentenceVocabList', () => {
     expect(await screen.findByText('привет')).toBeInTheDocument()
     const ruFlag = screen.getByText('🇷🇺')
     expect(ruFlag).toHaveAttribute('aria-hidden', 'true')
-    expect(ruFlag.parentElement).toHaveTextContent('привет')
-    expect(screen.getByText('🇺🇦').parentElement).toHaveTextContent('світ')
+    expect(ruFlag.closest('span.block')).toHaveTextContent('привет')
+    expect(screen.getByText('світ')).toBeInTheDocument()
+    expect(screen.queryByText('🇺🇦')).not.toBeInTheDocument()
   })
 
   it('renders no translation line when the lookup has no primary translation', async () => {

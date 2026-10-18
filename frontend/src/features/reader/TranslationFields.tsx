@@ -19,7 +19,8 @@ interface Props {
 /**
  * Translation variants as a list of inputs (spec §2.1): Enter/blur saves,
  * emptying a field deletes the variant, hover shows +/✕. Variants of every
- * language are listed with their flag; editing keeps a variant's language.
+ * language are listed; only those not in the native language carry a flag.
+ * Editing keeps a variant's language.
  * A single empty field for a native-language variant is always present when
  * none exists yet (FLQ-47 spec §8).
  */
@@ -107,12 +108,14 @@ export function TranslationFields({
     <div data-testid="translation-fields" className="mt-1 space-y-2">
       {translations.map((t) => (
         <div key={t.id} className="group relative">
-          <LanguageFlag code={t.target_language_code} />
+          {t.target_language_code !== nativeLanguage && <LanguageFlag code={t.target_language_code} />}
           <input
             aria-label={tr('Перевод: {{language}}', {
               language: translationLanguageLabel(t.target_language_code, uiLanguage),
             })}
-            className="w-full rounded-md border border-border py-2 pl-10 pr-16 text-base"
+            className={`w-full rounded-md border border-border py-2 pr-16 text-base ${
+              t.target_language_code !== nativeLanguage ? 'pl-10' : 'pl-3'
+            }`}
             value={drafts[t.id] ?? t.text}
             onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
             onBlur={() => void commitExisting(t)}
@@ -138,14 +141,13 @@ export function TranslationFields({
       ))}
       {pendingOpen && (
         <div className="relative">
-          <LanguageFlag code={nativeLanguage} />
           <input
             // autoFocus: the field appears on explicit "+" click, not on page load.
             autoFocus={newDraft !== null}
             aria-label={tr('Новый перевод: {{language}}', {
               language: translationLanguageLabel(nativeLanguage, uiLanguage),
             })}
-            className="w-full rounded-md border border-border py-2 pl-10 pr-3 text-base"
+            className="w-full rounded-md border border-border px-3 py-2 text-base"
             placeholder={tr('Введите новый перевод здесь')}
             value={pendingValue}
             onChange={(e) => setNewDraft(e.target.value)}

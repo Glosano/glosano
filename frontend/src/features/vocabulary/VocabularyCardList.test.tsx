@@ -1,5 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { MeResponse } from '@/api/me'
+import { useUserStore } from '@/stores/userStore'
 
 import type { VocabListItem } from '@/api/vocabulary'
 import { VocabularyCardList } from './VocabularyCardList'
@@ -50,6 +52,10 @@ function setup(items: VocabListItem[] = [enriched, bare], selection: string[] = 
   return { onToggleSelected, onSelectPage, onClearSelection, onPick, onOpenTerm }
 }
 
+afterEach(() => {
+  useUserStore.getState().reset()
+})
+
 describe('VocabularyCardList', () => {
   it('renders one card per item with term, translation, chips and context', () => {
     setup()
@@ -64,11 +70,24 @@ describe('VocabularyCardList', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
-  it('marks the translation with the flag of its language', () => {
-    setup([{ ...enriched, primary_translation: { text: 'опустили', target_language_code: 'ru' } }])
+  it('flags the translation only when it is not in the native language', () => {
+    useUserStore.setState({
+      user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+    })
+    setup([
+      { ...enriched, primary_translation: { text: 'опустили', target_language_code: 'ru' } },
+    ])
     const flag = screen.getByText('🇷🇺')
     expect(flag).toHaveAttribute('aria-hidden', 'true')
-    expect(flag.parentElement).toHaveTextContent('опустили')
+    expect(flag.closest('span.text-right')).toHaveTextContent('опустили')
+    cleanup()
+
+    useUserStore.setState({
+      user: { ui_language_code: 'ru', native_language_code: 'ru' } as MeResponse,
+    })
+    setup([{ ...enriched, primary_translation: { text: 'опустили', target_language_code: 'ru' } }])
+    expect(screen.getByText('опустили')).toBeInTheDocument()
+    expect(screen.queryByText('🇷🇺')).not.toBeInTheDocument()
   })
 
   it('fires onOpenTerm with the item when the term is clicked', () => {

@@ -1,6 +1,6 @@
 # ADR-0030 — Родной язык определяет язык перевода
 
-- Статус: Accepted
+- Статус: Accepted; показ флагов уточнён [ADR-0031](ADR-0031-foreign-translation-flags.md) (2026-10-18)
 - Дата: 2026-10-18
 - Задача: FLQ-47; дизайн — `docs/superpowers/specs/FLQ-47-native-translation-language-design.md`
 - Заменяет: [ADR-0011](ADR-0011-ui-language-translation-target.md)

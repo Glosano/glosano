@@ -5,7 +5,7 @@ import { Popover as PopoverPrimitive } from 'radix-ui'
 
 import type { LessonVocabularyItem } from '@/api/reader'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
-import { translationLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 
 import { vocabularyRowKey } from './lessonVocabulary'
 import { useWordCardMutations } from './useWordCard'
@@ -157,11 +157,12 @@ export function LessonVocabularyRow({
         {item.status !== 'new' && (
           <span className="mt-1 block break-words text-[13px] text-muted-foreground">
             {item.primary_translation ? (
-              // May be a saved translation in another language (FLQ-47 spec §8): always flagged.
+              // May be a saved translation in another language (FLQ-47 spec §8).
               <>
-                <span aria-hidden="true" className="mr-1.5">
-                  {translationLanguageFlag(item.primary_translation.target_language_code)}
-                </span>
+                <ForeignLanguageFlag
+                  code={item.primary_translation.target_language_code}
+                  className="mr-1.5"
+                />
                 {item.primary_translation.text}
               </>
             ) : (

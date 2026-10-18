@@ -1,5 +1,5 @@
 import { useTranslation, useI18n, translate } from '@/lib/i18n'
-import { translationLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { useContext, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
@@ -166,10 +166,8 @@ export function SessionSummary({
             .map((r) => (
               <li key={r.item.review_item_id}>
                 <span className="font-medium">{r.item.text}</span> —{' '}
-                {r.item.translation !== null && r.item.translation_language_code !== null && (
-                  <span aria-hidden="true" className="mr-1">
-                    {translationLanguageFlag(r.item.translation_language_code)}
-                  </span>
+                {r.item.translation !== null && (
+                  <ForeignLanguageFlag code={r.item.translation_language_code} className="mr-1" />
                 )}
                 {r.item.translation ?? '—'}{' '}
                 <span className="text-muted-foreground">

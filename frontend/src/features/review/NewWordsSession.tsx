@@ -1,7 +1,7 @@
 import { exerciseErrorKey } from './exerciseError'
 import { ignoreReviewKey } from './keyboard'
 import { useI18n } from '@/lib/i18n'
-import { translationLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -123,10 +123,8 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
                 <hr className="my-4 border-border" />
                 <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
                 <p className="text-center text-xl">
-                  {item.translation !== null && item.translation_language_code !== null && (
-                    <span aria-hidden="true" className="mr-2">
-                      {translationLanguageFlag(item.translation_language_code)}
-                    </span>
+                  {item.translation !== null && (
+                    <ForeignLanguageFlag code={item.translation_language_code} className="mr-2" />
                   )}
                   {item.translation ?? t('Перевод не сохранён')}
                 </p>

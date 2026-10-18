@@ -1,7 +1,7 @@
 import { useTranslation } from '@/lib/i18n'
 import type { VocabListItem } from '@/api/vocabulary'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
-import { learningLanguageFlag } from '@/lib/languages'
+import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 
 const CONTEXT_MAX = 80
 
@@ -80,9 +80,10 @@ export function VocabularyCardList({
               <span className="text-right text-sm text-[var(--vocab-translation-fg)]">
                 {item.primary_translation !== null ? (
                   <>
-                    <span aria-hidden="true" className="mr-1.5">
-                      {learningLanguageFlag(item.primary_translation.target_language_code)}
-                    </span>
+                    <ForeignLanguageFlag
+                      code={item.primary_translation.target_language_code}
+                      className="mr-1.5"
+                    />
                     {item.primary_translation.text}
                   </>
                 ) : (

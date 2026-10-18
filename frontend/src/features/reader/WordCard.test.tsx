@@ -103,7 +103,7 @@ describe('WordCard core', () => {
     }))
   })
 
-  it('shows translations of all languages with flags', async () => {
+  it('shows translations of all languages, flagging only non-native ones', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
       item_id: 'I1', status: 'tracked', confidence: 2,
       translations: {
@@ -120,7 +120,7 @@ describe('WordCard core', () => {
     expect(screen.getByRole('textbox', { name: 'Перевод: Украинский' })).toHaveValue('кожен')
     const fields = screen.getByTestId('translation-fields')
     expect(fields).toHaveTextContent('🇷🇺')
-    expect(fields).toHaveTextContent('🇺🇦')
+    expect(fields).not.toHaveTextContent('🇺🇦')
     expect(screen.queryByPlaceholderText('Введите новый перевод здесь')).not.toBeInTheDocument()
   })
 
