@@ -175,3 +175,22 @@ async def test_lookup_no_longer_returns_external_links(client: AsyncClient) -> N
     )
     assert r.status_code == 200, r.text
     assert "external_links" not in r.json()
+
+
+async def test_new_target_language_pair_lists_link_builtins(client: AsyncClient) -> None:
+    csrf = await register_and_onboard(client, f"ext-newdst-{uuid.uuid4().hex}@example.com")
+    r = await client.get("/api/dictionary/external", params={"src": "pt", "dst": "uk"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    ids = {d["ref"].removeprefix("builtin:") for d in body["visible"] + body["available"]}
+    assert ids == {"google", "deepl", "wiktionary"}
+
+    r = await client.post(
+        "/api/dictionary/external/custom",
+        json={**_custom_body(), "target_language_code": "uk"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert r.status_code == 201, r.text
+
+    r = await client.get("/api/dictionary/external", params={"src": "pt", "dst": "xx"})
+    assert r.status_code == 422

@@ -1,7 +1,10 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import update
 
+from glosano.core.db import session_scope
 from glosano.main import create_app
+from glosano.modules.identity.models import UserProfile
 
 
 async def _register(c: AsyncClient, *, email: str, password: str = "abcdefghij") -> None:
@@ -153,3 +156,42 @@ async def test_login_resets_rate_limit_on_success(monkeypatch: pytest.MonkeyPatc
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
+
+
+async def test_login_needs_onboarding_matches_me_without_native_language() -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        await _register(c, email="login-no-native@example.com")
+        csrf = c.cookies.get("glosano_csrf")
+        assert csrf
+        r = await c.post(
+            "/me/onboarding",
+            json={"ui_language": "en", "learning_languages": ["pt"], "native_language": "uk"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert r.status_code == 200
+        user_id = (await c.get("/me")).json()["id"]
+
+        async def login() -> bool:
+            c.cookies.clear()
+            r = await c.post(
+                "/auth/login",
+                json={
+                    "email": "login-no-native@example.com",
+                    "password": "abcdefghij",
+                    "remember_me": False,
+                },
+            )
+            assert r.status_code == 200
+            needs = r.json()["needs_onboarding"]
+            assert needs == (await c.get("/me")).json()["needs_onboarding"]
+            return needs
+
+        assert await login() is False
+        async with session_scope() as session:
+            await session.execute(
+                update(UserProfile)
+                .where(UserProfile.user_id == user_id)
+                .values(native_language_code=None)
+            )
+        assert await login() is True

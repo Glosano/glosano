@@ -17,6 +17,7 @@ Before proposing or writing any code, read:
 7. `docs/adr/ADR-0004-dictionary-wiktionary-provider.md`
 8. `docs/adr/ADR-0005-word-status-model-lingq-levels.md` — current word status model: `new / tracked / known / ignored` with confidence `0..5`.
 9. `docs/adr/ADR-0006-tech-stack.md` — Python + React tech stack, repository layout, tooling.
+10. `docs/adr/ADR-0030-native-language-translation-target.md` — native language is the translation target; supersedes ADR-0011.
 
 Product direction is fixed by those documents. Do not reintroduce options that were explicitly rejected. If a decision needs to change, write a new ADR or revise the existing one with a clear status transition — never silently override.
 
@@ -45,6 +46,7 @@ Full rationale in the decision log and ADRs. This section is a lookup table, not
 - **Import formats:** `.txt`, `.md`; YouTube URL with existing learning-language captions (ADR-0016). PDF/EPUB/scans go through an **external OCR service** with its own API that returns `.md`.
 - **Languages (learning):** EN, RU, PT, ES, FR, DE, ZH-Hans (Simplified Chinese), JA, AR, HI — ADR-0012 supersedes the original three-language scope.
 - **Languages (UI):** EN, RU.
+- **Languages (translation / native):** 15-language catalog (learning languages + IT, KO, TR, PL, UK) — ADR-0030. Native language must differ from every learning language; UI language no longer sets the translation target.
 - **Auth:** email + password. No SSO.
 - **Delivery:** Docker Compose. Target class: personal homelab + small team.
 
@@ -137,7 +139,7 @@ If a user asks for any of these, point them at `docs/specs/2026-04-11-mvp-produc
 - Marketplace or federation between instances.
 - Social feed, comments on lessons.
 - Built-in catalog of curated lessons shipped with the product.
-- Automatic language support beyond the ten-language catalog in ADR-0012, or automatic dictionary-package downloads.
+- Automatic language support beyond the ten-language learning-language catalog in ADR-0012 (the 15-language translation catalog of ADR-0030 is separate), or automatic dictionary-package downloads.
 - Shared AI cache between users.
 - FSRS or other adaptive SRS in the first release (simple SM-2-class is fine).
 - Metrics dashboard with heatmaps, cohorts, retention curves.

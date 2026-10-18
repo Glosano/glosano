@@ -45,6 +45,7 @@ function meResponse(overrides: Partial<MeResponse> = {}): MeResponse {
     last_learning_language_code: null,
     needs_onboarding: false,
     onboarded_at: null,
+    native_language_code: 'ru',
     ...overrides,
   }
 }

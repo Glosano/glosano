@@ -21,6 +21,7 @@ const COLLAPSED_SUGGESTION_LIMIT = 15
 interface Props {
   word: SelectedItem | null
   lang: string
+  /** Translation language: the learner's native language (ADR-0030), not the UI language. */
   target: string
   lessonId: string | null
   segId: string | null
@@ -77,13 +78,11 @@ export function WordCard({
   const status = data?.status ?? 'new'
   const confidence = data?.confidence ?? null
 
-  // MUST be memoized: TranslationFields resets its per-field drafts when the
-  // `translations` prop identity changes, so a fresh `.filter()` array on
-  // every render would wipe the user's typing mid-edit.
-  const variants = useMemo(
-    () => (data?.translations.all ?? []).filter((t) => t.target_language_code === target),
-    [data, target],
-  )
+  // Saved translations of every language stay visible and editable, each with
+  // its flag (FLQ-47 spec §8). MUST be memoized: TranslationFields resets its
+  // per-field drafts when the `translations` prop identity changes, so a fresh
+  // array on every render would wipe the user's typing mid-edit.
+  const variants = useMemo(() => data?.translations.all ?? [], [data])
 
   // AI suggestion for `new` and `known` words (needs lesson context; guarded).
   // Gate on `data?.status` directly (not the defaulted `status` above) so we
@@ -300,6 +299,7 @@ export function WordCard({
               <TranslationFields
                 key={`${kind}:${text}:${target}`}
                 translations={variants}
+                nativeLanguage={target}
                 onCreate={(value) =>
                   withItem((id) =>
                     m.saveTranslation.mutateAsync({

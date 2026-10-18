@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import LearningLanguageCode, TranslationLanguageCode
 
 LangCode = LearningLanguageCode
 ItemStatus = Literal["tracked", "known", "ignored"]
@@ -73,7 +73,7 @@ class ItemStateResponse(BaseModel):
 
 
 class AddTranslationRequest(BaseModel):
-    target_language_code: LangCode
+    target_language_code: TranslationLanguageCode
     translation_text: str = Field(min_length=1, max_length=512)
     source_type: Literal["user", "ai", "dictionary"] = "user"
 

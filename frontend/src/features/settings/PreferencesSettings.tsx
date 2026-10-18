@@ -1,10 +1,18 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 
 import { getApiErrorKey } from '@/api/client'
 import { meApi } from '@/api/me'
 import { useI18n, type UiLanguage } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
-import { LEARNING_LANGUAGES, learningLanguageLabel } from '@/lib/languages'
+import {
+  LEARNING_LANGUAGES,
+  TRANSLATION_LANGUAGES,
+  isLearningLanguageCode,
+  learningLanguageLabel,
+  translationLanguageLabel,
+  type LearningLanguageCode,
+  type TranslationLanguageCode,
+} from '@/lib/languages'
 import { buttonClass, FormMessage, inputClass, SettingsSection } from './shared'
 import { useApplyProfile } from './useApplyProfile'
 
@@ -13,12 +21,16 @@ export function PreferencesSettings() {
   const user = useUserStore((s) => s.user)
   const applyProfile = useApplyProfile()
   const [locale, setLocale] = useState<UiLanguage>(language)
-  const [languages, setLanguages] = useState(user?.learning_languages ?? [])
+  const [native, setNative] = useState<TranslationLanguageCode>(
+    user?.native_language_code ?? language,
+  )
+  const [languages, setLanguages] = useState<LearningLanguageCode[]>(user?.learning_languages ?? [])
   const [minutes, setMinutes] = useState(String(user?.daily_goal_minutes ?? 15))
   const [reviews, setReviews] = useState(String(user?.daily_goal_reviews ?? 500))
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const nativeNoteId = useId()
 
   async function save(event: React.FormEvent) {
     event.preventDefault()
@@ -40,6 +52,7 @@ export function PreferencesSettings() {
         await meApi.updatePreferences({
           ui_language: locale,
           learning_languages: languages,
+          native_language: native,
           daily_goal_minutes: m,
           daily_goal_reviews: r,
         }),
@@ -69,29 +82,66 @@ export function PreferencesSettings() {
             </select>
           </label>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t('Переводы и инструкции будут на языке интерфейса.')}
+            {t('Инструкции и объяснения будут на языке интерфейса.')}
+          </p>
+        </div>
+        <div>
+          <label htmlFor="native-language" className="block text-sm font-medium">
+            {t('Родной язык')}
+            <select
+              id="native-language"
+              className={inputClass}
+              value={native}
+              onChange={(e) => setNative(e.target.value as TranslationLanguageCode)}
+            >
+              {TRANSLATION_LANGUAGES.map((item) => (
+                <option
+                  key={item.code}
+                  value={item.code}
+                  // A learning language must be removed below before it can become native.
+                  disabled={isLearningLanguageCode(item.code) && languages.includes(item.code)}
+                >
+                  {item.flag} {translationLanguageLabel(item.code, language)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t('Новые переводы делаются на этот язык. Сохранённые переводы не меняются.')}
           </p>
         </div>
         <fieldset>
           <legend className="mb-2 text-sm font-medium">{t('Изучаемые языки')}</legend>
           <div className="flex flex-col items-start gap-3">
-            {LEARNING_LANGUAGES.map((item) => (
-              <label key={item.code} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={languages.includes(item.code)}
-                  onChange={(e) =>
-                    setLanguages(
-                      e.target.checked
-                        ? [...languages, item.code]
-                        : languages.filter((languageCode) => languageCode !== item.code),
-                    )
-                  }
-                />
-                <span aria-hidden="true">{item.flag}</span>
-                <span>{learningLanguageLabel(item.code, language)}</span>
-              </label>
-            ))}
+            {LEARNING_LANGUAGES.map((item) => {
+              const isNative = item.code === native
+              return (
+                <div key={item.code} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={languages.includes(item.code)}
+                      disabled={isNative}
+                      aria-describedby={isNative ? nativeNoteId : undefined}
+                      onChange={(e) =>
+                        setLanguages(
+                          e.target.checked
+                            ? [...languages, item.code]
+                            : languages.filter((languageCode) => languageCode !== item.code),
+                        )
+                      }
+                    />
+                    <span aria-hidden="true">{item.flag}</span>
+                    <span>{learningLanguageLabel(item.code, language)}</span>
+                  </label>
+                  {isNative && (
+                    <span id={nativeNoteId} className="text-xs text-muted-foreground">
+                      {t('Это ваш родной язык — смените его выше')}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             {t('Удаление языка из списка сохраняет уроки, словарь и прогресс.')}

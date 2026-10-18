@@ -159,5 +159,7 @@ async def test_snapshot_query_count_is_constant_and_has_no_side_effects(
     finally:
         event.remove(engine, "before_cursor_execute", count_select)
 
-    assert selects == [5, 5]
+    # Constant regardless of lesson size; the translation query is skipped
+    # when the user has no saved items in the lesson.
+    assert selects[0] == selects[1] <= 5
     assert await _counts(db_session, user.id) == before

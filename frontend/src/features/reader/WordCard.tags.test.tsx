@@ -230,6 +230,7 @@ it('hides AI controls when the profile says AI is disabled', async () => {
       last_learning_language_code: 'pt',
       needs_onboarding: false,
       onboarded_at: null,
+      native_language_code: 'ru',
       ai_enabled: false,
     })
   setup()

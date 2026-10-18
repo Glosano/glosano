@@ -117,6 +117,19 @@ async def test_unknown_word_and_uncovered_pair_return_200_empty(db_session: Asyn
             assert body["attribution"]["license"] == "CC-BY-SA 4.0"
 
 
+async def test_lookup_new_target_is_not_installed() -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        await _register_and_onboard(c, "dict-newtarget@example.com")
+        r = await c.get(
+            "/api/dictionary/lookup", params={"lang": "pt", "target": "uk", "text": "casa"}
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["availability"] == "not_installed"
+        assert body["entries"] == []
+
+
 async def test_validation_and_auth() -> None:
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:

@@ -6,13 +6,13 @@ import uuid
 
 from pydantic import BaseModel, Field
 
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import LearningLanguageCode, TranslationLanguageCode
 
 
 class TranslateRequest(BaseModel):
     surface_text: str = Field(min_length=1, max_length=256)
     context_text: str = Field(min_length=1, max_length=1000)
-    target_language_code: LearningLanguageCode
+    target_language_code: TranslationLanguageCode
     lesson_id: uuid.UUID | None = None
 
 

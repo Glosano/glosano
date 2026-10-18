@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -35,6 +35,7 @@ const user = {
   last_learning_language_code: 'pt',
   needs_onboarding: false,
   onboarded_at: '2026-09-11T00:00:00Z',
+  native_language_code: 'ru',
   preferred_translation_language_code: 'ru',
   daily_goal_minutes: 15,
   daily_goal_reviews: 500,
@@ -102,6 +103,7 @@ describe('settings', () => {
       ...user,
       ui_language_code: 'en',
       learning_languages: ['ru'],
+      native_language_code: 'en',
       daily_goal_minutes: 45,
       daily_goal_reviews: 35,
     })
@@ -112,6 +114,7 @@ describe('settings', () => {
     )
     await waitFor(() => expect(screen.getByLabelText('Daily review limit')).toHaveValue(35))
     expect(screen.getByLabelText('Interface language')).toHaveValue('en')
+    expect(screen.getByLabelText('Native language')).toHaveValue('en')
     expect(screen.getByRole('checkbox', { name: 'Russian' })).toBeChecked()
     expect(screen.getByLabelText('Reading goal, minutes per day')).toHaveValue(45)
   })
@@ -160,11 +163,10 @@ describe('settings', () => {
     expect(meApi.changePassword).not.toHaveBeenCalled()
   })
 
-  it('keeps at least one learning language and persists the UI-derived target', async () => {
+  it('keeps at least one learning language and the native language when the UI changes', async () => {
     vi.mocked(meApi.updatePreferences).mockResolvedValue({
       ...user,
       ui_language_code: 'en',
-      preferred_translation_language_code: 'en',
     })
     show(<PreferencesSettings />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Португальский' }))
@@ -173,15 +175,96 @@ describe('settings', () => {
     expect(meApi.updatePreferences).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Португальский' }))
     fireEvent.change(screen.getByLabelText('Язык интерфейса'), { target: { value: 'en' } })
+    expect(screen.getByLabelText('Родной язык')).toHaveValue('ru')
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
     await waitFor(() => expect(screen.getByText('Interface language')).toBeInTheDocument())
     expect(meApi.updatePreferences).toHaveBeenCalledWith({
       ui_language: 'en',
       learning_languages: ['pt'],
+      native_language: 'ru',
       daily_goal_minutes: 15,
       daily_goal_reviews: 500,
     })
-    expect(useUserStore.getState().user?.preferred_translation_language_code).toBe('en')
+    expect(screen.getByLabelText('Native language')).toHaveValue('ru')
+    expect(useUserStore.getState().user?.native_language_code).toBe('ru')
+  })
+
+  it('shows the native language with a hint and offers the fifteen-language catalog', () => {
+    show(<PreferencesSettings />)
+
+    const native = screen.getByLabelText('Родной язык')
+    expect(native).toHaveValue('ru')
+    expect(within(native).getAllByRole('option')).toHaveLength(15)
+    expect(within(native).getByRole('option', { name: /Украинский/ })).toBeInTheDocument()
+    expect(
+      screen.getByText('Новые переводы делаются на этот язык. Сохранённые переводы не меняются.'),
+    ).toBeInTheDocument()
+  })
+
+  it('never lets the native language be a learning language', () => {
+    show(<PreferencesSettings />)
+
+    expect(screen.getByRole('checkbox', { name: 'Русский' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Испанский' })).toBeEnabled()
+    const native = screen.getByLabelText('Родной язык')
+    expect(within(native).getByRole('option', { name: /Португальский/ })).toBeDisabled()
+
+    fireEvent.change(native, { target: { value: 'es' } })
+    expect(screen.getByRole('checkbox', { name: 'Испанский' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Русский' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Русский' }))
+    expect(within(native).getByRole('option', { name: /Русский/ })).toBeDisabled()
+  })
+
+  it('explains why the native language is disabled among learning languages', () => {
+    show(<PreferencesSettings />)
+
+    const note = 'Это ваш родной язык — смените его выше'
+    expect(screen.getByRole('checkbox', { name: 'Русский' })).toHaveAccessibleDescription(note)
+    expect(screen.getByRole('checkbox', { name: 'Испанский' })).not.toHaveAccessibleDescription()
+
+    fireEvent.change(screen.getByLabelText('Родной язык'), { target: { value: 'es' } })
+    expect(screen.getByRole('checkbox', { name: 'Испанский' })).toHaveAccessibleDescription(note)
+    expect(screen.getByRole('checkbox', { name: 'Русский' })).not.toHaveAccessibleDescription()
+  })
+
+  it('translates the native-language note into English', () => {
+    act(() => setUiLanguage('en'))
+    show(<PreferencesSettings />)
+
+    expect(screen.getByRole('checkbox', { name: 'Russian' })).toHaveAccessibleDescription(
+      'This is your native language — change it above',
+    )
+  })
+
+  it('saves a new native language and drops caches built for the old one', async () => {
+    vi.mocked(meApi.updatePreferences).mockResolvedValue({
+      ...user,
+      native_language_code: 'uk',
+      preferred_translation_language_code: 'uk',
+    })
+    const cache = show(<PreferencesSettings />)
+    cache.setQueryData(['dictionary', 'pt', 'casa'], { translations: ['дом'] })
+    fireEvent.change(screen.getByLabelText('Родной язык'), { target: { value: 'uk' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Сохранено'))
+    expect(meApi.updatePreferences).toHaveBeenCalledWith(
+      expect.objectContaining({ ui_language: 'ru', native_language: 'uk' }),
+    )
+    expect(useUserStore.getState().user?.native_language_code).toBe('uk')
+    expect(cache.getQueryData(['dictionary', 'pt', 'casa'])).toBeUndefined()
+  })
+
+  it('explains a native-language conflict reported by the server', async () => {
+    vi.mocked(meApi.updatePreferences).mockRejectedValue(
+      new ApiError(400, 'native_language_is_learning'),
+    )
+    show(<PreferencesSettings />)
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Родной язык не может быть изучаемым'),
+    )
+    expect(useUserStore.getState().user?.native_language_code).toBe('ru')
   })
 
   it('keeps data until the second confirmation with password succeeds', async () => {

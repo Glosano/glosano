@@ -64,6 +64,13 @@ describe('VocabularyCardList', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 
+  it('marks the translation with the flag of its language', () => {
+    setup([{ ...enriched, primary_translation: { text: 'опустили', target_language_code: 'ru' } }])
+    const flag = screen.getByText('🇷🇺')
+    expect(flag).toHaveAttribute('aria-hidden', 'true')
+    expect(flag.parentElement).toHaveTextContent('опустили')
+  })
+
   it('fires onOpenTerm with the item when the term is clicked', () => {
     const { onOpenTerm } = setup()
     fireEvent.click(screen.getByRole('button', { name: 'abaixaram' }))

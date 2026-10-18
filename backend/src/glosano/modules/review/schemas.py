@@ -22,6 +22,8 @@ class QueueItemOut(BaseModel):
     context_sentence: str | None
     context_lesson_id: uuid.UUID | None = None
     context_segment_id: uuid.UUID | None = None
+    # Language of `translation` for the flag; None iff translation is None (FLQ-47).
+    translation_language_code: str | None = None
 
 
 class DailyOut(BaseModel):

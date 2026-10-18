@@ -3,6 +3,7 @@ import { Volume2 } from 'lucide-react'
 
 import type { StatusMap, WordToken } from '@/api/reader'
 import { vocabularyApi } from '@/api/vocabulary'
+import { translationLanguageFlag } from '@/lib/languages'
 import { cn } from '@/lib/utils'
 
 import { wordLookupKey } from './useWordCard'
@@ -31,7 +32,8 @@ export function SentenceVocabList({ words, statuses, lang, target, onWordClick }
     <ul data-testid="sentence-vocab">
       {words.map((w, idx) => {
         const tracked = statuses[w.n]?.s === 'tracked'
-        const translation = lookups[idx]?.data?.translations.primary?.text ?? null
+        // May be a saved translation in another language (FLQ-47 spec §8): always flagged.
+        const translation = lookups[idx]?.data?.translations.primary ?? null
         return (
           <li key={w.i}>
             <button
@@ -59,7 +61,10 @@ export function SentenceVocabList({ words, statuses, lang, target, onWordClick }
                 </span>
                 {translation && (
                   <span className="mt-0.5 block text-sm text-muted-foreground">
-                    {translation}
+                    <span aria-hidden="true" className="mr-1.5">
+                      {translationLanguageFlag(translation.target_language_code)}
+                    </span>
+                    {translation.text}
                   </span>
                 )}
               </span>

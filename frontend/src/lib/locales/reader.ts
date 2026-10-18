@@ -110,6 +110,8 @@ export const readerMessages: Record<string, string> = {
   'Добавить вариант': 'Add a translation',
   'Удалить вариант: {{value0}}': 'Delete translation: {{value0}}',
   'Введите новый перевод здесь': 'Enter a new translation here',
+  'Перевод: {{language}}': 'Translation: {{language}}',
+  'Новый перевод: {{language}}': 'New translation: {{language}}',
   Отменить: 'Undo',
   Перевод: 'Translation',
   Подсказки: 'Suggestions',

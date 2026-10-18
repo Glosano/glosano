@@ -83,6 +83,40 @@ async def test_create_then_translate_then_lookup():
         assert body["translations"]["primary"]["text"] == "каждый"
 
 
+async def test_add_translation_in_new_target_language():
+    async with await _client() as c:
+        csrf = await _register(c)
+        h = {"X-CSRF-Token": csrf}
+        r = await c.post(
+            "/api/vocabulary/items",
+            headers=h,
+            json={
+                "kind": "token",
+                "language_code": "pt",
+                "text": "cada",
+                "status": "tracked",
+                "confidence": 0,
+            },
+        )
+        assert r.status_code == 201
+        item_id = r.json()["item_id"]
+        r = await c.post(
+            f"/api/vocabulary/items/token/{item_id}/translations",
+            headers=h,
+            json={
+                "target_language_code": "uk",
+                "translation_text": "кожен",
+                "source_type": "user",
+            },
+        )
+        assert r.status_code == 201
+        r = await c.get(
+            "/api/vocabulary/lookup", params={"lang": "pt", "text": "cada", "target": "uk"}
+        )
+        assert r.status_code == 200
+        assert r.json()["translations"]["primary"]["text"] == "кожен"
+
+
 async def test_patch_tags_notes():
     async with await _client() as c:
         csrf = await _register(c)

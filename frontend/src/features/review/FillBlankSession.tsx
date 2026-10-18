@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reviewApi, type FillBlankExercise, type ReviewItemKind } from '@/api/review'
 import { useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { exerciseErrorKey } from './exerciseError'
 import { normalizeFillAnswer } from './fillAnswer'
 import { SessionShell } from './sessionUi'
@@ -20,13 +21,24 @@ interface Attempt {
 
 export function FillBlankSession({ lang, lessonId, itemKind, ids }: Props) {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const instance = useId()
   const [idx, setIdx] = useState(0)
   const [finished, setFinished] = useState(false)
   const [attempts, setAttempts] = useState<Attempt[]>([])
   const [skipped, setSkipped] = useState(0)
   const queue = useQuery({
-    queryKey: ['review-queue', lang, 'fill', lessonId, itemKind, language, instance, ids],
+    queryKey: [
+      'review-queue',
+      lang,
+      'fill',
+      lessonId,
+      itemKind,
+      language,
+      translationLanguage,
+      instance,
+      ids,
+    ],
     queryFn: () =>
       ids
         ? reviewApi.selectedQueue(lang, ids, true, lessonId, itemKind)
@@ -122,6 +134,7 @@ function FillCard({
   onSkip: () => void
 }) {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const instance = useId()
   const [text, setText] = useState('')
   const [hinted, setHinted] = useState(false)
@@ -130,7 +143,7 @@ function FillCard({
   const attempted = useRef(false)
   const composing = useRef(false)
   const exercise = useQuery({
-    queryKey: ['exercise', language, 'fill_blank', id, instance],
+    queryKey: ['exercise', language, translationLanguage, 'fill_blank', id, instance],
     queryFn: () =>
       reviewApi.exercise<FillBlankExercise>({ kind: 'fill_blank', review_item_id: id }),
     staleTime: Infinity,

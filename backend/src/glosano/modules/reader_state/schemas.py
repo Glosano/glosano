@@ -12,7 +12,7 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import TranslationLanguageCode
 from glosano.modules.vocabulary.schemas import PrimaryTranslationOut
 
 
@@ -190,7 +190,7 @@ class BulkUndoResponse(BaseModel):
 
 
 class SegmentTranslationRequest(BaseModel):
-    target_language_code: LearningLanguageCode
+    target_language_code: TranslationLanguageCode
 
 
 class SegmentTranslationResponse(BaseModel):

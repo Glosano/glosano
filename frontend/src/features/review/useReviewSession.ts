@@ -1,4 +1,5 @@
 import { useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -54,6 +55,7 @@ export function useReviewSession(
   opts: { serverMode: 'due' | 'new' | 'practice'; lessonId?: string; itemKind?: ReviewItemKind },
 ): ReviewSessionResult {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const { serverMode, lessonId, itemKind } = opts
   const queryClient = useQueryClient()
   const instance = useId()
@@ -68,6 +70,7 @@ export function useReviewSession(
       lessonId ?? null,
       itemKind ?? null,
       language,
+      translationLanguage,
       instance,
       round,
     ],

@@ -1,6 +1,7 @@
 import { exerciseErrorKey } from './exerciseError'
 import { ignoreReviewKey } from './keyboard'
 import { useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -32,9 +33,10 @@ interface QuizSessionProps {
 
 export function QuizSession(props: QuizSessionProps) {
   const { language } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   return (
     <QuizSessionContent
-      key={`${language}:${props.kind}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
+      key={`${language}:${translationLanguage}:${props.kind}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
       {...props}
     />
   )
@@ -42,11 +44,19 @@ export function QuizSession(props: QuizSessionProps) {
 
 function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps) {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const s = useReviewSession(lang, { serverMode: 'due', lessonId, itemKind })
   const [picked, setPicked] = useState<number | null>(null)
 
   const exercise = useQuery({
-    queryKey: ['exercise', s.sessionKey, language, kind, s.current?.review_item_id ?? null],
+    queryKey: [
+      'exercise',
+      s.sessionKey,
+      language,
+      translationLanguage,
+      kind,
+      s.current?.review_item_id ?? null,
+    ],
     queryFn: () =>
       reviewApi.exercise<QuizPayload>({ kind, review_item_id: s.current!.review_item_id }),
     enabled: s.current !== undefined,

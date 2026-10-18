@@ -28,6 +28,7 @@ const baseUser = {
   last_learning_language_code: 'pt',
   needs_onboarding: false,
   onboarded_at: '2026-09-11T00:00:00Z',
+  native_language_code: 'ru',
   preferred_translation_language_code: 'ru',
   daily_goal_minutes: 15,
   daily_goal_reviews: 20,

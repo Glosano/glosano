@@ -1,6 +1,7 @@
 # ADR-0011 — Язык перевода совпадает с языком интерфейса
 
-- Статус: Accepted
+- Статус: **Superseded by ADR-0030 (2026-10-18)**
+- Superseded by: `docs/adr/ADR-0030-native-language-translation-target.md`
 - Дата: 2026-09-11
 - Задача: FLQ-9
 - Связан с: ADR-0003, ADR-0008, FLQ-9 settings design

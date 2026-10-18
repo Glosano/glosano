@@ -1,4 +1,5 @@
-import { useTranslation } from '@/lib/i18n'
+import { useI18n } from '@/lib/i18n'
+import { translationLanguageFlag, translationLanguageLabel } from '@/lib/languages'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 
@@ -6,8 +7,10 @@ import { ApiError } from '@/api/client'
 import type { TranslationOut } from '@/api/vocabulary'
 
 interface Props {
-  /** Variants for the current target language, creation order (primary first). */
+  /** Saved variants in every language, creation order (primary first). */
   translations: TranslationOut[]
+  /** Language new variants are saved in (ADR-0030); `onCreate` saves into it. */
+  nativeLanguage: string
   onCreate: (text: string) => Promise<void>
   onUpdate: (translationId: string, text: string) => Promise<void>
   onDelete: (translationId: string) => Promise<void>
@@ -15,11 +18,19 @@ interface Props {
 
 /**
  * Translation variants as a list of inputs (spec §2.1): Enter/blur saves,
- * emptying a field deletes the variant, hover shows +/✕, a single empty
- * field is always present when there are no variants.
+ * emptying a field deletes the variant, hover shows +/✕. Variants of every
+ * language are listed with their flag; editing keeps a variant's language.
+ * A single empty field for a native-language variant is always present when
+ * none exists yet (FLQ-47 spec §8).
  */
-export function TranslationFields({ translations, onCreate, onUpdate, onDelete }: Props) {
-  const tr = useTranslation()
+export function TranslationFields({
+  translations,
+  nativeLanguage,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: Props) {
+  const { language: uiLanguage, t: tr } = useI18n()
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   // null = no pending new field; '' or text = the single pending field's draft.
   const [newDraft, setNewDraft] = useState<string | null>(null)
@@ -36,7 +47,7 @@ export function TranslationFields({ translations, onCreate, onUpdate, onDelete }
     setDrafts({})
   }, [translations])
 
-  const showAlwaysEmpty = translations.length === 0
+  const showAlwaysEmpty = !translations.some((t) => t.target_language_code === nativeLanguage)
   const pendingOpen = newDraft !== null || showAlwaysEmpty
   const pendingValue = newDraft ?? ''
 
@@ -96,8 +107,12 @@ export function TranslationFields({ translations, onCreate, onUpdate, onDelete }
     <div data-testid="translation-fields" className="mt-1 space-y-2">
       {translations.map((t) => (
         <div key={t.id} className="group relative">
+          <LanguageFlag code={t.target_language_code} />
           <input
-            className="w-full rounded-md border border-border px-3 py-2 pr-16 text-base"
+            aria-label={tr('Перевод: {{language}}', {
+              language: translationLanguageLabel(t.target_language_code, uiLanguage),
+            })}
+            className="w-full rounded-md border border-border py-2 pl-10 pr-16 text-base"
             value={drafts[t.id] ?? t.text}
             onChange={(e) => setDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
             onBlur={() => void commitExisting(t)}
@@ -122,18 +137,36 @@ export function TranslationFields({ translations, onCreate, onUpdate, onDelete }
         </div>
       ))}
       {pendingOpen && (
-        <input
-          // autoFocus: the field appears on explicit "+" click, not on page load.
-          autoFocus={newDraft !== null}
-          className="w-full rounded-md border border-border px-3 py-2 text-base"
-          placeholder={tr('Введите новый перевод здесь')}
-          value={pendingValue}
-          onChange={(e) => setNewDraft(e.target.value)}
-          onBlur={() => void commitNew()}
-          onKeyDown={(e) => { if (e.key === 'Enter') void commitNew() }}
-        />
+        <div className="relative">
+          <LanguageFlag code={nativeLanguage} />
+          <input
+            // autoFocus: the field appears on explicit "+" click, not on page load.
+            autoFocus={newDraft !== null}
+            aria-label={tr('Новый перевод: {{language}}', {
+              language: translationLanguageLabel(nativeLanguage, uiLanguage),
+            })}
+            className="w-full rounded-md border border-border py-2 pl-10 pr-3 text-base"
+            placeholder={tr('Введите новый перевод здесь')}
+            value={pendingValue}
+            onChange={(e) => setNewDraft(e.target.value)}
+            onBlur={() => void commitNew()}
+            onKeyDown={(e) => { if (e.key === 'Enter') void commitNew() }}
+          />
+        </div>
       )}
       {saveError && <p className="text-sm text-destructive">{tr(saveError)}</p>}
     </div>
+  )
+}
+
+/** Decorative flag inside the field; the language name is in the input's label. */
+function LanguageFlag({ code }: { code: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-base"
+    >
+      {translationLanguageFlag(code)}
+    </span>
   )
 }

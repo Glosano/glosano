@@ -1,5 +1,6 @@
 import type { ParagraphQuoteAction } from './ParagraphQuote'
 import { useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Check } from 'lucide-react'
@@ -66,7 +67,8 @@ const FONT_SIZE_CLASS = ['text-base', 'text-lg', 'text-xl'] as const
 const LINE_HEIGHT_CLASS = ['leading-normal', 'leading-relaxed', 'leading-loose'] as const
 
 export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
-  const { language: targetLanguage, t: tr } = useI18n()
+  const { t: tr } = useI18n()
+  const targetLanguage = useTranslationLanguage()
   const navigate = useNavigate()
   const { data: lessonDetail, isError: lessonDetailError } = useLessonDetail(lessonId)
   const status = lessonDetail?.status

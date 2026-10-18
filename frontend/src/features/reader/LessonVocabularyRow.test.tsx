@@ -133,3 +133,16 @@ it('renders known and ignored as accessible indicators instead of direct actions
     screen.queryByRole('button', { name: /Отметить Casa как известное/ }),
   ).not.toBeInTheDocument()
 })
+
+it('marks a saved translation with the flag of its language, including a fallback one', () => {
+  renderRow({
+    ...item,
+    item_id: 'i1',
+    status: 'tracked',
+    confidence: 2,
+    primary_translation: { text: 'дом', target_language_code: 'ru' },
+  })
+  const flag = screen.getByText('🇷🇺')
+  expect(flag).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.getByRole('button', { name: 'Открыть карточку Casa' })).toHaveTextContent('дом')
+})

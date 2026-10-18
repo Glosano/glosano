@@ -43,12 +43,16 @@ async def get_me(
         role=user.role,
         display_name=user.profile.display_name,
         ui_language_code=user.profile.ui_language_code,
-        preferred_translation_language_code=user.profile.ui_language_code,
+        native_language_code=user.profile.native_language_code,
+        # Legacy alias of the translation target; UI language while native is unset.
+        preferred_translation_language_code=(
+            user.profile.native_language_code or user.profile.ui_language_code
+        ),
         daily_goal_minutes=user.settings.daily_goal_minutes,
         daily_goal_reviews=user.settings.daily_goal_reviews,
         learning_languages=[ll.language_code for ll in user.learning_languages],
         last_learning_language_code=user.settings.last_learning_language_code,
-        needs_onboarding=user.onboarded_at is None,
+        needs_onboarding=service.needs_onboarding(user),
         onboarded_at=user.onboarded_at,
     )
 
@@ -66,7 +70,7 @@ async def post_onboarding(
         user_id,
         ui_language=body.ui_language,
         learning_languages=body.learning_languages,
-        translation_language=body.translation_language,
+        native_language=body.native_language,
         user_repo=UserRepo(session),
         session=session,
     )

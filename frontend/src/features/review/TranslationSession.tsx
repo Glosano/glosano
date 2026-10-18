@@ -1,5 +1,6 @@
 import { exerciseErrorKey } from './exerciseError'
 import { useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { learningLanguageLabel } from '@/lib/languages'
 import { useEffect, useId, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -22,9 +23,10 @@ interface TranslationSessionProps {
 
 export function TranslationSession(props: TranslationSessionProps) {
   const { language } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   return (
     <TranslationSessionContent
-      key={`${language}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
+      key={`${language}:${translationLanguage}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
       {...props}
     />
   )
@@ -32,10 +34,19 @@ export function TranslationSession(props: TranslationSessionProps) {
 
 function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSessionProps) {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const subtitle = sessionSubtitle(t, { title: SUBTITLE, lessonId, itemKind })
 
   const queue = useQuery({
-    queryKey: ['review-queue', lang, 'practice', lessonId ?? null, itemKind ?? null, language],
+    queryKey: [
+      'review-queue',
+      lang,
+      'practice',
+      lessonId ?? null,
+      itemKind ?? null,
+      language,
+      translationLanguage,
+    ],
     queryFn: () => reviewApi.queue(lang, lessonId, 'practice', itemKind),
     staleTime: Infinity,
     gcTime: 0,
@@ -56,7 +67,14 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
   const current = finished ? undefined : items[idx]
 
   const exercise = useQuery({
-    queryKey: ['exercise', instance, language, 'translation_task', current?.review_item_id ?? null],
+    queryKey: [
+      'exercise',
+      instance,
+      language,
+      translationLanguage,
+      'translation_task',
+      current?.review_item_id ?? null,
+    ],
     queryFn: () =>
       reviewApi.exercise<TranslationTaskExercise>({
         kind: 'translation_task',

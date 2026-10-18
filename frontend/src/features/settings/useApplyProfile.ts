@@ -7,7 +7,12 @@ import { getUiLanguage, setUiLanguage } from '@/lib/i18n'
 export function useApplyProfile() {
   const cache = useQueryClient()
   return async (user: MeResponse) => {
-    const languageChanged = getUiLanguage() !== user.ui_language_code
+    const previous = useUserStore.getState().user
+    // Cached translations, dictionaries and review cards are built for one UI and
+    // one native language; either change makes them stale.
+    const languageChanged =
+      getUiLanguage() !== user.ui_language_code ||
+      (previous !== null && previous.native_language_code !== user.native_language_code)
     await cache.cancelQueries({ queryKey: ['me'], exact: true })
     if (languageChanged) await cache.cancelQueries({ predicate: (q) => q.queryKey[0] !== 'me' })
     useUserStore.getState().setUser(user)

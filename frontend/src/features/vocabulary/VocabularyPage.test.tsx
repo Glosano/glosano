@@ -37,8 +37,15 @@ import type { VocabListItem } from '@/api/vocabulary'
 import { addedAfterFromPreset, VocabularyPage } from './VocabularyPage'
 import { useVocabularyStore } from './vocabularyStore'
 import { setUiLanguage } from '@/lib/i18n'
+import type { MeResponse } from '@/api/me'
+import { useUserStore } from '@/stores/userStore'
 
-afterEach(() => { setUiLanguage('ru') })
+afterEach(() => {
+  act(() => {
+    useUserStore.getState().reset()
+    setUiLanguage('ru')
+  })
+})
 
 describe('addedAfterFromPreset', () => {
   it('added_after is stable across renders within the same day (no infinite refetch loop)', async () => {
@@ -133,6 +140,26 @@ describe('VocabularyPage states', () => {
     expect(screen.getByPlaceholderText('Поиск в словаре')).toBeInTheDocument()
     expect(vocabularyApi.updateTranslation).not.toHaveBeenCalled()
     expect(vocabularyApi.addTranslation).not.toHaveBeenCalled()
+  })
+
+  it('requests vocabulary and the card in the native language, not the UI language', async () => {
+    useUserStore.setState({
+      user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+    })
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [item], total: 1, page: 1, page_size: 25 })
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'i1', status: 'tracked', confidence: 2,
+      translations: { primary: null, all: [] }, note: null, tags: [],
+    })
+    renderPage()
+    fireEvent.click((await screen.findAllByRole('button', { name: 'abaixaram' }))[0]!)
+    await waitFor(() => expect(vocabularyApi.lookup).toHaveBeenCalledWith('pt', 'abaixaram', 'uk', 'token'))
+    expect(vocabularyApi.list).toHaveBeenCalledWith(expect.objectContaining({ target: 'uk' }))
+
+    act(() => { setUiLanguage('en') })
+    expect(await screen.findByRole('heading', { name: 'Vocabulary' })).toBeInTheDocument()
+    for (const call of vi.mocked(vocabularyApi.list).mock.calls) expect(call[0].target).toBe('uk')
+    for (const call of vi.mocked(vocabularyApi.lookup).mock.calls) expect(call[2]).toBe('uk')
   })
 
   it('does not show previous-target vocabulary as placeholder data while a new target is loading', async () => {

@@ -35,7 +35,10 @@ export function AddLanguageDialog({ open, onOpenChange, returnFocusRef }: Props)
   const [selected, setSelected] = useState<LearningLanguageCode | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
-  const allAdded = LEARNING_LANGUAGES.every((item) => user?.learning_languages.includes(item.code))
+  // The native language can never be learned (ADR-0030), so it is never offered.
+  const unavailable = (code: LearningLanguageCode) =>
+    (user?.learning_languages.includes(code) ?? false) || user?.native_language_code === code
+  const allAdded = LEARNING_LANGUAGES.every((item) => unavailable(item.code))
 
   useEffect(() => {
     if (!open) {
@@ -86,7 +89,7 @@ export function AddLanguageDialog({ open, onOpenChange, returnFocusRef }: Props)
           <fieldset disabled={pending} className="grid max-h-[50vh] gap-1 overflow-y-auto">
             <legend className="sr-only">{t('Изучаемые языки')}</legend>
             {LEARNING_LANGUAGES.map((item) => {
-              const disabled = user?.learning_languages.includes(item.code) ?? false
+              const disabled = unavailable(item.code)
               const label = learningLanguageLabel(item.code, language)
               return (
                 <label

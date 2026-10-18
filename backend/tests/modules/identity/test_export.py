@@ -339,6 +339,7 @@ async def test_removing_learning_language_preserves_personal_data(client: AsyncC
         json={
             "ui_language": "ru",
             "learning_languages": ["en"],
+            "native_language": "ru",
             "daily_goal_minutes": 15,
             "daily_goal_reviews": 2,
         },

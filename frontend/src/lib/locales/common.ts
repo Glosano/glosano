@@ -39,8 +39,17 @@ export const commonMessages: Record<string, string> = {
   'Выберите хотя бы один язык.': 'Choose at least one language.',
   'Удаление языка из списка сохраняет уроки, словарь и прогресс.':
     'Removing a language from this list keeps your lessons, vocabulary and progress.',
-  'Переводы и инструкции будут на языке интерфейса.':
-    'Translations and instructions will use the interface language.',
+  'Инструкции и объяснения будут на языке интерфейса.':
+    'Instructions and explanations will use the interface language.',
+  'Родной язык': 'Native language',
+  'Новые переводы делаются на этот язык. Сохранённые переводы не меняются.':
+    'New translations are made into this language. Saved translations stay unchanged.',
+  'Выберите родной язык': 'Choose your native language',
+  'Выберите язык': 'Choose a language',
+  '{{language}} убран из изучаемых: родной язык нельзя изучать. Уроки и словарь сохранены.':
+    '{{language}} was removed from your learning languages: you cannot study your native language. Your lessons and vocabulary are kept.',
+  'Родной язык не может быть изучаемым': 'Your native language cannot be a learning language',
+  'Это ваш родной язык — смените его выше': 'This is your native language — change it above',
   'Цель чтения, минут в день': 'Reading goal, minutes per day',
   'Личная цель. Время чтения пока не измеряется.':
     'A personal goal. Reading time is not measured yet.',

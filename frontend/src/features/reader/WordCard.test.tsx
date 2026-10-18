@@ -37,6 +37,7 @@ function renderCard(
   sentenceText: string | null = null,
   lessonId: string | null = 'L1',
   segId: string | null = null,
+  target = 'ru',
 ) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
@@ -44,7 +45,7 @@ function renderCard(
       <WordCard
         word={{ kind: 'token', t: 'cada', n: 'cada', i: 0, sentenceText: null }}
         lang="pt"
-        target="ru"
+        target={target}
         lessonId={lessonId}
         segId={segId}
         onClose={() => {}}
@@ -100,6 +101,76 @@ describe('WordCard core', () => {
     await waitFor(() => expect(vocabularyApi.addTranslation).toHaveBeenCalledWith('token', 'I1', {
       target_language_code: 'ru', translation_text: 'каждый', source_type: 'user',
     }))
+  })
+
+  it('shows translations of all languages with flags', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'I1', status: 'tracked', confidence: 2,
+      translations: {
+        primary: null,
+        all: [
+          { id: 'T-ru', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
+          { id: 'T-uk', text: 'кожен', target_language_code: 'uk', is_primary: true, source_type: 'user' },
+        ],
+      },
+      note: null, tags: [],
+    })
+    renderCard(null, 'L1', null, 'uk')
+    expect(await screen.findByRole('textbox', { name: 'Перевод: Русский' })).toHaveValue('каждый')
+    expect(screen.getByRole('textbox', { name: 'Перевод: Украинский' })).toHaveValue('кожен')
+    const fields = screen.getByTestId('translation-fields')
+    expect(fields).toHaveTextContent('🇷🇺')
+    expect(fields).toHaveTextContent('🇺🇦')
+    expect(screen.queryByPlaceholderText('Введите новый перевод здесь')).not.toBeInTheDocument()
+  })
+
+  it('shows empty native field when only foreign translations exist', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'I1', status: 'tracked', confidence: 2,
+      translations: {
+        primary: { id: 'T-ru', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
+        all: [
+          { id: 'T-ru', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
+        ],
+      },
+      note: null, tags: [],
+    })
+    vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
+      id: 'T-uk', text: 'кожен', target_language_code: 'uk', is_primary: true, source_type: 'user',
+    })
+    renderCard(null, 'L1', null, 'uk')
+    expect(await screen.findByDisplayValue('каждый')).toBeInTheDocument()
+    const input = screen.getByRole('textbox', { name: 'Новый перевод: Украинский' })
+    fireEvent.change(input, { target: { value: 'кожен' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(vocabularyApi.addTranslation).toHaveBeenCalledWith('token', 'I1', {
+      target_language_code: 'uk', translation_text: 'кожен', source_type: 'user',
+    }))
+  })
+
+  it('edits a foreign-language translation in place without changing its language', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: 'I1', status: 'tracked', confidence: 2,
+      translations: {
+        primary: null,
+        all: [
+          { id: 'T-ru', text: 'каждый', target_language_code: 'ru', is_primary: true, source_type: 'user' },
+        ],
+      },
+      note: null, tags: [],
+    })
+    vi.mocked(vocabularyApi.updateTranslation).mockResolvedValue({
+      id: 'T-ru', text: 'всякий', target_language_code: 'ru', is_primary: true, source_type: 'user',
+    })
+    renderCard(null, 'L1', null, 'uk')
+    const ru = await screen.findByRole('textbox', { name: 'Перевод: Русский' })
+    fireEvent.change(ru, { target: { value: 'всякий' } })
+    fireEvent.keyDown(ru, { key: 'Enter' })
+    await waitFor(() =>
+      expect(vocabularyApi.updateTranslation).toHaveBeenCalledWith('token', 'I1', 'T-ru', 'всякий'),
+    )
+    expect(vocabularyApi.addTranslation).not.toHaveBeenCalled()
+    expect(vocabularyApi.deleteTranslation).not.toHaveBeenCalled()
   })
 
   it('creates a tracked/1 item when a translation is typed on a new word', async () => {

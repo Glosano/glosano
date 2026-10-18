@@ -20,7 +20,9 @@ from glosano.modules.ai_translation.provider import (
 BODY = {"surface_text": "later", "context_text": "See you later!", "target_language_code": "ru"}
 
 
-async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "en") -> str:
+async def _register_and_onboard(
+    c: AsyncClient, email: str, lang: str = "en", native: str = "ru"
+) -> str:
     r = await c.post(
         "/auth/register",
         json={"display_name": "T", "email": email, "password": "abcdefghij"},
@@ -30,7 +32,7 @@ async def _register_and_onboard(c: AsyncClient, email: str, lang: str = "en") ->
     assert csrf
     await c.post(
         "/me/onboarding",
-        json={"ui_language": "en", "learning_languages": [lang], "translation_language": "ru"},
+        json={"ui_language": "en", "learning_languages": [lang], "native_language": native},
         headers={"X-CSRF-Token": csrf},
     )
     return csrf
@@ -150,7 +152,7 @@ async def test_translate_empty_response_502(monkeypatch: pytest.MonkeyPatch) -> 
         assert r.json()["detail"] == "ai_empty_response"
 
 
-async def test_target_comes_from_ui_language_and_prompt_hash_changes(
+async def test_target_comes_from_native_language_and_prompt_hash_changes(
     monkeypatch: pytest.MonkeyPatch, client: AsyncClient
 ):
     import uuid
@@ -168,7 +170,7 @@ async def test_target_comes_from_ui_language_and_prompt_hash_changes(
             return LLMCompletion(text="translation", input_tokens=1, output_tokens=1)
 
     monkeypatch.setattr(service, "_default_provider", lambda: LanguageProvider())
-    csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com", "pt")
+    csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com", "pt", "en")
     client.headers["X-CSRF-Token"] = csrf
     user_id = (await client.get("/me")).json()["id"]
     assert (await client.post("/api/ai/translate", json=BODY)).status_code == 200
@@ -177,8 +179,9 @@ async def test_target_comes_from_ui_language_and_prompt_hash_changes(
         await client.patch(
             "/me/preferences",
             json={
-                "ui_language": "ru",
+                "ui_language": "en",
                 "learning_languages": ["pt"],
+                "native_language": "ru",
                 "daily_goal_minutes": 15,
                 "daily_goal_reviews": 500,
             },
@@ -197,3 +200,38 @@ async def test_target_comes_from_ui_language_and_prompt_hash_changes(
             ).all()
         )
         assert len(rows) == 2 and rows[0].prompt_hash != rows[1].prompt_hash
+
+
+async def test_word_tags_labels_follow_ui_language(
+    monkeypatch: pytest.MonkeyPatch, client: AsyncClient
+):
+    import uuid
+
+    class GrammarProvider:
+        async def complete(self, *, system: str, user: str, max_tokens: int = 100) -> LLMCompletion:
+            return LLMCompletion(
+                text='{"part_of_speech":"verb","base_form":"ecoar","verb_tense":null}',
+                input_tokens=1,
+                output_tokens=1,
+            )
+
+    monkeypatch.setattr(service, "_default_provider", lambda: GrammarProvider())
+    r = await client.post(
+        "/auth/register",
+        json={
+            "display_name": "T",
+            "email": f"{uuid.uuid4()}@example.com",
+            "password": "abcdefghij",
+        },
+    )
+    assert r.status_code == 201
+    client.headers["X-CSRF-Token"] = client.cookies["glosano_csrf"]
+    onboarding = await client.post(
+        "/me/onboarding",
+        json={"ui_language": "ru", "learning_languages": ["pt"], "native_language": "uk"},
+    )
+    assert onboarding.status_code in (200, 204)
+    body = {"surface_text": "ecoavam", "context_text": "Os sons ecoavam.", "language_code": "pt"}
+    response = await client.post("/api/ai/word-tags", json=body)
+    assert response.status_code == 200
+    assert response.json()["tags"] == ["Глагол", "ecoar"]

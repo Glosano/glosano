@@ -1,5 +1,6 @@
 import { ignoreReviewKey } from './keyboard'
 import { useTranslation, useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -28,9 +29,10 @@ interface Props {
 
 export function ReviewPage(props: Props) {
   const { language } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   return (
     <ReviewPageContent
-      key={`${language}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
+      key={`${language}:${translationLanguage}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
       {...props}
     />
   )
@@ -38,6 +40,7 @@ export function ReviewPage(props: Props) {
 
 function ReviewPageContent({ lang, lessonId, mode, itemKind, from }: Props) {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const navigate = useNavigate()
   const client = useQueryClient()
   const [practiceIds, setPracticeIds] = useState<string[] | undefined>()
@@ -86,7 +89,10 @@ function ReviewPageContent({ lang, lessonId, mode, itemKind, from }: Props) {
     )
   else if (mode === 'cards')
     content = (
-      <CardsSession key={`${language}:${lang}:${lessonId ?? ''}:${itemKind ?? ''}`} {...scope} />
+      <CardsSession
+        key={`${language}:${translationLanguage}:${lang}:${lessonId ?? ''}:${itemKind ?? ''}`}
+        {...scope}
+      />
     )
   else if (mode === 'new') content = <NewWordsSession {...scope} />
   else if (mode === 'cloze' || mode === 'reverse')

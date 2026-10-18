@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '@/api/client'
 import type { MeResponse } from '@/api/me'
 import { setUiLanguage } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
@@ -37,7 +38,8 @@ const baseUser = {
   last_learning_language_code: 'pt',
   needs_onboarding: false,
   onboarded_at: '2026-09-11T00:00:00Z',
-  preferred_translation_language_code: 'ru',
+  native_language_code: 'uk',
+  preferred_translation_language_code: 'uk',
   daily_goal_minutes: 15,
   daily_goal_reviews: 20,
 } satisfies MeResponse
@@ -100,6 +102,41 @@ describe('LanguagePicker add-language flow', () => {
     expect(within(dialog).getByRole('radio', { name: 'Portuguese' })).toBeDisabled()
     expect(within(dialog).getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
     expect(within(dialog).getByText('🇵🇹')).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('disables the native language so it cannot become a learning language', async () => {
+    show({ ...baseUser, native_language_code: 'ru', preferred_translation_language_code: 'ru' })
+
+    const dialog = await openAddDialog()
+    expect(within(dialog).getByRole('radio', { name: 'Русский' })).toBeDisabled()
+    expect(within(dialog).getByRole('radio', { name: 'Английский' })).toBeEnabled()
+  })
+
+  it('shows the all-added state when only the native language is left', async () => {
+    show({
+      ...baseUser,
+      native_language_code: 'ru',
+      learning_languages: ['en', 'pt', 'es', 'fr', 'de', 'zh-Hans', 'ja', 'ar', 'hi'],
+    })
+
+    const dialog = await openAddDialog()
+    expect(within(dialog).getByText('Все доступные языки уже добавлены.')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Добавить' })).toBeDisabled()
+  })
+
+  it('explains a native-language conflict reported by the server', async () => {
+    const user = userEvent.setup()
+    vi.mocked(meApi.addLearningLanguage).mockRejectedValue(
+      new ApiError(400, 'native_language_is_learning'),
+    )
+    show()
+    const dialog = await openAddDialog()
+    await user.click(within(dialog).getByRole('radio', { name: 'Испанский' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Добавить' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Родной язык не может быть изучаемым',
+    )
   })
 
   it('cancels without changing the profile or sending a request', async () => {

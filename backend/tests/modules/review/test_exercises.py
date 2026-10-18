@@ -66,6 +66,7 @@ async def _setup_item(s: AsyncSession) -> tuple[uuid.UUID, uuid.UUID]:
     profile = await s.get(UserProfile, user_id)
     assert profile
     profile.ui_language_code = "ru"
+    profile.native_language_code = "ru"
     item = await vocab.create_item(
         s,
         user_id=user_id,
@@ -203,38 +204,23 @@ async def test_writing_exercise_needs_items(monkeypatch: pytest.MonkeyPatch) -> 
     assert provider.calls[0]["max_tokens"] == 1200
 
 
-async def test_ui_language_controls_feedback_and_saved_translation(monkeypatch: pytest.MonkeyPatch):
-    from glosano.modules.identity.models import UserProfile, UserSettings
+async def test_ui_language_change_keeps_native_translation_and_feedback_follows_ui(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from glosano.modules.identity.models import UserProfile
     from glosano.modules.review.exercises import _load_context
-    from glosano.modules.review.service import get_queue
 
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
     provider = FakeProvider([json.dumps({"feedback": "Good"})])
     async with session_scope() as s:
         user_id, ri_id = await _setup_item(s)
         profile = await s.get(UserProfile, user_id)
-        settings = await s.get(UserSettings, user_id)
-        assert profile and settings
+        assert profile
         profile.ui_language_code = "en"
-        settings.preferred_translation_language_code = "ru"  # stale legacy preference
         ctx = await _load_context(s, user_id=user_id, review_item_id=ri_id)
-        assert ctx.target_lang == "en"
-        assert ctx.translation is None  # never label an RU translation as English
-        ri = await s.get(ReviewItem, ri_id)
-        assert ri
-        await vocab.add_translation(
-            s,
-            user_id=user_id,
-            kind="token",
-            item_id=ri.item_id,
-            target_language_code="en",
-            translation_text="every",
-            source_type="user",
-        )
-        ctx = await _load_context(s, user_id=user_id, review_item_id=ri_id)
-        assert ctx.translation == "every"
-        items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=datetime.now(UTC))
-        assert items[0].translation == "every"
+        assert ctx.target_lang == "ru"
+        assert ctx.feedback_lang == "en"
+        assert ctx.translation == "каждый"  # the saved native translation stays
         await translation_feedback(
             s,
             user_id=user_id,
@@ -245,39 +231,98 @@ async def test_ui_language_controls_feedback_and_saved_translation(monkeypatch: 
         )
         prompt = str(provider.calls[0]["user"])
         assert "Answer in English" in prompt
+        assert "this Russian sentence" in prompt
         assert "Answer in Russian" not in prompt
-        assert "плохо" not in prompt
+
+
+async def test_exercise_context_uses_native_for_translation(monkeypatch: pytest.MonkeyPatch):
+    from glosano.modules.identity.models import UserProfile
+
+    monkeypatch.setattr(get_settings(), "llm_enabled", True)
+    provider = FakeProvider([EXAMPLE_JSON, json.dumps({"feedback": "Добре"})])
+    async with session_scope() as s:
+        user_id, ri_id = await _setup_item(s)
+        profile = await s.get(UserProfile, user_id)
+        assert profile
         profile.ui_language_code = "ru"
-        assert (
-            await _load_context(s, user_id=user_id, review_item_id=ri_id)
-        ).translation == "каждый"
-        assert (
-            len(
-                (
-                    await s.scalars(
-                        select(PersonalTranslation).where(
-                            PersonalTranslation.owner_user_id == user_id
-                        )
-                    )
-                ).all()
-            )
-            == 2
+        profile.native_language_code = "uk"
+        ri = await s.get(ReviewItem, ri_id)
+        assert ri
+        await vocab.add_translation(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=ri.item_id,
+            target_language_code="uk",
+            translation_text="кожен",
+            source_type="user",
         )
+        await generate_exercise(
+            s, user_id=user_id, kind="example", review_item_id=ri_id, provider=provider
+        )
+        example = str(provider.calls[0]["user"])
+        assert "кожен" in example and "каждый" not in example
+        assert "into Ukrainian" in example
+        await translation_feedback(
+            s,
+            user_id=user_id,
+            review_item_id=ri_id,
+            sentence_translation="Кожен день",
+            user_text="Cada dia",
+            provider=provider,
+        )
+        feedback = str(provider.calls[1]["user"])
+        assert "this Ukrainian sentence" in feedback
+        assert "Answer in Russian" in feedback
 
 
-def test_writing_instructions_and_feedback_follow_target_language():
+async def test_exercise_requires_native_language(monkeypatch: pytest.MonkeyPatch):
+    from fastapi import HTTPException
+
+    from glosano.modules.identity.models import UserProfile
+
+    monkeypatch.setattr(get_settings(), "llm_enabled", True)
+    async with session_scope() as s:
+        user_id, ri_id = await _setup_item(s)
+        profile = await s.get(UserProfile, user_id)
+        assert profile
+        profile.native_language_code = None
+        with pytest.raises(HTTPException) as exc:
+            await generate_exercise(
+                s,
+                user_id=user_id,
+                kind="example",
+                review_item_id=ri_id,
+                provider=FakeProvider([EXAMPLE_JSON]),
+            )
+        assert exc.value.status_code == 409
+
+
+def test_feedback_prompt_answers_in_ui_language():
     from glosano.modules.review import exercise_prompts as prompts
 
-    for code, language in [("en", "English"), ("ru", "Russian")]:
-        writing = prompts.build_writing_prompt(
-            pairs=[("cada", None)], learn_lang="pt", target_lang=code
-        )
-        assert f"headings and instructions in {language}" in writing
-        feedback = prompts.build_feedback_prompt(
-            word="cada", sentence_translation="x", user_text="y", learn_lang="pt", target_lang=code
-        )
-        assert f"Answer in {language}" in feedback
-        assert "Portuguese" in feedback
+    feedback = prompts.build_feedback_prompt(
+        word="cada",
+        sentence_translation="x",
+        user_text="y",
+        learn_lang="pt",
+        target_lang="uk",
+        feedback_lang="ru",
+    )
+    assert "this Ukrainian sentence" in feedback
+    assert "Answer in Russian" in feedback
+    assert "localized into Russian" in feedback
+    assert "Portuguese" in feedback
+
+
+def test_writing_prompt_splits_translation_and_headings():
+    from glosano.modules.review import exercise_prompts as prompts
+
+    writing = prompts.build_writing_prompt(
+        pairs=[("cada", None)], learn_lang="pt", target_lang="uk", feedback_lang="ru"
+    )
+    assert "Ukrainian translation" in writing
+    assert "headings and instructions in Russian" in writing
 
 
 async def test_fill_retries_a_changed_form_and_does_not_score(
@@ -308,3 +353,21 @@ async def test_fill_retries_a_changed_form_and_does_not_score(
             .all()
         )
         assert events == []
+
+
+async def test_exercise_hint_uses_fallback_translation(monkeypatch: pytest.MonkeyPatch):
+    from glosano.modules.identity.models import UserProfile
+
+    monkeypatch.setattr(get_settings(), "llm_enabled", True)
+    provider = FakeProvider([EXAMPLE_JSON])
+    async with session_scope() as s:
+        user_id, ri_id = await _setup_item(s)  # only a primary "ru" translation
+        profile = await s.get(UserProfile, user_id)
+        assert profile
+        profile.native_language_code = "uk"
+        await generate_exercise(
+            s, user_id=user_id, kind="example", review_item_id=ri_id, provider=provider
+        )
+        example = str(provider.calls[0]["user"])
+        assert "Meaning (user's own translation): каждый" in example
+        assert "into Ukrainian" in example

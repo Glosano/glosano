@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from glosano.core.db import SessionDep
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import LearningLanguageCode, TranslationLanguageCode
 from glosano.modules.dictionary import external_service
 from glosano.modules.dictionary.external_templates import InvalidTemplateError
 from glosano.modules.dictionary.provider import WIKTIONARY_ATTRIBUTION, WiktionaryLocalProvider
@@ -24,6 +24,7 @@ from glosano.modules.dictionary.schemas import (
 router = APIRouter(prefix="/api/dictionary", tags=["dictionary"])
 
 LangCode = LearningLanguageCode
+TargetCode = TranslationLanguageCode
 
 
 def _require_user(request: Request) -> uuid.UUID:
@@ -38,7 +39,7 @@ async def lookup(
     session: SessionDep,
     request: Request,
     lang: LangCode,
-    target: LangCode,
+    target: TargetCode,
     text: Annotated[str, Query(min_length=1, max_length=256)],
 ) -> DictionaryLookupResponse:
     _require_user(request)
@@ -54,7 +55,7 @@ async def lookup(
 
 @router.get("/external", response_model=ExternalDictionariesOut)
 async def list_external(
-    session: SessionDep, request: Request, src: LangCode, dst: LangCode
+    session: SessionDep, request: Request, src: LangCode, dst: TargetCode
 ) -> ExternalDictionariesOut:
     user_id = _require_user(request)
     return await external_service.list_for_pair(session, user_id, src, dst)
@@ -62,7 +63,7 @@ async def list_external(
 
 @router.put("/external/layout", response_model=ExternalDictionariesOut)
 async def put_layout(
-    session: SessionDep, request: Request, src: LangCode, dst: LangCode, body: LayoutIn
+    session: SessionDep, request: Request, src: LangCode, dst: TargetCode, body: LayoutIn
 ) -> ExternalDictionariesOut:
     user_id = _require_user(request)
     return await external_service.set_layout(session, user_id, src, dst, body.visible)

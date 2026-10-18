@@ -192,31 +192,72 @@ async def set_last_language(
     user.settings.last_learning_language_code = language_code
 
 
+def needs_onboarding(user: User) -> bool:
+    """Onboarding is incomplete until it was submitted and a native language is set.
+
+    Requires `user.profile` to be loaded.
+    """
+    return user.onboarded_at is None or user.profile.native_language_code is None
+
+
+def _native_language_is_learning() -> HTTPException:
+    return HTTPException(status.HTTP_400_BAD_REQUEST, "native_language_is_learning")
+
+
+async def _replace_learning_languages(
+    user: User, learning_languages: list[str], session: AsyncSession
+) -> None:
+    """Atomically make `learning_languages` the user's exact learning set (ADR-0011:
+    removing a language never deletes its lessons, vocabulary or statistics)."""
+    existing = {row.language_code for row in user.learning_languages}
+    await session.execute(
+        delete(UserLearningLanguage).where(
+            UserLearningLanguage.user_id == user.id,
+            UserLearningLanguage.language_code.not_in(learning_languages),
+        )
+    )
+    for code in learning_languages:
+        if code not in existing:
+            session.add(UserLearningLanguage(user_id=user.id, language_code=code))
+    await session.flush()
+    await session.refresh(user, ["learning_languages"])
+
+
 async def complete_onboarding(
     user_id: uuid.UUID,
     *,
     ui_language: str,
     learning_languages: list[str],
-    translation_language: str | None,
+    native_language: str | None,
     user_repo: UserRepo,
     session: AsyncSession,
 ) -> str:
-    """Persist onboarding choices and return the redirect target language."""
+    """Persist onboarding choices and return the redirect target language.
+
+    An explicit native language that is also sent as a learning language is a
+    conflict (400). Legacy clients omit `native_language`; for them the resolved
+    native (current native, else the UI language) is silently dropped from the
+    learning list, and only an empty remainder is a conflict.
+    """
     user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
 
-    user.profile.ui_language_code = ui_language
-    user.settings.preferred_translation_language_code = ui_language
-    user.settings.last_learning_language_code = learning_languages[0]
+    if native_language is not None and native_language in learning_languages:
+        raise _native_language_is_learning()
+    native = native_language or user.profile.native_language_code or ui_language
+    learning = [code for code in learning_languages if code != native]
+    if not learning:
+        raise _native_language_is_learning()
 
-    existing = {ll.language_code for ll in user.learning_languages}
-    for code in learning_languages:
-        if code not in existing:
-            session.add(UserLearningLanguage(user_id=user_id, language_code=code))
+    user.profile.ui_language_code = ui_language
+    user.profile.native_language_code = native
+    user.settings.preferred_translation_language_code = native
+    user.settings.last_learning_language_code = learning[0]
+    await _replace_learning_languages(user, learning, session)
 
     await user_repo.mark_onboarded(user_id, datetime.now(UTC))
-    return learning_languages[0]
+    return learning[0]
 
 
 async def update_profile(user_id: uuid.UUID, *, display_name: str, user_repo: UserRepo) -> None:
@@ -231,6 +272,7 @@ async def update_preferences(
     *,
     ui_language: str,
     learning_languages: list[str],
+    native_language: str | None,
     daily_goal_minutes: int,
     daily_goal_reviews: int,
     user_repo: UserRepo,
@@ -238,24 +280,18 @@ async def update_preferences(
     user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    native = native_language or user.profile.native_language_code
+    if native in learning_languages:
+        raise _native_language_is_learning()
     user.profile.ui_language_code = ui_language
-    user.settings.preferred_translation_language_code = ui_language
+    if native is not None:
+        user.profile.native_language_code = native
+        user.settings.preferred_translation_language_code = native
     user.settings.daily_goal_minutes = daily_goal_minutes
     user.settings.daily_goal_reviews = daily_goal_reviews
     if user.settings.last_learning_language_code not in learning_languages:
         user.settings.last_learning_language_code = learning_languages[0]
-    existing = {row.language_code for row in user.learning_languages}
-    await user_repo.session.execute(
-        delete(UserLearningLanguage).where(
-            UserLearningLanguage.user_id == user_id,
-            UserLearningLanguage.language_code.not_in(learning_languages),
-        )
-    )
-    for code in learning_languages:
-        if code not in existing:
-            user_repo.session.add(UserLearningLanguage(user_id=user_id, language_code=code))
-    await user_repo.session.flush()
-    await user_repo.session.refresh(user, ["learning_languages"])
+    await _replace_learning_languages(user, learning_languages, user_repo.session)
 
 
 async def change_password(
@@ -282,6 +318,17 @@ async def change_password(
 
 
 async def translation_target(session: AsyncSession, user_id: uuid.UUID) -> str:
+    """Language new translations are made into: the user's native language (ADR-0030)."""
+    profile = await session.get(UserProfile, user_id)
+    if profile is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    if profile.native_language_code is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "native_language_required")
+    return profile.native_language_code
+
+
+async def ui_language(session: AsyncSession, user_id: uuid.UUID) -> str:
+    """Interface language: explanations, feedback and grammar labels stay in it."""
     profile = await session.get(UserProfile, user_id)
     if profile is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
@@ -298,6 +345,8 @@ async def add_learning_language(
     user = await user_repo.get_by_id_full(user_id, for_update=True)
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+    if language_code == user.profile.native_language_code:
+        raise _native_language_is_learning()
     if language_code not in {row.language_code for row in user.learning_languages}:
         user.learning_languages.append(
             UserLearningLanguage(user_id=user_id, language_code=language_code)

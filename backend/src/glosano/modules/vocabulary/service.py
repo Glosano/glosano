@@ -19,6 +19,7 @@ from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonT
 from glosano.modules.lesson_library.tokenization import normalize_phrase
 from glosano.modules.review.models import ReviewItem
 from glosano.modules.review.service import deactivate_review_items, sync_review_item
+from glosano.modules.vocabulary.display import display_primaries, pick_display_primary
 from glosano.modules.vocabulary.models import (
     ItemTag,
     PersonalNote,
@@ -477,14 +478,7 @@ async def lookup(
             tags=[],
         )
     translations = await _item_translations(session, user_id=user_id, kind=kind, item_id=item.id)
-    primary = next(
-        (
-            t
-            for t in translations
-            if t.is_primary and t.target_language_code == target_language_code
-        ),
-        None,
-    )
+    primary = pick_display_primary(translations, target_language_code)
     note_row = (
         await session.execute(
             select(PersonalNote).where(
@@ -739,7 +733,6 @@ def _branch_conditions(
     *,
     user_id: uuid.UUID,
     language_code: str,
-    target_language_code: str,
     statuses: list[str],
     confidence_min: int | None,
     confidence_max: int | None,
@@ -783,7 +776,7 @@ def _branch_conditions(
                     PersonalTranslation.owner_user_id == user_id,
                     PersonalTranslation.item_kind == kind,
                     PersonalTranslation.item_id == model.id,
-                    PersonalTranslation.target_language_code == target_language_code,
+                    # Any language: the row may show a fallback translation (FLQ-47).
                     PersonalTranslation.is_primary.is_(True),
                     PersonalTranslation.translation_text.ilike(pattern),
                 ),
@@ -848,7 +841,6 @@ async def list_items(
     common: dict[str, Any] = {
         "user_id": user_id,
         "language_code": language_code,
-        "target_language_code": target_language_code,
         "statuses": statuses,
         "confidence_min": confidence_min,
         "confidence_max": confidence_max,
@@ -886,22 +878,15 @@ async def list_items(
     for r in rows:
         ids_by_kind.setdefault(r.kind, []).append(r.id)
 
-    primary_map: dict[tuple[str, uuid.UUID], PersonalTranslation] = {}
+    primary_map = await display_primaries(
+        session,
+        user_id=user_id,
+        refs=[(r.kind, r.id) for r in rows],
+        native=target_language_code,
+    )
     tags_map: dict[tuple[str, uuid.UUID], list[str]] = {}
     ai_tags_map: dict[tuple[str, uuid.UUID], list[str]] = {}
     for row_kind, ids in ids_by_kind.items():
-        for t in (
-            await session.execute(
-                select(PersonalTranslation).where(
-                    PersonalTranslation.owner_user_id == user_id,
-                    PersonalTranslation.item_kind == row_kind,
-                    PersonalTranslation.item_id.in_(ids),
-                    PersonalTranslation.target_language_code == target_language_code,
-                    PersonalTranslation.is_primary.is_(True),
-                )
-            )
-        ).scalars():
-            primary_map[(row_kind, t.item_id)] = t
         for item_id, tag_name, source_type in (
             await session.execute(
                 select(ItemTag.item_id, ItemTag.tag_name, ItemTag.source_type)

@@ -32,6 +32,7 @@ export function getApiErrorKey(error: unknown): string {
     'Invalid email or password': 'Неверный email или пароль.',
     'Email already in use': 'Этот email уже используется.',
     'Registration is disabled': 'Регистрация закрыта администратором.',
+    native_language_is_learning: 'Родной язык не может быть изучаемым',
   }
   const key = known[error.detail]
   if (key) return key

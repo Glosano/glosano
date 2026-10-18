@@ -60,9 +60,10 @@ async def login(
         session_repo=SessionRepo(session),
         rate_limiter=rl,
     )
+    await session.refresh(user, ["profile"])
     return {
         "id": str(user.id),
-        "needs_onboarding": user.onboarded_at is None,
+        "needs_onboarding": service.needs_onboarding(user),
     }
 
 

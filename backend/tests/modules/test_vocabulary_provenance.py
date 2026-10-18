@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.db import session_scope
 from glosano.core.security import hash_password
+from glosano.modules.identity.models import UserProfile
 from glosano.modules.identity.repo import UserRepo
 from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence
 from glosano.modules.reader_state import bulk
@@ -26,6 +27,10 @@ async def _make_user(s: AsyncSession) -> uuid.UUID:
         role="learner",
     )
     await s.flush()
+    # The review queue shows translations in the native language (FLQ-47).
+    profile = await s.get(UserProfile, user.id)
+    assert profile is not None
+    profile.native_language_code = "en"
     return user.id
 
 

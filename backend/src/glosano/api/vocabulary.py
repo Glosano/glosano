@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.db import SessionDep
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import LearningLanguageCode, TranslationLanguageCode
 from glosano.modules.reader_state.activity import touch_lesson_activity
 from glosano.modules.vocabulary import service
 from glosano.modules.vocabulary.models import PersonalTranslation
@@ -41,6 +41,7 @@ from glosano.modules.vocabulary.schemas import (
 router = APIRouter(prefix="/api/vocabulary", tags=["vocabulary"])
 
 LangCode = LearningLanguageCode
+TargetCode = TranslationLanguageCode
 Kind = Literal["token", "phrase"]
 
 
@@ -81,7 +82,7 @@ async def lookup(
     request: Request,
     lang: LangCode,
     text: Annotated[str, Query(min_length=1, max_length=256)],
-    target: LangCode,
+    target: TargetCode,
     kind: Kind = "token",
 ) -> LookupResponse:
     user_id = _require_user(request)
@@ -367,7 +368,7 @@ async def list_vocabulary(
     request: Request,
     lang: LangCode,
     session: SessionDep,
-    target: LangCode = "ru",
+    target: TargetCode = "ru",
     kind: Literal["token", "phrase", "all"] = "all",
     status_filter: Annotated[
         list[Literal["tracked", "known", "ignored"]] | None, Query(alias="status")

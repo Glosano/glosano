@@ -14,6 +14,7 @@ const item = {
   text: 'bom dia',
   confidence: 1,
   translation: 'доброе утро',
+  translation_language_code: 'ru',
   notes: null,
   context_sentence: null,
 }

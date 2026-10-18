@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { LearningLanguageCode } from '@/lib/languages'
+import type { LearningLanguageCode, TranslationLanguageCode } from '@/lib/languages'
 
 export type UserRole = 'learner' | 'admin'
 
@@ -14,6 +14,8 @@ export interface MeResponse {
   last_learning_language_code: LearningLanguageCode | null
   needs_onboarding: boolean
   onboarded_at: string | null
+  /** Target of new translations; null until a migrated user picks one in onboarding. */
+  native_language_code: TranslationLanguageCode | null
   preferred_translation_language_code?: string
   daily_goal_minutes?: number
   daily_goal_reviews?: number
@@ -22,6 +24,7 @@ export interface MeResponse {
 export interface PreferencesPayload {
   ui_language: 'en' | 'ru'
   learning_languages: LearningLanguageCode[]
+  native_language: TranslationLanguageCode
   daily_goal_minutes: number
   daily_goal_reviews: number
 }
@@ -29,7 +32,7 @@ export interface PreferencesPayload {
 export interface OnboardingPayload {
   ui_language: string
   learning_languages: LearningLanguageCode[]
-  translation_language: string
+  native_language: TranslationLanguageCode
 }
 
 export const meApi = {

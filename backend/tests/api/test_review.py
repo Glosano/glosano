@@ -38,6 +38,13 @@ async def _register(c: AsyncClient) -> str:
     assert r.status_code == 201
     csrf = c.cookies.get("glosano_csrf")
     assert csrf
+    # The review queue shows translations in the native language (FLQ-47).
+    r = await c.post(
+        "/me/onboarding",
+        json={"ui_language": "en", "learning_languages": ["pt"], "native_language": "en"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert r.status_code == 200, r.text
     return csrf
 
 
@@ -239,3 +246,22 @@ async def test_queue_rejects_unknown_kind():
         await _register(c)
         r = await c.get("/api/review/queue", params={"lang": "pt", "kind": "lemma"})
         assert r.status_code == 422
+
+
+async def test_queue_exposes_fallback_translation_language():
+    async with await _client() as c:
+        csrf = await _register(c)  # native "en"
+        await _create_tracked(c, csrf)
+        r = await c.get("/api/review/queue", params={"lang": "pt"})
+        item = r.json()["items"][0]
+        assert item["translation"] is None and item["translation_language_code"] is None
+        r = await c.post(
+            f"/api/vocabulary/items/token/{item['item_id']}/translations",
+            headers={"X-CSRF-Token": csrf},
+            json={"target_language_code": "ru", "translation_text": "каждый"},
+        )
+        assert r.status_code == 201
+        r = await c.get("/api/review/queue", params={"lang": "pt"})
+        item = r.json()["items"][0]
+        assert item["translation"] == "каждый"
+        assert item["translation_language_code"] == "ru"

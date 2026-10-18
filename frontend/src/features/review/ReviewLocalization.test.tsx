@@ -33,6 +33,7 @@ const item = {
   text: 'cada',
   confidence: 1,
   translation: 'мой личный перевод',
+  translation_language_code: 'ru',
   notes: null,
   context_sentence: null,
 }

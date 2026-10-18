@@ -17,10 +17,12 @@ from sqlalchemy import ColumnElement, func, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.config import get_settings
-from glosano.modules.identity.models import UserProfile, UserSettings
+from glosano.modules.identity.models import UserSettings
+from glosano.modules.identity.service import translation_target
 from glosano.modules.lesson_library.models import Lesson, LessonSegment
 from glosano.modules.review.models import ReviewEvent, ReviewItem
 from glosano.modules.review.sm2 import INITIAL_STATE, apply_answer, state_from_json, state_to_json
+from glosano.modules.vocabulary.display import display_primaries
 from glosano.modules.vocabulary.models import (
     PersonalNote,
     PersonalTranslation,
@@ -142,6 +144,8 @@ class QueueItem:
     context_sentence: str | None
     context_lesson_id: uuid.UUID | None = None
     context_segment_id: uuid.UUID | None = None
+    # Language of `translation`: native, or another language as fallback (FLQ-47).
+    translation_language_code: str | None = None
 
 
 @dataclass
@@ -187,29 +191,13 @@ async def _build_queue_items(
     rows: list[tuple[ReviewItem, TokenItem | PhraseItem]],
 ) -> list[QueueItem]:
     """Обогатить пары (review_item, vocab_item) переводом/заметкой/контекстом."""
-    profile = await session.get(UserProfile, user_id)
-    preferred_target = profile.ui_language_code if profile else "en"
-
     refs = [(ri.item_kind, ri.item_id) for ri, _ in rows]
     ref_set = set(refs)
-    translations: dict[tuple[str, uuid.UUID], str] = {}
+    translations: dict[tuple[str, uuid.UUID], PersonalTranslation] = {}
     notes: dict[tuple[str, uuid.UUID], str] = {}
     if refs:
-        t_rows = (
-            await session.execute(
-                select(PersonalTranslation).where(
-                    PersonalTranslation.owner_user_id == user_id,
-                    PersonalTranslation.is_primary.is_(True),
-                    PersonalTranslation.target_language_code == preferred_target,
-                    tuple_(PersonalTranslation.item_kind, PersonalTranslation.item_id).in_(refs),
-                )
-            )
-        ).scalars()
-        for t in t_rows:
-            key = (t.item_kind, t.item_id)
-            if key not in ref_set:
-                continue
-            translations[key] = t.translation_text
+        native = await translation_target(session, user_id)
+        translations = await display_primaries(session, user_id=user_id, refs=refs, native=native)
         n_rows = (
             await session.execute(
                 select(PersonalNote).where(
@@ -247,6 +235,7 @@ async def _build_queue_items(
         text_value = item.token_text if isinstance(item, TokenItem) else item.display_text
         seg_id = seg_by_key.get(key)
         context = contexts.get(seg_id) if seg_id else None
+        translation = translations.get(key)
         out.append(
             QueueItem(
                 review_item_id=ri.id,
@@ -254,7 +243,8 @@ async def _build_queue_items(
                 item_id=ri.item_id,
                 text=text_value,
                 confidence=item.confidence if item.confidence is not None else 0,
-                translation=translations.get(key),
+                translation=translation.translation_text if translation else None,
+                translation_language_code=translation.target_language_code if translation else None,
                 notes=notes.get(key),
                 context_sentence=context[0] if context else None,
                 context_lesson_id=context[1] if context else None,

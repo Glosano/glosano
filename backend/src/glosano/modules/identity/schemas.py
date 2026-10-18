@@ -8,7 +8,11 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from glosano.core.languages import SUPPORTED_LEARNING_LANGUAGES, LearningLanguageCode
+from glosano.core.languages import (
+    SUPPORTED_LEARNING_LANGUAGES,
+    LearningLanguageCode,
+    TranslationLanguageCode,
+)
 
 SUPPORTED_UI_LANGUAGES = frozenset({"en", "ru"})
 
@@ -28,7 +32,10 @@ class LoginRequest(BaseModel):
 class OnboardingRequest(BaseModel):
     ui_language: str
     learning_languages: list[str] = Field(min_length=1)
-    translation_language: str | None = None
+    # None keeps the current native language, falling back to the UI language.
+    native_language: TranslationLanguageCode | None = None
+    # Legacy pre-ADR-0030 field: accepted from old clients and ignored.
+    translation_language: str | None = Field(default=None, max_length=16)
 
     @field_validator("ui_language")
     @classmethod
@@ -44,13 +51,6 @@ class OnboardingRequest(BaseModel):
             if code not in SUPPORTED_LEARNING_LANGUAGES:
                 raise ValueError(f"unsupported learning language: {code}")
         return list(dict.fromkeys(v))
-
-    @field_validator("translation_language")
-    @classmethod
-    def _translation_language_supported(cls, v: str | None) -> str | None:
-        if v is not None and v not in SUPPORTED_LEARNING_LANGUAGES:
-            raise ValueError(f"unsupported translation language: {v}")
-        return v
 
 
 class DeleteMeRequest(BaseModel):
@@ -79,6 +79,7 @@ class MeResponse(BaseModel):
     role: Literal["learner", "admin"]
     display_name: str
     ui_language_code: str
+    native_language_code: str | None
     preferred_translation_language_code: str
     daily_goal_minutes: int
     daily_goal_reviews: int
@@ -100,6 +101,8 @@ class UpdateProfileRequest(BaseModel):
 class UpdatePreferencesRequest(BaseModel):
     ui_language: Literal["en", "ru"]
     learning_languages: list[LearningLanguageCode] = Field(min_length=1)
+    # None keeps the current native language.
+    native_language: TranslationLanguageCode | None = None
     daily_goal_minutes: int = Field(ge=1, le=1440, strict=True)
     daily_goal_reviews: int = Field(ge=1, le=10000, strict=True)
 

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.db import SessionDep
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import TranslationLanguageCode
 from glosano.modules.ai_translation import service as ai_translation_service
 from glosano.modules.ai_translation.provider import ProviderRejected, ProviderUnavailable
 from glosano.modules.identity.service import translation_target
@@ -112,7 +112,7 @@ async def lesson_token_statuses_route(
 @router.get("/lessons/{lesson_id}/vocabulary", response_model=LessonVocabularyResponse)
 async def lesson_vocabulary(
     lesson_id: uuid.UUID,
-    target: LearningLanguageCode,
+    target: TranslationLanguageCode,
     request: Request,
     session: SessionDep,
 ) -> LessonVocabularyResponse:

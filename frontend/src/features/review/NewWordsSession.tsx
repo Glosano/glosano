@@ -1,6 +1,8 @@
 import { exerciseErrorKey } from './exerciseError'
 import { ignoreReviewKey } from './keyboard'
 import { useI18n } from '@/lib/i18n'
+import { translationLanguageFlag } from '@/lib/languages'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
@@ -19,9 +21,10 @@ interface NewWordsSessionProps {
 
 export function NewWordsSession(props: NewWordsSessionProps) {
   const { language } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   return (
     <NewWordsSessionContent
-      key={`${language}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
+      key={`${language}:${translationLanguage}:${props.lang}:${props.lessonId ?? ''}:${props.itemKind ?? ''}`}
       {...props}
     />
   )
@@ -29,11 +32,19 @@ export function NewWordsSession(props: NewWordsSessionProps) {
 
 function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionProps) {
   const { language, t } = useI18n()
+  const translationLanguage = useTranslationLanguage()
   const s = useReviewSession(lang, { serverMode: 'new', lessonId, itemKind })
   const [revealed, setRevealed] = useState(false)
 
   const exercise = useQuery({
-    queryKey: ['exercise', s.sessionKey, language, 'example', s.current?.review_item_id ?? null],
+    queryKey: [
+      'exercise',
+      s.sessionKey,
+      language,
+      translationLanguage,
+      'example',
+      s.current?.review_item_id ?? null,
+    ],
     queryFn: () =>
       reviewApi.exercise<ExampleExercise>({
         kind: 'example',
@@ -112,6 +123,11 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
                 <hr className="my-4 border-border" />
                 <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
                 <p className="text-center text-xl">
+                  {item.translation !== null && item.translation_language_code !== null && (
+                    <span aria-hidden="true" className="mr-2">
+                      {translationLanguageFlag(item.translation_language_code)}
+                    </span>
+                  )}
                   {item.translation ?? t('Перевод не сохранён')}
                 </p>
                 {exercise.data.payload.base_form.normalize('NFC').toLowerCase() !==

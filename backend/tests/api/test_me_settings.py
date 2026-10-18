@@ -36,12 +36,13 @@ async def test_profile_updates_trimmed_name_and_returns_complete_me(client: Asyn
     assert me["daily_goal_reviews"] == 500
     assert me["daily_goal_minutes"] == 15
     assert me["preferred_translation_language_code"] == me["ui_language_code"] == "en"
+    assert me["native_language_code"] is None
     assert (await client.get("/me")).json() == me
     assert (await client.patch("/me/profile", json={"display_name": "   "})).status_code == 422
     assert (await client.patch("/me/profile", json={"display_name": "x" * 81})).status_code == 422
 
 
-async def test_preferences_replace_languages_and_synchronize_target(client: AsyncClient):
+async def test_preferences_replace_languages_and_keep_native_target(client: AsyncClient):
     user_id, _ = await register(client)
     await client.post(
         "/me/onboarding",
@@ -65,11 +66,13 @@ async def test_preferences_replace_languages_and_synchronize_target(client: Asyn
     me = response.json()
     assert me["learning_languages"] == ["pt"]
     assert me["last_learning_language_code"] == "pt"
-    assert me["preferred_translation_language_code"] == me["ui_language_code"] == "en"
+    assert me["ui_language_code"] == "en"
+    # The UI language no longer drives translations: the native language does (ADR-0030).
+    assert me["preferred_translation_language_code"] == me["native_language_code"] == "ru"
     assert me["daily_goal_minutes"] == 25
     async with session_scope() as session:
         user = await UserRepo(session).get_by_id_full(uuid.UUID(user_id))
-        assert user and user.settings.preferred_translation_language_code == "en"
+        assert user and user.settings.preferred_translation_language_code == "ru"
 
 
 @pytest.mark.parametrize(
@@ -78,6 +81,7 @@ async def test_preferences_replace_languages_and_synchronize_target(client: Asyn
         {"ui_language": "pt"},
         {"learning_languages": []},
         {"learning_languages": ["xx"]},
+        {"native_language": "xx"},
         {"daily_goal_minutes": 0},
         {"daily_goal_minutes": 1441},
         {"daily_goal_reviews": 0},

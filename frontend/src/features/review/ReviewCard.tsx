@@ -1,4 +1,6 @@
-import { useI18n, useTranslation } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
+import { translationLanguageFlag } from '@/lib/languages'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useQuery } from '@tanstack/react-query'
 import { readerApi } from '@/api/reader'
 import { ApiError } from '@/api/client'
@@ -37,6 +39,11 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
           <hr className="my-4 border-border" />
           <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
           <p dir="auto" className="mt-1 text-center text-xl">
+            {item.translation !== null && item.translation_language_code !== null && (
+              <span aria-hidden="true" className="mr-2">
+                {translationLanguageFlag(item.translation_language_code)}
+              </span>
+            )}
             {item.translation ?? t('Перевод не сохранён')}
           </p>
           {item.context_sentence && item.context_lesson_id && item.context_segment_id && (
@@ -57,10 +64,11 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
 }
 
 function ContextTranslation({ lessonId, segmentId }: { lessonId: string; segmentId: string }) {
-  const { language, t } = useI18n()
+  const t = useTranslation()
+  const target = useTranslationLanguage()
   const query = useQuery({
-    queryKey: ['review-context-translation', lessonId, segmentId, language],
-    queryFn: () => readerApi.segmentTranslation(lessonId, segmentId, language),
+    queryKey: ['review-context-translation', lessonId, segmentId, target],
+    queryFn: () => readerApi.segmentTranslation(lessonId, segmentId, target),
     staleTime: Infinity,
     retry: false,
   })

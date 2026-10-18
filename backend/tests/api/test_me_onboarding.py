@@ -35,6 +35,7 @@ async def test_onboarding_persists_settings_and_redirect() -> None:
         r = await c.get("/me")
         me = r.json()
         assert me["ui_language_code"] == "ru"
+        assert me["native_language_code"] == "ru"  # defaults to the UI language
         assert sorted(me["learning_languages"]) == ["en", "pt"]
         assert me["last_learning_language_code"] == "pt"
         assert me["needs_onboarding"] is False
@@ -71,6 +72,25 @@ async def test_onboarding_validates_language_codes() -> None:
             headers={"X-CSRF-Token": csrf},
         )
         assert r.status_code == 422
+
+
+async def test_onboarding_ignores_legacy_translation_language() -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        csrf = await _register(c, email="onb-legacy@example.com")
+
+        r = await c.post(
+            "/me/onboarding",
+            json={
+                "ui_language": "en",
+                "learning_languages": ["pt"],
+                "translation_language": "uk",  # outside the learning catalog
+            },
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert r.status_code == 200
+        me = (await c.get("/me")).json()
+        assert me["native_language_code"] == "en"
 
 
 async def test_onboarding_idempotent_reapply() -> None:

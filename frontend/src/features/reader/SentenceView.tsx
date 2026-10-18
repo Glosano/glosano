@@ -1,5 +1,6 @@
 import { ParagraphQuote, type ParagraphQuoteAction } from './ParagraphQuote'
-import { useTranslation, type UiLanguage } from '@/lib/i18n'
+import { useTranslation } from '@/lib/i18n'
+import type { TranslationLanguageCode } from '@/lib/languages'
 import { useState } from 'react'
 import { Play } from 'lucide-react'
 
@@ -31,7 +32,8 @@ interface Props {
   phraseIndex: PhraseIndex
   dragRange: DragRange | null
   lang: string
-  targetLang: UiLanguage
+  /** Translation language: the learner's native language (ADR-0030). */
+  targetLang: TranslationLanguageCode
   onWordClick?: (word: SelectedWord) => void
   onPhraseClick?: (match: PhraseMatch, sentence: Sentence) => void
 }

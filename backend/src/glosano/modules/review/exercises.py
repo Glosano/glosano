@@ -26,10 +26,12 @@ from glosano.modules.ai_translation.provider import (
 )
 from glosano.modules.ai_translation.service import AIDisabled, write_audit
 from glosano.modules.identity.models import UserProfile
+from glosano.modules.identity.service import translation_target
 from glosano.modules.review import exercise_prompts as ep
 from glosano.modules.review.models import ReviewItem
 from glosano.modules.review.service import VOCAB_MODEL_BY_KIND, ReviewItemNotFound
-from glosano.modules.vocabulary.models import PersonalNote, PersonalTranslation, TokenItem
+from glosano.modules.vocabulary.display import display_primaries
+from glosano.modules.vocabulary.models import PersonalNote, TokenItem
 
 
 class ExerciseParseError(Exception):
@@ -50,6 +52,7 @@ class _ItemContext:
     notes: str | None
     learn_lang: str
     target_lang: str
+    feedback_lang: str
 
 
 async def _load_context(
@@ -62,22 +65,13 @@ async def _load_context(
     if item is None or item.user_id != user_id or item.status != "tracked":
         raise ReviewItemNotFound(str(review_item_id))
     profile = await session.get(UserProfile, user_id)
-    target = profile.ui_language_code if profile is not None else "en"
+    if profile is None:
+        raise ReviewItemNotFound(str(review_item_id))
+    target = await translation_target(session, user_id)
     key = (ri.item_kind, ri.item_id)
     translation_row = (
-        (
-            await session.execute(
-                select(PersonalTranslation).where(
-                    PersonalTranslation.owner_user_id == user_id,
-                    PersonalTranslation.is_primary.is_(True),
-                    PersonalTranslation.target_language_code == target,
-                    tuple_(PersonalTranslation.item_kind, PersonalTranslation.item_id).in_([key]),
-                )
-            )
-        )
-        .scalars()
-        .first()
-    )
+        await display_primaries(session, user_id=user_id, refs=[key], native=target)
+    ).get(key)
     note_row = (
         (
             await session.execute(
@@ -97,6 +91,7 @@ async def _load_context(
         notes=note_row.note_text if note_row else None,
         learn_lang=ri.language_code,
         target_lang=target,
+        feedback_lang=profile.ui_language_code,
     )
 
 
@@ -182,17 +177,23 @@ async def generate_exercise(
     provider: LLMProvider | None = None,
     now: datetime | None = None,
 ) -> ExerciseResult:
+    if not get_settings().llm_enabled:
+        raise AIDisabled  # kill-switch wins over a missing native language
     if kind == "writing":
         assert review_item_ids  # непустой список валидируется на API-слое
         pairs: list[tuple[str, str | None]] = []
-        learn_lang = target_lang = None
+        learn_lang = target_lang = feedback_lang = None
         for rid in review_item_ids:
             ctx = await _load_context(session, user_id=user_id, review_item_id=rid)
             pairs.append((ctx.word, ctx.translation))
             learn_lang, target_lang = ctx.learn_lang, ctx.target_lang
-        assert learn_lang is not None and target_lang is not None
+            feedback_lang = ctx.feedback_lang
+        assert learn_lang is not None and target_lang is not None and feedback_lang is not None
         prompt = ep.build_writing_prompt(
-            pairs=pairs, learn_lang=learn_lang, target_lang=target_lang
+            pairs=pairs,
+            learn_lang=learn_lang,
+            target_lang=target_lang,
+            feedback_lang=feedback_lang,
         )
         subject = ",".join(w for w, _ in pairs)
     else:
@@ -243,6 +244,8 @@ async def translation_feedback(
     user_text: str,
     provider: LLMProvider | None = None,
 ) -> ExerciseResult:
+    if not get_settings().llm_enabled:
+        raise AIDisabled  # kill-switch wins over a missing native language
     ctx = await _load_context(session, user_id=user_id, review_item_id=review_item_id)
     prompt = ep.build_feedback_prompt(
         word=ctx.word,
@@ -250,6 +253,7 @@ async def translation_feedback(
         user_text=user_text,
         learn_lang=ctx.learn_lang,
         target_lang=ctx.target_lang,
+        feedback_lang=ctx.feedback_lang,
     )
     return await _call_llm(
         session,

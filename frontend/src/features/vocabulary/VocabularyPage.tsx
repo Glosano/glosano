@@ -1,4 +1,5 @@
 import { useI18n } from '@/lib/i18n'
+import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -69,7 +70,8 @@ export function addedAfterFromPreset(preset: 'all' | '7d' | '30d'): string | und
 }
 
 export function VocabularyPage({ lang, tab }: Props) {
-  const { language: targetLanguage, t: tr } = useI18n()
+  const { language: uiLanguage, t: tr } = useI18n()
+  const targetLanguage = useTranslationLanguage()
   const navigate = useNavigate()
   const q = useVocabularyStore((s) => s.q)
   const statuses = useVocabularyStore((s) => s.statuses)
@@ -301,7 +303,7 @@ export function VocabularyPage({ lang, tab }: Props) {
                 </Select>
               </div>
               <span className="order-1 text-sm text-muted-foreground lg:order-2">
-                {tr('Всего:')} {total.toLocaleString(targetLanguage)}
+                {tr('Всего:')} {total.toLocaleString(uiLanguage)}
               </span>
               <div className="order-3 col-span-2 justify-self-center">
                 <PaginationNumbers page={page} totalPages={totalPages} onPage={setPage} />
@@ -364,7 +366,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
-            {tr('Удалено {{value0}}', { value0: deletedToast.toLocaleString(targetLanguage) })}
+            {tr('Удалено {{value0}}', { value0: deletedToast.toLocaleString(uiLanguage) })}
           </div>
         </div>
       )}

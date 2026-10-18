@@ -1,9 +1,30 @@
-"""Supported learning language catalog (ADR-0012); UI languages remain EN/RU."""
+"""Supported language catalogs: learning (ADR-0012) and translation targets (ADR-0030).
+
+UI languages remain EN/RU."""
 
 from typing import Literal, get_args
 
 LearningLanguageCode = Literal["en", "ru", "pt", "es", "fr", "de", "zh-Hans", "ja", "ar", "hi"]
 SUPPORTED_LEARNING_LANGUAGES = frozenset(get_args(LearningLanguageCode))
+# Translation targets (native languages) form a superset of the learning catalog (ADR-0030).
+TranslationLanguageCode = Literal[
+    "en",
+    "ru",
+    "pt",
+    "es",
+    "fr",
+    "de",
+    "zh-Hans",
+    "ja",
+    "ar",
+    "hi",
+    "it",
+    "ko",
+    "tr",
+    "pl",
+    "uk",
+]
+SUPPORTED_TRANSLATION_LANGUAGES = frozenset(get_args(TranslationLanguageCode))
 LANGUAGE_NAMES: dict[str, str] = {
     "en": "English",
     "ru": "Russian",
@@ -15,4 +36,9 @@ LANGUAGE_NAMES: dict[str, str] = {
     "ja": "Japanese",
     "ar": "Arabic",
     "hi": "Hindi",
+    "it": "Italian",
+    "ko": "Korean",
+    "tr": "Turkish",
+    "pl": "Polish",
+    "uk": "Ukrainian",
 }

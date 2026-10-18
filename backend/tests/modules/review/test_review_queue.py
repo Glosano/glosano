@@ -33,6 +33,10 @@ async def _make_user(s: AsyncSession) -> uuid.UUID:
         role="learner",
     )
     await s.flush()
+    # The queue shows translations in the native language (FLQ-47).
+    profile = await s.get(UserProfile, user.id)
+    assert profile is not None
+    profile.native_language_code = "en"
     return user.id
 
 
@@ -802,3 +806,45 @@ async def test_selected_queue_rejects_foreign_language_and_missing_ids():
                 await get_selected_queue(
                     s, user_id=user_id, language_code=lang, review_item_ids=[rid], practice=True
                 )
+
+
+async def test_queue_falls_back_to_other_language_translation():
+    async with session_scope() as s:
+        user_id = await _make_user(s)
+        profile = await s.get(UserProfile, user_id)
+        assert profile
+        profile.native_language_code = "uk"
+        casa = await _tracked_token(s, user_id, "casa")
+        bare = await _tracked_token(s, user_id, "rua")
+        await vocab.add_translation(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=casa.id,
+            target_language_code="ru",
+            translation_text="дом",
+            source_type="user",
+        )
+        await _set_due(s, casa.id, NOW - timedelta(hours=2))
+        await _set_due(s, bare.id, NOW - timedelta(hours=1))
+
+        items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
+        by_text = {i.text: i for i in items}
+        assert by_text["casa"].translation == "дом"
+        assert by_text["casa"].translation_language_code == "ru"
+        assert by_text["rua"].translation is None
+        assert by_text["rua"].translation_language_code is None
+
+        await vocab.add_translation(
+            s,
+            user_id=user_id,
+            kind="token",
+            item_id=casa.id,
+            target_language_code="uk",
+            translation_text="дім",
+            source_type="user",
+        )
+        items, _ = await get_queue(s, user_id=user_id, language_code="pt", now=NOW)
+        by_text = {i.text: i for i in items}
+        assert by_text["casa"].translation == "дім"
+        assert by_text["casa"].translation_language_code == "uk"

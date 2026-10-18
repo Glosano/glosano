@@ -52,6 +52,7 @@ const ITEM = {
   text: 'cada',
   confidence: 1,
   translation: 'каждый',
+  translation_language_code: 'ru',
   notes: null,
   context_sentence: null,
 }

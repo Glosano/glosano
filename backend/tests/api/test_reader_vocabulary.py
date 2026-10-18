@@ -483,3 +483,35 @@ async def test_shared_lesson_uses_current_users_vocabulary_and_provenance(
     assert casa_after["item_id"] == created["item_id"]
     assert casa_after["status"] == "known"
     assert casa_after["added_here"] is True
+
+
+async def test_lesson_vocabulary_falls_back_with_language(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    csrf = await register_and_onboard(client, f"{uuid.uuid4()}@example.com", "pt")
+    lesson_id = await seed_ready_lesson(client, csrf, monkeypatch, text="Casa rua.")
+    casa = await _create_item(
+        client, csrf, kind="token", text="casa", status="tracked", confidence=1
+    )
+    await _create_item(client, csrf, kind="token", text="rua", status="tracked", confidence=1)
+    added = await client.post(
+        f"/api/vocabulary/items/token/{casa['item_id']}/translations",
+        json={"target_language_code": "ru", "translation_text": "дом"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert added.status_code == 201
+
+    snapshot = await client.get(f"/api/lessons/{lesson_id}/vocabulary?target=uk")
+    rows = {row["text"]: row for row in snapshot.json()["items"]}
+    assert rows["casa"]["primary_translation"] == {"text": "дом", "target_language_code": "ru"}
+    assert rows["rua"]["primary_translation"] is None
+
+    added = await client.post(
+        f"/api/vocabulary/items/token/{casa['item_id']}/translations",
+        json={"target_language_code": "uk", "translation_text": "дім"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert added.status_code == 201
+    snapshot = await client.get(f"/api/lessons/{lesson_id}/vocabulary?target=uk")
+    rows = {row["text"]: row for row in snapshot.json()["items"]}
+    assert rows["casa"]["primary_translation"] == {"text": "дім", "target_language_code": "uk"}

@@ -89,6 +89,32 @@ describe('SentenceVocabList', () => {
     expect(await screen.findByText('мир')).toBeInTheDocument()
   })
 
+  it('marks the primary translation with the flag of its language', async () => {
+    vi.mocked(vocabularyApi.lookup).mockImplementation((_lang, text) =>
+      Promise.resolve({
+        ...emptyLookup,
+        translations: {
+          primary: {
+            id: 't1',
+            text: text === 'hello' ? 'привет' : 'світ',
+            target_language_code: text === 'hello' ? 'ru' : 'uk',
+            is_primary: true,
+            source_type: 'user',
+          },
+          all: [],
+        },
+      }),
+    )
+
+    renderList({ target: 'uk' })
+
+    expect(await screen.findByText('привет')).toBeInTheDocument()
+    const ruFlag = screen.getByText('🇷🇺')
+    expect(ruFlag).toHaveAttribute('aria-hidden', 'true')
+    expect(ruFlag.parentElement).toHaveTextContent('привет')
+    expect(screen.getByText('🇺🇦').parentElement).toHaveTextContent('світ')
+  })
+
   it('renders no translation line when the lookup has no primary translation', async () => {
     renderList()
 

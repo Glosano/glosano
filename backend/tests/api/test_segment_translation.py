@@ -192,7 +192,7 @@ async def test_unauthenticated_post_requires_csrf() -> None:
         assert r.status_code == 403
 
 
-async def test_cache_isolated_by_user_and_ui_language(
+async def test_cache_isolated_by_user_and_native_language(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ):
     from glosano.core.db import session_scope
@@ -215,8 +215,9 @@ async def test_cache_isolated_by_user_and_ui_language(
                 await user_client.patch(
                     "/me/preferences",
                     json={
-                        "ui_language": "ru",
+                        "ui_language": "en",
                         "learning_languages": ["pt"],
+                        "native_language": "ru",
                         "daily_goal_minutes": 15,
                         "daily_goal_reviews": 500,
                     },
@@ -251,6 +252,7 @@ async def test_cache_isolated_by_user_and_ui_language(
                 json={
                     "ui_language": "en",
                     "learning_languages": ["pt"],
+                    "native_language": "en",
                     "daily_goal_minutes": 15,
                     "daily_goal_reviews": 500,
                 },

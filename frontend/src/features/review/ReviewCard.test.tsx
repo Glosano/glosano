@@ -1,17 +1,26 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { readerApi } from '@/api/reader'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import type { MeResponse } from '@/api/me'
+import type { ReviewQueueItem } from '@/api/review'
+import { useUserStore } from '@/stores/userStore'
 
 import { ReviewCard } from './ReviewCard'
 
-const ITEM = {
+afterEach(() => {
+  useUserStore.getState().reset()
+})
+
+const ITEM: ReviewQueueItem = {
   review_item_id: 'R1',
   item_kind: 'token' as const,
   item_id: 'I1',
   text: 'cada',
   confidence: 1,
   translation: 'каждый',
+  translation_language_code: 'ru',
   notes: 'заметка',
   context_sentence: 'Cada dia é único.',
 }
@@ -52,8 +61,21 @@ describe('ReviewCard', () => {
   })
 
   it('back without translation explains the missing value', () => {
-    renderCard({ flipped: true, item: { ...ITEM, translation: null, notes: null } })
+    renderCard({
+      flipped: true,
+      item: { ...ITEM, translation: null, translation_language_code: null, notes: null },
+    })
     expect(screen.getByText('Перевод не сохранён')).toBeTruthy()
+  })
+
+  it('marks the saved translation with its language flag, also for a fallback language', () => {
+    useUserStore.setState({
+      user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+    })
+    renderCard({ flipped: true })
+    const flag = screen.getByText('🇷🇺')
+    expect(flag).toHaveAttribute('aria-hidden', 'true')
+    expect(flag.parentElement).toHaveTextContent('каждый')
   })
 
   it('shows error on back', () => {
@@ -87,5 +109,28 @@ it('keeps the original context and loads that segment translation after reveal',
   expect(await screen.findByText('Каждый день уникален.')).toBeInTheDocument()
   expect(screen.getByText('Cada dia é único.')).toBeInTheDocument()
   expect(translate).toHaveBeenCalledWith('L1', 'S1', 'ru')
+  translate.mockRestore()
+})
+
+it('translates the context sentence into the native language, not the UI language', async () => {
+  useUserStore.setState({
+    user: { ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+  })
+  const translate = vi
+    .spyOn(readerApi, 'segmentTranslation')
+    .mockResolvedValue({ text: 'Кожен день унікальний.', source: 'ai', model: 'm', stored: true })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <ReviewCard
+        item={{ ...ITEM, context_lesson_id: 'L1', context_segment_id: 'S1' }}
+        flipped
+        error={null}
+        onFlip={vi.fn()}
+      />
+    </QueryClientProvider>,
+  )
+  expect(await screen.findByText('Кожен день унікальний.')).toBeInTheDocument()
+  expect(translate).toHaveBeenCalledWith('L1', 'S1', 'uk')
   translate.mockRestore()
 })

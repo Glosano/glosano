@@ -191,3 +191,43 @@ async def test_list_due_filter_keeps_items_due_for_review():
         assert [i["text"] for i in r.json()["items"]] == ["cada"]
         r = await c.get("/api/vocabulary", params={"lang": "pt"})
         assert r.json()["total"] == 2
+
+
+async def test_vocabulary_list_falls_back_with_language():
+    async with await _client() as c:
+        csrf = await _register(c)
+        h = {"X-CSRF-Token": csrf}
+        casa = await _create_item(c, h, "casa")
+        await _create_item(c, h, "rua")
+        r = await c.post(
+            f"/api/vocabulary/items/token/{casa}/translations",
+            headers=h,
+            json={"target_language_code": "ru", "translation_text": "дом"},
+        )
+        assert r.status_code == 201
+
+        r = await c.get("/api/vocabulary", params={"lang": "pt", "target": "uk"})
+        assert r.status_code == 200
+        rows = {i["text"]: i for i in r.json()["items"]}
+        assert rows["casa"]["primary_translation"] == {
+            "text": "дом",
+            "target_language_code": "ru",
+        }
+        assert rows["rua"]["primary_translation"] is None
+
+        r = await c.get("/api/vocabulary", params={"lang": "pt", "target": "uk", "q": "дом"})
+        assert r.status_code == 200
+        assert [i["text"] for i in r.json()["items"]] == ["casa"]
+
+        r = await c.post(
+            f"/api/vocabulary/items/token/{casa}/translations",
+            headers=h,
+            json={"target_language_code": "uk", "translation_text": "дім"},
+        )
+        assert r.status_code == 201
+        r = await c.get("/api/vocabulary", params={"lang": "pt", "target": "uk"})
+        rows = {i["text"]: i for i in r.json()["items"]}
+        assert rows["casa"]["primary_translation"] == {
+            "text": "дім",
+            "target_language_code": "uk",
+        }

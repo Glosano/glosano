@@ -7,6 +7,8 @@ export interface ReviewQueueItem {
   text: string
   confidence: number
   translation: string | null
+  /** Language of `translation` (may differ from native, FLQ-47 spec §8); null iff no translation. */
+  translation_language_code: string | null
   notes: string | null
   context_sentence: string | null
   context_lesson_id?: string | null

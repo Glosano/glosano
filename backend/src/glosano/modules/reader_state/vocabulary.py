@@ -6,9 +6,8 @@ import uuid
 from collections.abc import Iterator
 from typing import Literal, cast
 
-from sqlalchemy import Text, and_, any_, bindparam, or_, select
+from sqlalchemy import Text, any_, bindparam, or_, select
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.modules.lesson_library.models import Lesson
@@ -22,7 +21,8 @@ from glosano.modules.reader_state.schemas import (
     SentenceOut,
     WordToken,
 )
-from glosano.modules.vocabulary.models import PersonalTranslation, PhraseItem, TokenItem
+from glosano.modules.vocabulary.display import display_primaries
+from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 from glosano.modules.vocabulary.schemas import PrimaryTranslationOut
 
 StoredStatus = Literal["tracked", "known", "ignored"]
@@ -145,42 +145,18 @@ async def build_lesson_vocabulary(
         for phrase in phrase_items
         if phrase.id in phrase_contexts or phrase.created_from_lesson_id == lesson.id
     ]
-    token_ids = bindparam(
-        "token_ids",
-        value=[item.id for item in token_items],
-        type_=ARRAY(PGUUID(as_uuid=True)),
+    translation_by_item = await display_primaries(
+        session,
+        user_id=user_id,
+        refs=[("token", item.id) for item in token_items]
+        + [("phrase", item.id) for item in included_phrases],
+        native=target,
     )
-    phrase_ids = bindparam(
-        "phrase_ids",
-        value=[item.id for item in included_phrases],
-        type_=ARRAY(PGUUID(as_uuid=True)),
-    )
-    translations = list(
-        (
-            await session.scalars(
-                select(PersonalTranslation).where(
-                    PersonalTranslation.owner_user_id == user_id,
-                    PersonalTranslation.target_language_code == target,
-                    PersonalTranslation.is_primary.is_(True),
-                    or_(
-                        and_(
-                            PersonalTranslation.item_kind == "token",
-                            PersonalTranslation.item_id == any_(token_ids),
-                        ),
-                        and_(
-                            PersonalTranslation.item_kind == "phrase",
-                            PersonalTranslation.item_id == any_(phrase_ids),
-                        ),
-                    ),
-                )
-            )
-        ).all()
-    )
-    translation_by_item = {(row.item_kind, row.item_id): row for row in translations}
 
     items: list[LessonVocabularyItem] = []
     for text, (display_text, context) in first_context.items():
         item = by_text.get(text)
+        translation = translation_by_item.get(("token", item.id)) if item else None
         items.append(
             LessonVocabularyItem(
                 kind="token",
@@ -191,10 +167,10 @@ async def build_lesson_vocabulary(
                 confidence=item.confidence if item else None,
                 primary_translation=(
                     PrimaryTranslationOut(
-                        text=translation_by_item[("token", item.id)].translation_text,
-                        target_language_code=target,
+                        text=translation.translation_text,
+                        target_language_code=translation.target_language_code,
                     )
-                    if item and ("token", item.id) in translation_by_item
+                    if translation
                     else None
                 ),
                 added_here=bool(item and item.created_from_lesson_id == lesson.id),
@@ -217,7 +193,7 @@ async def build_lesson_vocabulary(
                 primary_translation=(
                     PrimaryTranslationOut(
                         text=translation.translation_text,
-                        target_language_code=target,
+                        target_language_code=translation.target_language_code,
                     )
                     if translation
                     else None
@@ -240,7 +216,7 @@ async def build_lesson_vocabulary(
                 primary_translation=(
                     PrimaryTranslationOut(
                         text=translation.translation_text,
-                        target_language_code=target,
+                        target_language_code=translation.target_language_code,
                     )
                     if translation
                     else None

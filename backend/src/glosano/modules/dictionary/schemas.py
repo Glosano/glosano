@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from glosano.core.languages import LearningLanguageCode
+from glosano.core.languages import LearningLanguageCode, TranslationLanguageCode
 
 
 class DictionaryExampleOut(BaseModel):
@@ -60,7 +60,7 @@ class CustomDictionaryIn(BaseModel):
     url_template: str  # raw; validated in the service
     all_languages: bool
     source_language_code: LearningLanguageCode
-    target_language_code: LearningLanguageCode
+    target_language_code: TranslationLanguageCode
 
 
 class LayoutIn(BaseModel):

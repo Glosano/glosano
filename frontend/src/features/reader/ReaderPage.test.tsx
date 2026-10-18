@@ -101,10 +101,13 @@ import { ApiError } from '@/api/client'
 import { useReaderStore } from './readerStore'
 import { ReaderPage } from './ReaderPage'
 import { setUiLanguage } from '@/lib/i18n'
+import type { MeResponse } from '@/api/me'
+import { useUserStore } from '@/stores/userStore'
 import { clearMediaQueries, mockMediaQueries } from '@/test/mockMediaQueries'
 
 afterEach(() => {
   vi.useRealTimers()
+  useUserStore.getState().reset()
   setUiLanguage('ru')
   chatDrafts.setUser(null)
 })
@@ -625,7 +628,10 @@ describe('ReaderPage', () => {
     expect(screen.queryByRole('button', { name: 'Закрепить видео' })).not.toBeInTheDocument()
   })
 
-  it('switches reader labels and all translation targets live without changing saved translations', async () => {
+  it('ReaderPage passes native language, not UI language', async () => {
+    useUserStore.setState({
+      user: { id: 'u1', ui_language_code: 'ru', native_language_code: 'uk' } as MeResponse,
+    })
     vi.mocked(lessonsApi.get).mockResolvedValue(baseLesson)
     vi.mocked(readerApi.content).mockResolvedValue(content)
     vi.mocked(readerApi.statuses).mockResolvedValue({})
@@ -644,9 +650,9 @@ describe('ReaderPage', () => {
             source_type: 'user',
           },
           {
-            id: 'en-saved',
-            text: 'My translation',
-            target_language_code: 'en',
+            id: 'uk-saved',
+            text: 'Мій переклад',
+            target_language_code: 'uk',
             is_primary: true,
             source_type: 'user',
           },
@@ -662,53 +668,54 @@ describe('ReaderPage', () => {
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: 'test', latency_ms: 1 })
     vi.mocked(readerApi.segmentTranslation).mockImplementation(
       async (_lesson, _segment, target) => ({
-        text: target === 'en' ? 'English sentence translation' : 'Русский перевод предложения',
+        text: target === 'uk' ? 'Український переклад речення' : 'Wrong target',
         source: 'ai',
         model: 'test',
         stored: true,
       }),
     )
-    setUiLanguage('en')
     renderPage()
     fireEvent.click(await screen.findByText('Hello'))
-    await screen.findByDisplayValue('My translation')
-    expect(screen.getByRole('button', { name: 'Close card' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
-    await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'en', 'hello'))
+    // Saved translations of every language stay visible (spec §8).
+    await screen.findByDisplayValue('Мій переклад')
+    expect(screen.getByDisplayValue('Мой перевод')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Закрыть карточку' })).toBeInTheDocument()
+    await waitFor(() =>
+      expect(vocabularyApi.lookup).toHaveBeenCalledWith('en', 'hello', 'uk', 'token'),
+    )
+    await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'uk', 'hello'))
     await waitFor(() =>
       expect(aiApi.translate).toHaveBeenCalledWith(
-        expect.objectContaining({ target_language_code: 'en' }),
+        expect.objectContaining({ target_language_code: 'uk' }),
       ),
     )
 
+    // Switching the interface language changes labels, never the translation target.
     act(() => {
-      setUiLanguage('ru')
+      setUiLanguage('en')
     })
-    await screen.findByDisplayValue('Мой перевод')
-    expect(screen.getByRole('button', { name: 'Закрыть карточку' })).toBeInTheDocument()
-    expect(screen.queryByDisplayValue('My translation')).not.toBeInTheDocument()
-    await waitFor(() => expect(dictionaryApi.lookup).toHaveBeenCalledWith('en', 'ru', 'hello'))
-    await waitFor(() =>
-      expect(aiApi.translate).toHaveBeenCalledWith(
-        expect.objectContaining({ target_language_code: 'ru' }),
-      ),
-    )
+    expect(await screen.findByRole('button', { name: 'Close card' })).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Мій переклад')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Мой перевод')).toBeInTheDocument()
+    for (const call of vi.mocked(vocabularyApi.lookup).mock.calls) expect(call[2]).toBe('uk')
+    for (const call of vi.mocked(dictionaryApi.lookup).mock.calls) expect(call[1]).toBe('uk')
+    for (const call of vi.mocked(aiApi.translate).mock.calls) {
+      expect(call[0].target_language_code).toBe('uk')
+    }
     expect(vocabularyApi.updateTranslation).not.toHaveBeenCalled()
     expect(vocabularyApi.addTranslation).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Закрыть карточку' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close card' }))
     act(() => {
       useReaderStore.setState({ mode: 'sentence' })
     })
     fireEvent.click(await screen.findByTestId('toggle-translation'))
-    await screen.findByText('Русский перевод предложения')
-    act(() => {
-      setUiLanguage('en')
-    })
-    await screen.findByText('English sentence translation')
-    expect(readerApi.segmentTranslation).toHaveBeenCalledWith('lesson-1', 'seg-1', 'en')
+    await screen.findByText('Український переклад речення')
+    expect(readerApi.segmentTranslation).toHaveBeenCalledWith('lesson-1', 'seg-1', 'uk')
+    for (const call of vi.mocked(readerApi.segmentTranslation).mock.calls) {
+      expect(call[2]).toBe('uk')
+    }
     expect(screen.getByRole('button', { name: 'Previous sentence' })).toBeInTheDocument()
-    expect(screen.getAllByText('Hello').length).toBeGreaterThan(0)
   })
 
   it('shows processing state and does not fetch reader content', async () => {

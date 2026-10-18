@@ -32,6 +32,7 @@ async def test_get_me_returns_user_data_after_register() -> None:
         assert body["role"] == "learner"
         assert body["display_name"] == "Me"
         assert body["ui_language_code"] == "en"  # default
+        assert body["native_language_code"] is None  # chosen during onboarding
         assert body["learning_languages"] == []  # before onboarding
         assert body["last_learning_language_code"] is None
         assert body["needs_onboarding"] is True

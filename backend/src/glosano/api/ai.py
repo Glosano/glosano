@@ -16,7 +16,7 @@ from glosano.modules.ai_translation.schemas import (
     WordTagsRequest,
     WordTagsResponse,
 )
-from glosano.modules.identity.service import translation_target
+from glosano.modules.identity.service import translation_target, ui_language
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -71,7 +71,7 @@ async def word_tags(
             surface_text=body.surface_text,
             context_text=body.context_text,
             language_code=body.language_code,
-            ui_language=await translation_target(session, user_id),
+            ui_language=await ui_language(session, user_id),
             lesson_id=body.lesson_id,
         )
     except service.AIDisabled:

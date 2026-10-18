@@ -5,17 +5,18 @@ import { ApiError } from '@/api/client'
 import type { TranslationOut } from '@/api/vocabulary'
 import { TranslationFields } from './TranslationFields'
 
-const tr = (id: string, text: string, primary = false): TranslationOut => ({
-  id, text, target_language_code: 'ru', is_primary: primary, source_type: 'user',
+const tr = (id: string, text: string, primary = false, lang = 'ru'): TranslationOut => ({
+  id, text, target_language_code: lang, is_primary: primary, source_type: 'user',
 })
 
-function setup(translations: TranslationOut[]) {
+function setup(translations: TranslationOut[], nativeLanguage = 'ru') {
   const onCreate = vi.fn().mockResolvedValue(undefined)
   const onUpdate = vi.fn().mockResolvedValue(undefined)
   const onDelete = vi.fn().mockResolvedValue(undefined)
   render(
     <TranslationFields
       translations={translations}
+      nativeLanguage={nativeLanguage}
       onCreate={onCreate}
       onUpdate={onUpdate}
       onDelete={onDelete}
@@ -73,7 +74,7 @@ describe('TranslationFields', () => {
   it('keeps the draft and shows an inline error when saving fails, then retries', async () => {
     const onCreate = vi.fn().mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined)
     render(
-      <TranslationFields translations={[]} onCreate={onCreate}
+      <TranslationFields translations={[]} nativeLanguage="ru" onCreate={onCreate}
         onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
     const input = screen.getByPlaceholderText('Введите новый перевод здесь')
@@ -91,7 +92,7 @@ describe('TranslationFields', () => {
   it('shows the duplicate-variant message when onUpdate rejects with a 409 ApiError', async () => {
     const onUpdate = vi.fn().mockRejectedValueOnce(new ApiError(409, 'duplicate translation text'))
     render(
-      <TranslationFields translations={[tr('T1', 'первый', true), tr('T2', 'второй')]}
+      <TranslationFields translations={[tr('T1', 'первый', true), tr('T2', 'второй')]} nativeLanguage="ru"
         onCreate={vi.fn()} onUpdate={onUpdate} onDelete={vi.fn()} />,
     )
     const second = screen.getByDisplayValue('второй')
@@ -106,7 +107,7 @@ describe('TranslationFields', () => {
     let resolve!: () => void
     const onCreate = vi.fn(() => new Promise<void>((r) => { resolve = r }))
     render(
-      <TranslationFields translations={[]} onCreate={onCreate}
+      <TranslationFields translations={[]} nativeLanguage="ru" onCreate={onCreate}
         onUpdate={vi.fn()} onDelete={vi.fn()} />,
     )
     const input = screen.getByPlaceholderText('Введите новый перевод здесь')
@@ -121,7 +122,7 @@ describe('TranslationFields', () => {
     let resolve!: () => void
     const onDelete = vi.fn(() => new Promise<void>((r) => { resolve = r }))
     render(
-      <TranslationFields translations={[tr('T1', 'первый', true)]} onCreate={vi.fn()}
+      <TranslationFields translations={[tr('T1', 'первый', true)]} nativeLanguage="ru" onCreate={vi.fn()}
         onUpdate={vi.fn()} onDelete={onDelete} />,
     )
     const first = screen.getByDisplayValue('первый')
@@ -130,5 +131,33 @@ describe('TranslationFields', () => {
     fireEvent.blur(first)
     resolve()
     await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1))
+  })
+
+  it('labels every variant with its language flag and name', () => {
+    setup([tr('T1', 'привет', true, 'ru'), tr('T2', 'привіт', true, 'uk')], 'uk')
+    const ru = screen.getByRole('textbox', { name: 'Перевод: Русский' })
+    const uk = screen.getByRole('textbox', { name: 'Перевод: Украинский' })
+    expect(ru).toHaveValue('привет')
+    expect(uk).toHaveValue('привіт')
+    const flags = screen.getAllByText(/🇷🇺|🇺🇦/)
+    expect(flags.map((f) => f.textContent)).toEqual(['🇷🇺', '🇺🇦'])
+    for (const flag of flags) expect(flag).toHaveAttribute('aria-hidden', 'true')
+    // A native-language variant exists, so no always-empty field.
+    expect(screen.queryByPlaceholderText('Введите новый перевод здесь')).not.toBeInTheDocument()
+  })
+
+  it('keeps an empty native field when only foreign-language variants exist', async () => {
+    const { onCreate, onUpdate } = setup([tr('T1', 'привет', true, 'ru')], 'uk')
+    const empty = screen.getByRole('textbox', { name: 'Новый перевод: Украинский' })
+    expect(empty).toHaveAttribute('placeholder', 'Введите новый перевод здесь')
+    expect(screen.getAllByText('🇺🇦')).toHaveLength(1)
+    fireEvent.change(empty, { target: { value: 'привіт' } })
+    fireEvent.keyDown(empty, { key: 'Enter' })
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith('привіт'))
+
+    const ru = screen.getByRole('textbox', { name: 'Перевод: Русский' })
+    fireEvent.change(ru, { target: { value: 'здравствуй' } })
+    fireEvent.keyDown(ru, { key: 'Enter' })
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('T1', 'здравствуй'))
   })
 })
