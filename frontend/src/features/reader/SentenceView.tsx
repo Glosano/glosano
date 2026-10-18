@@ -1,11 +1,12 @@
 import { ParagraphQuote, type ParagraphQuoteAction } from './ParagraphQuote'
-import { useTranslation, translate, type UiLanguage } from '@/lib/i18n'
+import { useTranslation, type UiLanguage } from '@/lib/i18n'
 import { useState } from 'react'
 import { Play } from 'lucide-react'
 
 import { ApiError } from '@/api/client'
 import { isWord, type Sentence, type StatusMap, type WordToken } from '@/api/reader'
 
+import { translationErrorMessage } from './translationError'
 import type { PhraseIndex, PhraseMatch } from './phraseMatching'
 import { SentenceTokens } from './SentenceTokens'
 import { SentenceVocabList } from './SentenceVocabList'
@@ -33,13 +34,6 @@ interface Props {
   targetLang: UiLanguage
   onWordClick?: (word: SelectedWord) => void
   onPhraseClick?: (match: PhraseMatch, sentence: Sentence) => void
-}
-
-function translationErrorMessage(error: unknown): string {
-  if (error instanceof ApiError && error.status === 503) {
-    return translate('AI отключён администратором')
-  }
-  return translate('Не удалось перевести')
 }
 
 // Слова для списка лексики: изучаемые (tracked) и новые (без статуса).

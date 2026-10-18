@@ -52,6 +52,10 @@
   --reader-new-bg: #c6dfff;
   --reader-tracked-bg: #ffeba8;
 
+  /* Inline sentence translation in the page reader (FLQ-45) */
+  --reader-translation-fg: var(--vocab-translation-fg);
+  --reader-translation-dot: #8fb6f7;
+
   /* Reader sentence-vocab status circles */
   --reader-status-tracked-bg: #ffdb8c;
   --reader-status-foreground: #523812;

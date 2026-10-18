@@ -1285,6 +1285,8 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
                   : undefined
               }
               page={currentPage}
+              lessonId={lessonId}
+              targetLang={targetLanguage}
               languageCode={content.language_code}
               statuses={statusMap}
               phraseIndex={phraseIndex}

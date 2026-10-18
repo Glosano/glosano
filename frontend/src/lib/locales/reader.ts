@@ -104,6 +104,8 @@ export const readerMessages: Record<string, string> = {
   'Воспроизвести аудио': 'Play audio',
   'Показать перевод ▾': 'Show translation ▾',
   'Переводим…': 'Translating…',
+  'Показать перевод предложения': 'Show sentence translation',
+  'Скрыть перевод предложения': 'Hide sentence translation',
   'Такой вариант уже есть': 'This translation already exists',
   'Добавить вариант': 'Add a translation',
   'Удалить вариант: {{value0}}': 'Delete translation: {{value0}}',

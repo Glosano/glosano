@@ -4,6 +4,7 @@ import { Play } from 'lucide-react'
 
 import type { Sentence, StatusMap } from '@/api/reader'
 
+import { InlineSentenceTranslation } from './InlineSentenceTranslation'
 import type { PageSlice } from './pagination'
 import type { PhraseIndex, PhraseMatch } from './phraseMatching'
 import { SentenceTokens } from './SentenceTokens'
@@ -22,6 +23,9 @@ interface Props {
   onSeek?: (sentence: Sentence) => void
   playbackDisabled?: boolean
   page: PageSlice
+  /** Вместе с targetLang включает точку-перевод в конце каждого предложения. */
+  lessonId?: string
+  targetLang?: string
   statuses: StatusMap
   phraseIndex: PhraseIndex
   dragRange: DragRange | null
@@ -32,6 +36,8 @@ interface Props {
 
 export function PageView({
   page,
+  lessonId,
+  targetLang,
   onQuoteParagraph,
   paragraphAction,
   statuses,
@@ -145,6 +151,13 @@ export function PageView({
                         onWordClick={onWordClick}
                         onPhraseClick={onPhraseClick}
                       />
+                      {lessonId && targetLang && (
+                        <InlineSentenceTranslation
+                          lessonId={lessonId}
+                          segId={entry.sentence.seg_id}
+                          targetLang={targetLang}
+                        />
+                      )}
                     </span>
                   </Fragment>
                 ))}
