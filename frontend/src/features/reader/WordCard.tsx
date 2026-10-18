@@ -11,6 +11,8 @@ import { dictionaryApi } from '@/api/dictionary'
 import { aiApi } from '@/api/ai'
 import { ApiError } from '@/api/client'
 import { ConfidencePicker } from '@/components/ConfidencePicker'
+import { DictionaryLinks } from './DictionaryLinks'
+import { DictionarySettingsPanel } from './DictionarySettingsPanel'
 import type { SelectedItem } from './selectedItem'
 
 /** Suggestions shown before the card is expanded; the expanded card shows all. */
@@ -110,6 +112,13 @@ export function WordCard({
   const aiDisabled = ai.error instanceof ApiError && ai.error.status === 503
 
   const [saveError, setSaveError] = useState(false)
+  // Dictionary settings panel replaces the card body (FLQ-46); it belongs to
+  // one word, so selecting another word returns to the normal card.
+  const [configuringDictionaries, setConfiguringDictionaries] = useState(false)
+  const wordIdentity = word ? `${word.kind}:${word.t}:${word.n}:${word.i}` : null
+  useEffect(() => {
+    setConfiguringDictionaries(false)
+  }, [wordIdentity])
   const [suggestionError, setSuggestionError] = useState(false)
 
   const tagsRef = useRef<WordTagsHandle>(null)
@@ -229,235 +238,263 @@ export function WordCard({
       </button>
 
       <p className="text-2xl font-semibold">{word.t}</p>
-      {kind === 'token' && lessonId && (
-        <p className="mt-1 hidden text-xs text-muted-foreground [@media(hover:none)]:block">
-          {tr('Удерживайте слово и ведите пальцем, чтобы выделить фразу')}
-        </p>
-      )}
-      {data && (
-        <WordTags
-          key={`${kind}:${lang}:${text}:${aiContext}`}
-          ref={tagsRef}
-          data={data}
-          kind={kind}
-          text={word.t}
+      {configuringDictionaries ? (
+        <DictionarySettingsPanel
           lang={lang}
-          context={aiContext}
-          lessonId={lessonId}
-          ensureItem={() => ensureItem('tracked', 1)}
+          target={target}
+          onDone={() => setConfiguringDictionaries(false)}
         />
-      )}
-
-      {onAddToChat && (
-        <div className="mt-3 space-y-2 text-sm">
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={!canAddToChat}
-              className="text-primary underline disabled:opacity-50"
-              onClick={() => onAddToChat(false)}
-            >
-              {tr('Добавить в чат')}
-            </button>
-            <button
-              type="button"
-              disabled={!canAddToChat}
-              className="underline disabled:opacity-50"
-              onClick={() => onAddToChat(true)}
-            >
-              {tr('В новый разговор')}
-            </button>
-          </div>
-          {!canAddToChat && (
-            <p className="text-muted-foreground">
-              {tr('Выделите фрагмент в тексте, чтобы приложить точную цитату.')}
+      ) : (
+        <>
+          {kind === 'token' && lessonId && (
+            <p className="mt-1 hidden text-xs text-muted-foreground [@media(hover:none)]:block">
+              {tr('Удерживайте слово и ведите пальцем, чтобы выделить фразу')}
             </p>
           )}
-        </div>
-      )}
-
-      {!isIgnored && (
-        <>
-          {/* Saved translation */}
-          <label className="mt-4 block text-sm font-medium">{tr('Перевод')}</label>
-          <TranslationFields
-            key={`${kind}:${text}:${target}`}
-            translations={variants}
-            onCreate={(value) =>
-              withItem((id) =>
-                m.saveTranslation.mutateAsync({ itemId: id, text: value, source: 'user', target }),
-              )
-            }
-            onUpdate={(translationId, value) =>
-              withItem((id) =>
-                m.updateTranslation.mutateAsync({ itemId: id, translationId, text: value }),
-              )
-            }
-            onDelete={(translationId) =>
-              withItem((id) => m.deleteTranslation.mutateAsync({ itemId: id, translationId }))
-            }
-          />
-
-          <div data-testid="word-card-suggestions" className="mt-4">
-            {dict.data?.availability === 'not_installed' && (
-              <p className="mb-2 text-sm text-muted-foreground">
-                {tr(
-                  'Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.',
-                )}
-              </p>
-            )}
-            {(visibleSuggestions.length > 0 || aiPending) && (
-              <p className="text-sm font-medium">{tr('Подсказки')}</p>
-            )}
-            <ul className="mt-1 space-y-1">
-              {aiPending && (
-                <li
-                  data-testid="word-card-ai-pending"
-                  className="flex animate-pulse items-center rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
-                >
-                  {tr('Переводим…')}
-                  <span aria-hidden="true" className="ml-2">
-                    ✦
-                  </span>
-                </li>
-              )}
-              {visibleSuggestions.map((sug) => {
-                const sourceLabel = [sug.fromAi && 'AI', sug.fromDictionary && dictionarySource]
-                  .filter(Boolean)
-                  .join(' · ')
-                // A dictionary match confirms the AI draft, so save it as dictionary data.
-                const saveSource = sug.fromDictionary ? 'dictionary' : 'ai'
-                return (
-                  <li key={sug.text.toLocaleLowerCase()}>
-                    <button
-                      type="button"
-                      aria-label={
-                        sug.fromDictionary
-                          ? tr('Добавить перевод из {{value0}}: {{value1}}', {
-                              value0: sourceLabel,
-                              value1: sug.text,
-                            })
-                          : tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
-                      }
-                      onClick={() => {
-                        setSuggestionError(false)
-                        void withItem((id) =>
-                          m.saveTranslation.mutateAsync({
-                            itemId: id,
-                            text: sug.text,
-                            source: saveSource,
-                            target,
-                          }),
-                        )
-                          .then(() => onTranslationSelected?.())
-                          .catch(() => setSuggestionError(true))
-                      }}
-                      className="flex w-full items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                    >
-                      <span className="text-primary">
-                        <span data-suggestion-text>{sug.text}</span>
-                        <span aria-hidden="true" className="ml-2 text-muted-foreground">
-                          {[sug.fromAi && '✦', sug.fromDictionary && '📘'].filter(Boolean).join(' ')}
-                        </span>
-                        <span className="ml-2 text-xs text-muted-foreground">{sourceLabel}</span>
-                      </span>
-                      <span aria-hidden="true" className="shrink-0 p-1">
-                        +
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-            {suggestionError && (
-              <p role="alert" className="mt-2 text-sm text-destructive">
-                {tr('Не удалось сохранить')}
-              </p>
-            )}
-            {showDictionaryAttribution && dict.data?.attribution && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                {tr('Источник:')}{' '}
-                {dict.data.attribution.url ? (
-                  <a
-                    href={dict.data.attribution.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    {dict.data.attribution.source}
-                  </a>
-                ) : (
-                  <span>{dict.data.attribution.source}</span>
-                )}
-                {dict.data.attribution.license && (
-                  <>
-                    {' · '}
-                    <span>{dict.data.attribution.license}</span>
-                  </>
-                )}
-              </p>
-            )}
-            {ai.isError && !aiDisabled && (
-              <p className="mt-1 text-sm text-destructive">
-                {tr('Не удалось получить AI-перевод')}{' '}
-                <button type="button" onClick={() => void ai.refetch()} className="underline">
-                  {tr('Повторить')}
-                </button>
-              </p>
-            )}
-          </div>
-        </>
-      )}
-
-      {isIgnored && (
-        <div data-testid="word-card-ignored" className="mt-4">
-          <p className="text-sm font-medium">{tr('Игнорируется')}</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {tr('Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение')}
-          </p>
-        </div>
-      )}
-
-      {expanded && !isIgnored && (
-        <div data-testid="word-card-expanded" className="mt-4 space-y-4">
-          <div>
-            <p className="text-sm font-medium">{tr('Заметки')}</p>
-            <textarea
-              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
-              rows={3}
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              onBlur={() => void saveNote()}
+          {data && (
+            <WordTags
+              key={`${kind}:${lang}:${text}:${aiContext}`}
+              ref={tagsRef}
+              data={data}
+              kind={kind}
+              text={word.t}
+              lang={lang}
+              context={aiContext}
+              lessonId={lessonId}
+              ensureItem={() => ensureItem('tracked', 1)}
             />
-            {saveError && (
-              <p className="mt-1 text-sm text-destructive">{tr('Не удалось сохранить')}</p>
-            )}
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Footer: 🗑 [1][2][3][4] ✓ — gated on the lookup having loaded, so a
+          {onAddToChat && (
+            <div className="mt-3 space-y-2 text-sm">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  disabled={!canAddToChat}
+                  className="text-primary underline disabled:opacity-50"
+                  onClick={() => onAddToChat(false)}
+                >
+                  {tr('Добавить в чат')}
+                </button>
+                <button
+                  type="button"
+                  disabled={!canAddToChat}
+                  className="underline disabled:opacity-50"
+                  onClick={() => onAddToChat(true)}
+                >
+                  {tr('В новый разговор')}
+                </button>
+              </div>
+              {!canAddToChat && (
+                <p className="text-muted-foreground">
+                  {tr('Выделите фрагмент в тексте, чтобы приложить точную цитату.')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {!isIgnored && (
+            <>
+              {/* Saved translation */}
+              <label className="mt-4 block text-sm font-medium">{tr('Перевод')}</label>
+              <TranslationFields
+                key={`${kind}:${text}:${target}`}
+                translations={variants}
+                onCreate={(value) =>
+                  withItem((id) =>
+                    m.saveTranslation.mutateAsync({
+                      itemId: id,
+                      text: value,
+                      source: 'user',
+                      target,
+                    }),
+                  )
+                }
+                onUpdate={(translationId, value) =>
+                  withItem((id) =>
+                    m.updateTranslation.mutateAsync({ itemId: id, translationId, text: value }),
+                  )
+                }
+                onDelete={(translationId) =>
+                  withItem((id) => m.deleteTranslation.mutateAsync({ itemId: id, translationId }))
+                }
+              />
+
+              {/* Right under the translation field: below the suggestions list it
+                  scrolls out of view in the reader's bottom sheet. */}
+              <DictionaryLinks
+                lang={lang}
+                target={target}
+                text={text ?? word.t}
+                onConfigure={() => setConfiguringDictionaries(true)}
+              />
+
+              <div data-testid="word-card-suggestions" className="mt-4">
+                {dict.data?.availability === 'not_installed' && (
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    {tr(
+                      'Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.',
+                    )}
+                  </p>
+                )}
+                {(visibleSuggestions.length > 0 || aiPending) && (
+                  <p className="text-sm font-medium">{tr('Подсказки')}</p>
+                )}
+                <ul className="mt-1 space-y-1">
+                  {aiPending && (
+                    <li
+                      data-testid="word-card-ai-pending"
+                      className="flex animate-pulse items-center rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
+                    >
+                      {tr('Переводим…')}
+                      <span aria-hidden="true" className="ml-2">
+                        ✦
+                      </span>
+                    </li>
+                  )}
+                  {visibleSuggestions.map((sug) => {
+                    const sourceLabel = [sug.fromAi && 'AI', sug.fromDictionary && dictionarySource]
+                      .filter(Boolean)
+                      .join(' · ')
+                    // A dictionary match confirms the AI draft, so save it as dictionary data.
+                    const saveSource = sug.fromDictionary ? 'dictionary' : 'ai'
+                    return (
+                      <li key={sug.text.toLocaleLowerCase()}>
+                        <button
+                          type="button"
+                          aria-label={
+                            sug.fromDictionary
+                              ? tr('Добавить перевод из {{value0}}: {{value1}}', {
+                                  value0: sourceLabel,
+                                  value1: sug.text,
+                                })
+                              : tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
+                          }
+                          onClick={() => {
+                            setSuggestionError(false)
+                            void withItem((id) =>
+                              m.saveTranslation.mutateAsync({
+                                itemId: id,
+                                text: sug.text,
+                                source: saveSource,
+                                target,
+                              }),
+                            )
+                              .then(() => onTranslationSelected?.())
+                              .catch(() => setSuggestionError(true))
+                          }}
+                          className="flex w-full items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2 text-left text-sm hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <span className="text-primary">
+                            <span data-suggestion-text>{sug.text}</span>
+                            <span aria-hidden="true" className="ml-2 text-muted-foreground">
+                              {[sug.fromAi && '✦', sug.fromDictionary && '📘']
+                                .filter(Boolean)
+                                .join(' ')}
+                            </span>
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {sourceLabel}
+                            </span>
+                          </span>
+                          <span aria-hidden="true" className="shrink-0 p-1">
+                            +
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {suggestionError && (
+                  <p role="alert" className="mt-2 text-sm text-destructive">
+                    {tr('Не удалось сохранить')}
+                  </p>
+                )}
+                {showDictionaryAttribution && dict.data?.attribution && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {tr('Источник:')}{' '}
+                    {dict.data.attribution.url ? (
+                      <a
+                        href={dict.data.attribution.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline"
+                      >
+                        {dict.data.attribution.source}
+                      </a>
+                    ) : (
+                      <span>{dict.data.attribution.source}</span>
+                    )}
+                    {dict.data.attribution.license && (
+                      <>
+                        {' · '}
+                        <span>{dict.data.attribution.license}</span>
+                      </>
+                    )}
+                  </p>
+                )}
+                {ai.isError && !aiDisabled && (
+                  <p className="mt-1 text-sm text-destructive">
+                    {tr('Не удалось получить AI-перевод')}{' '}
+                    <button type="button" onClick={() => void ai.refetch()} className="underline">
+                      {tr('Повторить')}
+                    </button>
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          {isIgnored && (
+            <div data-testid="word-card-ignored" className="mt-4">
+              <p className="text-sm font-medium">{tr('Игнорируется')}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {tr('Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение')}
+              </p>
+            </div>
+          )}
+
+          {expanded && !isIgnored && (
+            <div data-testid="word-card-expanded" className="mt-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium">{tr('Заметки')}</p>
+                <textarea
+                  className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+                  rows={3}
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  onBlur={() => void saveNote()}
+                />
+                {saveError && (
+                  <p className="mt-1 text-sm text-destructive">{tr('Не удалось сохранить')}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Footer: 🗑 [1][2][3][4] ✓ — gated on the lookup having loaded, so a
           click always sees the real item id/status (never a stale "new word"
           default while the lookup is still in flight). */}
-      {data && (
-        <div className="mt-4 border-t border-border pt-3">
-          <ConfidencePicker
-            status={status}
-            confidence={confidence}
-            onSelect={(s, c) => applyStatus(s, c)}
-          />
-        </div>
-      )}
+          {data && (
+            <div className="mt-4 border-t border-border pt-3">
+              <ConfidencePicker
+                status={status}
+                confidence={confidence}
+                onSelect={(s, c) => applyStatus(s, c)}
+              />
+            </div>
+          )}
 
-      {!isIgnored && (
-        <button
-          type="button"
-          aria-label={expanded ? tr('Свернуть') : tr('Развернуть')}
-          onClick={() => setExpanded(!expanded)}
-          className="mx-auto mt-2 flex rounded-md p-1 text-muted-foreground hover:bg-accent"
-        >
-          {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+          {!isIgnored && (
+            <button
+              type="button"
+              aria-label={expanded ? tr('Свернуть') : tr('Развернуть')}
+              onClick={() => setExpanded(!expanded)}
+              className="mx-auto mt-2 flex rounded-md p-1 text-muted-foreground hover:bg-accent"
+            >
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          )}
+        </>
       )}
     </div>
   )

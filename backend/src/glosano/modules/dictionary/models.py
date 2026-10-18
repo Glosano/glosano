@@ -4,6 +4,10 @@ Instance-wide, read-only data imported from Wiktionary/Kaikki dumps.
 A version row is scoped to one (source_lang, target_lang) pair; at most one
 version per pair is `active` (partial unique index). Entries/translations/
 examples hang off a version and die with it (ON DELETE CASCADE).
+
+The last two models (user_external_dictionaries, user_dictionary_layouts) are
+the exception: they are personal data of one user, cascade on user delete and
+are part of the user's JSON export (FLQ-46).
 """
 
 from __future__ import annotations
@@ -13,10 +17,12 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -111,3 +117,51 @@ class DictionaryExample(Base):
     sense_index: Mapped[int] = mapped_column(Integer, default=0)
     example_text: Mapped[str] = mapped_column(Text)
     example_translation: Mapped[str | None] = mapped_column(Text)
+
+
+class UserExternalDictionary(Base):
+    """A user's custom URL-template dictionary; NULL pair means "all pairs"."""
+
+    __tablename__ = "user_external_dictionaries"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(40))
+    url_template: Mapped[str] = mapped_column(String(500))
+    source_language_code: Mapped[str | None] = mapped_column(String(8))
+    target_language_code: Mapped[str | None] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_user_external_dictionaries_user", "user_id"),
+        CheckConstraint(
+            "(source_language_code IS NULL) = (target_language_code IS NULL)",
+            name="ck_user_external_dictionaries_pair",
+        ),
+    )
+
+
+class UserDictionaryLayout(Base):
+    """Per-user, per-(source, target) ordering of visible/hidden dictionary ids."""
+
+    __tablename__ = "user_dictionary_layouts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    source_language_code: Mapped[str] = mapped_column(String(8))
+    target_language_code: Mapped[str] = mapped_column(String(8))
+    visible: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    hidden: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint("user_id", "source_language_code", "target_language_code"),
+    )

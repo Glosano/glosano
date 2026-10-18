@@ -658,7 +658,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: 'Wiktionary', license: 'CC-BY-SA 4.0', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: 'test', latency_ms: 1 })
     vi.mocked(readerApi.segmentTranslation).mockImplementation(
@@ -910,7 +909,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -941,7 +939,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -998,7 +995,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: 'Wiktionary', license: 'CC BY-SA', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -1091,7 +1087,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -1135,7 +1130,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -1166,7 +1160,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -1197,7 +1190,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
 
     renderPage()
@@ -1229,7 +1221,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -1303,7 +1294,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 
@@ -1453,7 +1443,6 @@ describe('ReaderPage', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
 

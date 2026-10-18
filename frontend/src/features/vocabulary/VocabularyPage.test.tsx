@@ -101,7 +101,7 @@ describe('VocabularyPage states', () => {
     vi.clearAllMocks()
     resetStore()
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
-      entries: [], attribution: { source: '', license: '', url: '' }, external_links: [],
+      entries: [], attribution: { source: '', license: '', url: '' },
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
     vi.mocked(reviewApi.counts).mockResolvedValue({ due: 0, new: 0, practice: 0, ai_enabled: true })

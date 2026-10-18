@@ -9,7 +9,12 @@ from sqlalchemy import select
 from glosano.core.db import Base, session_scope
 from glosano.core.security import hash_password
 from glosano.modules.ai_translation.models import AIRequest
-from glosano.modules.dictionary.models import DictionaryEntry, DictionarySourceVersion
+from glosano.modules.dictionary.models import (
+    DictionaryEntry,
+    DictionarySourceVersion,
+    UserDictionaryLayout,
+    UserExternalDictionary,
+)
 from glosano.modules.identity.models import User, UserSession
 from glosano.modules.identity.repo import UserRepo
 from glosano.modules.lesson_library.models import (
@@ -156,6 +161,20 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
                     owner_user_id=user_id, item_kind="token", item_id=token.id, tag_name="mine"
                 ),
                 LessonTag(user_id=user_id, lesson_id=foreign.id, tag="news"),
+                UserExternalDictionary(
+                    user_id=user_id,
+                    name="My dict",
+                    url_template="https://dict.example/{word}",
+                    source_language_code="pt",
+                    target_language_code="en",
+                ),
+                UserDictionaryLayout(
+                    user_id=user_id,
+                    source_language_code="pt",
+                    target_language_code="en",
+                    visible=["builtin:reverso"],
+                    hidden=["builtin:google"],
+                ),
                 ReaderPosition(
                     user_id=user_id,
                     lesson_id=foreign.id,
@@ -225,6 +244,12 @@ async def test_export_is_complete_and_isolated(client: AsyncClient):
     assert records["daily_user_stats"][0]["tokens_read"] == 2
     assert [(row["lesson_id"], row["tag"]) for row in records["lesson_tags"]] == [
         (ids["foreign"], "news")
+    ]
+    assert [
+        (row["name"], row["url_template"]) for row in records["user_external_dictionaries"]
+    ] == [("My dict", "https://dict.example/{word}")]
+    assert [(row["visible"], row["hidden"]) for row in records["user_dictionary_layouts"]] == [
+        (["builtin:reverso"], ["builtin:google"])
     ]
     for table in records:
         if table.startswith("chat_"):

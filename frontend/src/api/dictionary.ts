@@ -15,7 +15,6 @@ export interface DictionaryLookup {
   availability?: 'available' | 'not_installed'
   entries: DictionaryEntry[]
   attribution: { source: string; license: string; url: string }
-  external_links: { name: string; url: string }[]
 }
 
 export const dictionaryApi = {

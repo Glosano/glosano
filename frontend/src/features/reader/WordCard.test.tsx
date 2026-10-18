@@ -17,10 +17,14 @@ vi.mock('@/api/vocabulary', () => ({
   },
 }))
 vi.mock('@/api/dictionary', () => ({ dictionaryApi: { lookup: vi.fn() } }))
+vi.mock('@/api/externalDictionaries', () => ({
+  externalDictionariesApi: { list: vi.fn() },
+}))
 vi.mock('@/api/ai', () => ({ aiApi: { translate: vi.fn(), wordTags: vi.fn().mockResolvedValue({ tags: [], model: '', latency_ms: 0 }) } }))
 
 import { vocabularyApi } from '@/api/vocabulary'
 import { dictionaryApi } from '@/api/dictionary'
+import { externalDictionariesApi } from '@/api/externalDictionaries'
 import { aiApi } from '@/api/ai'
 import { ApiError } from '@/api/client'
 import { useReaderStore } from './readerStore'
@@ -61,9 +65,9 @@ describe('WordCard core', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(aiApi.translate).mockResolvedValue({ hints: [], model: '', latency_ms: 0 })
+    vi.mocked(externalDictionariesApi.list).mockResolvedValue({ visible: [], available: [] })
     // wordCardExpanded lives in the module-level reader store now (not local
     // useState), so it leaks across tests in this file unless reset.
     useReaderStore.setState({ wordCardExpanded: false })
@@ -167,6 +171,26 @@ describe('WordCard core', () => {
     expect(vocabularyApi.patchItem).not.toHaveBeenCalled()
   })
 
+  it('hotkeys are inert while the dictionary settings panel is open', async () => {
+    vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+      item_id: null, status: 'new', confidence: null,
+      translations: { primary: null, all: [] }, note: null, tags: [],
+    })
+    renderCard()
+    await screen.findByRole('button', { name: 'Игнорировать' })
+    fireEvent.click(await screen.findByRole('button', { name: /Настроить/ }))
+    expect(await screen.findByText('Показываются')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Введите новый перевод здесь')).toBeNull()
+
+    fireEvent.keyDown(window, { key: '2' })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(vocabularyApi.createItem).not.toHaveBeenCalled()
+    expect(vocabularyApi.patchItem).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
+    expect(await screen.findByPlaceholderText('Введите новый перевод здесь')).toBeInTheDocument()
+  })
+
   it('sets confidence via the footer pill on an existing tracked item', async () => {
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
       item_id: 'I1',
@@ -219,7 +243,6 @@ describe('WordCard core', () => {
         license: 'CC BY-SA 4.0',
         url: 'https://kaikki.org/',
       },
-      external_links: [],
     })
     vi.mocked(vocabularyApi.addTranslation).mockResolvedValue({
       id: 'T1',
@@ -291,7 +314,6 @@ describe('WordCard core', () => {
           },
         ],
         attribution: { source: 'Wiktionary', license: 'CC BY-SA 4.0', url: 'https://kaikki.org/' },
-        external_links: [],
       }
     }
     function suggestionTexts() {
@@ -413,7 +435,6 @@ describe('WordCard core', () => {
     vi.mocked(dictionaryApi.lookup).mockResolvedValue({
       entries: [],
       attribution: { source: '', license: '', url: '' },
-      external_links: [],
     })
     vi.mocked(vocabularyApi.lookup).mockResolvedValue({
       item_id: 'I2',
@@ -469,7 +490,6 @@ describe('WordCard core', () => {
         license: 'CC BY-SA 4.0',
         url: 'https://kaikki.org/',
       },
-      external_links: [],
     })
     renderCard()
 
@@ -498,7 +518,6 @@ describe('WordCard core', () => {
       availability: 'not_installed',
       entries: [],
       attribution: { source: 'Wiktionary', license: 'CC BY-SA 4.0', url: '' },
-      external_links: [],
     })
 
     renderCard()
@@ -963,5 +982,83 @@ describe('WordCard core', () => {
       </QueryClientProvider>,
     )
     expect(screen.queryByText('Удерживайте слово и ведите пальцем, чтобы выделить фразу')).not.toBeInTheDocument()
+  })
+
+  describe('external dictionaries row', () => {
+    const newLookup = {
+      item_id: null,
+      status: 'new' as const,
+      confidence: null,
+      translations: { primary: null, all: [] },
+      note: null,
+      tags: [],
+    }
+
+    it('shows the row without suggestions or AI', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newLookup)
+      renderCard()
+      expect(await screen.findByTestId('word-card-dictionaries')).toBeInTheDocument()
+      expect(screen.queryByText('Подсказки')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Настроить/ })).toBeInTheDocument()
+    })
+
+    it('places the row right after the translation field, before suggestions', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newLookup)
+      renderCard()
+      const row = await screen.findByTestId('word-card-dictionaries')
+      const translation = screen.getByText('Перевод')
+      const suggestions = screen.getByTestId('word-card-suggestions')
+      expect(translation.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(row.compareDocumentPosition(suggestions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('shows the dictionaries row for a phrase using its surface text', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newLookup)
+      vi.mocked(externalDictionariesApi.list).mockResolvedValue({
+        visible: [
+          {
+            ref: 'reverso',
+            kind: 'builtin',
+            name: 'Reverso',
+            url_template: 'https://context.reverso.net/translation/portuguese-russian/{word}',
+            word_encoding: 'default',
+            custom_id: null,
+            all_languages: false,
+          },
+        ],
+        available: [],
+      })
+      render(
+        <WordCard
+          word={{ kind: 'phrase', t: 'de repente', n: 'de repente', i: 0, endOrdinal: 1, sentenceText: null }}
+          lang="pt"
+          target="ru"
+          lessonId="L1"
+          segId={null}
+          onClose={() => {}}
+          sentenceText={null}
+        />,
+        { wrapper },
+      )
+      const link = await screen.findByRole('link', { name: /Reverso/ })
+      expect(link.getAttribute('href')).toContain('de%20repente')
+    })
+
+    it('hides the dictionaries row for ignored words', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue({
+        ...newLookup,
+        item_id: 'I1',
+        status: 'ignored',
+      })
+      renderCard()
+      await screen.findByText('Игнорируется')
+      expect(screen.queryByTestId('word-card-dictionaries')).not.toBeInTheDocument()
+    })
+
+    it('requests dictionaries for the lang/target props', async () => {
+      vi.mocked(vocabularyApi.lookup).mockResolvedValue(newLookup)
+      renderCard()
+      await waitFor(() => expect(externalDictionariesApi.list).toHaveBeenCalledWith('pt', 'ru'))
+    })
   })
 })

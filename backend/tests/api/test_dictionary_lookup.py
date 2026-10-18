@@ -86,7 +86,6 @@ async def test_lookup_en_ru_ru_en_pt_ru(db_session: AsyncSession) -> None:
         assert entry["headword"] == "building"
         assert {s["translation"] for s in entry["senses"]} == {"здание", "строение"}
         assert body["attribution"]["license"] == "CC-BY-SA 4.0"
-        assert any(link["name"] == "Lingvo Live" for link in body["external_links"])
 
         r = await c.get(
             "/api/dictionary/lookup", params={"lang": "ru", "target": "en", "text": "дом"}
@@ -115,7 +114,6 @@ async def test_unknown_word_and_uncovered_pair_return_200_empty(db_session: Asyn
                 "available" if params["lang"] == "en" else "not_installed"
             )
             assert body["entries"] == []
-            assert body["external_links"]
             assert body["attribution"]["license"] == "CC-BY-SA 4.0"
 
 

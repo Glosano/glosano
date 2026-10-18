@@ -33,7 +33,6 @@ beforeEach(() => {
   vi.mocked(dictionaryApi.lookup).mockResolvedValue({
     entries: [],
     attribution: { source: '', license: '', url: '' },
-    external_links: [],
   })
   setUiLanguage('ru')
   useReaderStore.setState({ wordCardExpanded: false })
