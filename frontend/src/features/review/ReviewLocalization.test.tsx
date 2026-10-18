@@ -92,7 +92,7 @@ describe('Review localization', () => {
     show(<NewWordsSession lang="pt" />)
     await waitFor(() => expect(reviewApi.exercise).toHaveBeenCalledTimes(1))
     act(() => setUiLanguage('en'))
-    expect(await screen.findByText('Cada dia é único.')).toBeInTheDocument()
+    expect((await screen.findByText('Cada')).parentElement).toHaveTextContent('Cada dia é único.')
     fireEvent.click(screen.getByRole('button', { name: 'Show translation' }))
     expect(screen.getByText('Every day is unique.')).toBeInTheDocument()
     expect(screen.getByText('мой личный перевод')).toBeInTheDocument()

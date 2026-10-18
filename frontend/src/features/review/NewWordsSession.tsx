@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { reviewApi, type ExampleExercise, type ReviewItemKind } from '@/api/review'
 import { GradeBar } from './GradeBar'
+import { HighlightedExample } from './HighlightedExample'
 import { useReviewSession } from './useReviewSession'
 import { SessionShell, SessionStates } from './sessionUi'
 import { sessionSubtitle } from './sessionSubtitle'
@@ -91,7 +92,13 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
         )}
         {exercise.data && (
           <>
-            <p className="mt-3 text-center text-base">{exercise.data.payload.sentence}</p>
+            <p className="mt-3 text-center text-base">
+              <HighlightedExample
+                sentence={exercise.data.payload.sentence}
+                word={item.text}
+                lang={lang}
+              />
+            </p>
             {!revealed ? (
               <button
                 type="button"

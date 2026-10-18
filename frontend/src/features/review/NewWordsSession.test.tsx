@@ -81,11 +81,14 @@ describe('NewWordsSession', () => {
       done_today: 1,
     })
     renderSession()
-    expect(await screen.findByText('Cada dia é único.')).toBeTruthy()
+    const highlightedWord = await screen.findByText('Cada')
+    expect(highlightedWord.tagName).toBe('MARK')
+    expect(highlightedWord.parentElement).toHaveTextContent('Cada dia é único.')
     expect(reviewApi.exercise).toHaveBeenCalledWith({ kind: 'example', review_item_id: 'R1' })
     expect(screen.queryByText('Каждый день уникален.')).toBeNull() // до раскрытия
     fireEvent.click(screen.getByRole('button', { name: 'Показать перевод' }))
     expect(await screen.findByText('Каждый день уникален.')).toBeTruthy()
+    expect(highlightedWord).toBeInTheDocument()
     expect(screen.queryByText(/cada → каждый/)).toBeNull() // начальная форма
     fireEvent.click(screen.getByRole('button', { name: /4.*Вспомнил/ }))
     await waitFor(() => expect(reviewApi.answer).toHaveBeenCalledWith('R1', 4))
