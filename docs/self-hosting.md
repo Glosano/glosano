@@ -83,9 +83,6 @@ GLOSANO_DATABASE_URL=postgresql+asyncpg://flinq:<the same password>@postgres:543
 # app-api listens only on the server itself; the reverse proxy (step 4) faces the internet.
 GLOSANO_BIND=127.0.0.1:8000
 FORWARDED_ALLOW_IPS=*
-
-# Your own email: registering with it makes you admin (see step 5).
-GLOSANO_INITIAL_ADMIN_EMAIL=you@example.com
 ```
 
 > [!IMPORTANT]
@@ -163,11 +160,14 @@ Open `https://glosano.example.com` — you should see the sign-in screen with th
 
 Glosano uses email and password; there is no SSO and no email delivery.
 
-**First admin.** With `GLOSANO_INITIAL_ADMIN_EMAIL` set, open the site, choose **Sign up** and register with that address — the account becomes admin. Alternatively, create an admin from the command line; the generated password is printed once:
+**First admin.** Create it from the command line; the generated password is printed once — sign in and change it in Settings:
 
 ```bash
 docker compose run --rm app-api glosano identity create-admin you@example.com --name "Your Name"
 ```
+
+> [!WARNING]
+> `GLOSANO_INITIAL_ADMIN_EMAIL` is another way: whoever signs up with that address becomes admin. Glosano does not verify email addresses, so on a site that is already reachable from the internet a stranger who guesses the address can sign up first. Use it only before the site is public, or not at all.
 
 **Inviting people.** While `GLOSANO_ALLOW_PUBLIC_REGISTRATION=true`, anyone who can reach the site can sign up. Once your family or team has registered, close it:
 
@@ -281,7 +281,7 @@ All settings are environment variables in `.env`. Changes take effect after `doc
 | `GLOSANO_DATABASE_URL` | `postgresql+asyncpg://flinq:flinq@postgres:5432/flinq` | Must match the `POSTGRES_*` values. |
 | `GLOSANO_REDIS_URL` | `redis://redis:6379/0` | |
 | `GLOSANO_ALLOW_PUBLIC_REGISTRATION` | `true` | `false` rejects new sign-ups; existing accounts keep working. |
-| `GLOSANO_INITIAL_ADMIN_EMAIL` | empty | The account registered with this email becomes admin. |
+| `GLOSANO_INITIAL_ADMIN_EMAIL` | empty | The account registered with this email becomes admin. Email is not verified — prefer `glosano identity create-admin`. |
 | `GLOSANO_LLM_ENABLED` | `false` | Turns AI translation and chat on or off. |
 | `GLOSANO_LLM_BASE_URL` | — | OpenAI-compatible endpoint, ending in `/v1`. |
 | `GLOSANO_LLM_API_KEY` | — | Provider key. Lives only in `.env`. |
