@@ -4,6 +4,29 @@
 
 name: glosano
 
+# Shared by app-api and app-worker. Values come from .env next to this file;
+# see docs/self-hosting.md for what each one does.
+x-app-env: &app-env
+  GLOSANO_ENV: ${GLOSANO_ENV:-prod}
+  GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
+  GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY:?set GLOSANO_SECRET_KEY in .env (openssl rand -hex 32)}
+  GLOSANO_DATABASE_URL: ${GLOSANO_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
+  GLOSANO_REDIS_URL: ${GLOSANO_REDIS_URL:-redis://redis:6379/0}
+  GLOSANO_DATA_DIR: /var/lib/glosano
+  GLOSANO_ALLOW_PUBLIC_REGISTRATION: ${GLOSANO_ALLOW_PUBLIC_REGISTRATION:-true}
+  GLOSANO_INITIAL_ADMIN_EMAIL: ${GLOSANO_INITIAL_ADMIN_EMAIL:-}
+  GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
+  GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
+  GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
+  GLOSANO_LLM_MODEL: ${GLOSANO_LLM_MODEL:-}
+  GLOSANO_LLM_TIMEOUT_SECONDS: ${GLOSANO_LLM_TIMEOUT_SECONDS:-30}
+  GLOSANO_OCR_ENABLED: ${GLOSANO_OCR_ENABLED:-false}
+  GLOSANO_OCR_BASE_URL: ${GLOSANO_OCR_BASE_URL:-}
+  GLOSANO_OCR_API_KEY: ${GLOSANO_OCR_API_KEY:-}
+  # Read by uvicorn: which proxies may set X-Forwarded-For (real client IP for
+  # login rate limits) and X-Forwarded-Proto.
+  FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -42,23 +65,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      GLOSANO_ENV: ${GLOSANO_ENV:-prod}
-      GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
-      GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY}
-      GLOSANO_DATABASE_URL: ${GLOSANO_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
-      GLOSANO_REDIS_URL: ${GLOSANO_REDIS_URL:-redis://redis:6379/0}
-      GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
-      GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
-      GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
-      GLOSANO_LLM_MODEL: ${GLOSANO_LLM_MODEL:-}
-      GLOSANO_OCR_ENABLED: ${GLOSANO_OCR_ENABLED:-false}
-      GLOSANO_OCR_BASE_URL: ${GLOSANO_OCR_BASE_URL:-}
-      GLOSANO_OCR_API_KEY: ${GLOSANO_OCR_API_KEY:-}
+    environment: *app-env
     volumes:
       - app_data:/var/lib/glosano
     ports:
-      - "8000:8000"
+      # A bare port listens on every interface; behind a reverse proxy on the
+      # same host use GLOSANO_BIND=127.0.0.1:8000.
+      - "${GLOSANO_BIND:-8000}:8000"
     command: ["glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]
 
   app-worker:
@@ -72,19 +85,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      GLOSANO_ENV: ${GLOSANO_ENV:-prod}
-      GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
-      GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY}
-      GLOSANO_DATABASE_URL: ${GLOSANO_DATABASE_URL:-postgresql+asyncpg://flinq:flinq@postgres:5432/flinq}
-      GLOSANO_REDIS_URL: ${GLOSANO_REDIS_URL:-redis://redis:6379/0}
-      GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
-      GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
-      GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
-      GLOSANO_LLM_MODEL: ${GLOSANO_LLM_MODEL:-}
-      GLOSANO_OCR_ENABLED: ${GLOSANO_OCR_ENABLED:-false}
-      GLOSANO_OCR_BASE_URL: ${GLOSANO_OCR_BASE_URL:-}
-      GLOSANO_OCR_API_KEY: ${GLOSANO_OCR_API_KEY:-}
+    environment: *app-env
     volumes:
       - app_data:/var/lib/glosano
     command: ["glosano", "worker"]
