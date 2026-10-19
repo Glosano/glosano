@@ -1,0 +1,128 @@
+import type { Catalog } from '@/lib/i18n'
+
+export const chatMessages: Catalog = {
+  'Retry adding quotes': 'Повторить перенос цитат',
+  'Remove old quotes': 'Убрать старые цитаты',
+  'Old quotes could not be added to the message. Retry or remove the old quotes; your question text will be kept.':
+    'Не удалось перенести старые цитаты в сообщение. Повторите перенос или уберите старые цитаты; текст вопроса сохранится.',
+  'Cancel adding quote': 'Отменить добавление цитаты',
+  'The quote does not fit in the message. Shorten the text and try again.':
+    'Цитата не помещается в сообщение. Сократите текст и попробуйте ещё раз.',
+  'Message…': 'Сообщение…',
+  'Context limit: {{budget}} characters.': 'Лимит контекста: {{budget}} символов.',
+  'This paragraph is too large to quote. Choose a shorter paragraph.':
+    'Абзац слишком большой для цитаты. Выберите более короткий абзац.',
+  'Add paragraph to chat': 'Добавить абзац в чат',
+  'Paragraph added to chat': 'Абзац добавлен в чат',
+  'Adding paragraph…': 'Добавляем абзац…',
+  'Wait for the previous quotation to finish': 'Дождитесь добавления предыдущей цитаты',
+  'Could not attach the quotation. Try again.': 'Не удалось приложить цитату. Попробуйте ещё раз.',
+  'Chat transcript': 'История чата',
+  'Exercise {{id}}': 'Упражнение {{id}}',
+  'Response pending': 'Ответ формируется',
+  'Generating…': 'Формируем ответ…',
+  'Response cancelled': 'Ответ остановлен',
+  'Response failed': 'Не удалось получить ответ',
+  Message: 'Сообщение',
+  'Send message': 'Отправить сообщение',
+  Send: 'Отправить',
+  'Stop response': 'Остановить ответ',
+  Stop: 'Остановить',
+  Chat: 'Чат',
+  'AI chat': 'AI-чат',
+  Conversations: 'Разговоры',
+  Chats: 'Чаты',
+  'Open sidebar': 'Открыть боковую панель',
+  'Close sidebar': 'Закрыть боковую панель',
+  'Close conversation list': 'Закрыть список разговоров',
+  'Conversation actions: {{title}}': 'Действия с разговором: {{title}}',
+  'New conversation': 'Новый разговор',
+  Rename: 'Переименовать',
+  'Your conversation appears after the first message.':
+    'Разговор появится после первого сообщения.',
+  'More conversations': 'Ещё разговоры',
+  'Delete conversation?': 'Удалить разговор?',
+  'Rename conversation': 'Переименовать разговор',
+  'This conversation’s history, exercises and attempts will be deleted.':
+    'История, упражнения и попытки этого разговора будут удалены.',
+  'Conversation title': 'Название разговора',
+  'Retry loading': 'Повторить загрузку',
+  Citation: 'Цитата',
+  'Remove citation': 'Убрать цитату',
+  'Saved context snapshot': 'Сохранённый снимок контекста',
+  'Source version {{version}}': 'Версия источника {{version}}',
+  'The source has changed. It will open without the old position.':
+    'Источник изменился. Откроется без старой позиции.',
+  'The source is unavailable. The snapshot is preserved.': 'Источник недоступен. Снимок сохранён.',
+  'The source is unavailable or changed. The snapshot is preserved.':
+    'Источник недоступен или изменился. Снимок сохранён.',
+  'Open source': 'Открыть источник',
+  'Could not load citation': 'Не удалось загрузить цитату',
+  'Discussing attempt': 'Обсуждение попытки',
+  'Exercise context': 'Контекст упражнения',
+  'The draft changed in another window. Your copy is saved locally.':
+    'Черновик изменён в другом окне. Ваша копия сохранена локально.',
+  'Server version': 'Серверная версия',
+  'Citations: {{count}}': 'Цитат: {{count}}',
+  'Load server version': 'Загрузить серверную версию',
+  'Save my version': 'Сохранить мою версию',
+  'Retry sending': 'Повторить отправку',
+  'AI is disabled. History and drafts remain available; new replies are unavailable.':
+    'AI отключён. История и черновики доступны; новые ответы недоступны.',
+  'Sending…': 'Отправка…',
+  'Not saved to server': 'Не сохранено на сервере',
+  'Retry saving': 'Повторить сохранение',
+  'The source changed or is unavailable. Remove the citation and attach it again.':
+    'Источник изменился или недоступен. Уберите цитату и приложите её заново.',
+  'The context is too large. Shorten the message or remove citations.':
+    'Контекст слишком большой. Сократите сообщение или уберите цитаты.',
+  'Exercise · AI-generated': 'Упражнение · создано AI',
+  'Choose an answer': 'Выберите ответ',
+  Answer: 'Ответ',
+  'Check answer': 'Проверить ответ',
+  'Retry answer submission': 'Повторить отправку ответа',
+  'AI evaluation is unavailable. Your answer is saved as a draft.':
+    'AI-проверка недоступна. Ваш ответ сохранён как черновик.',
+  'Could not submit your answer. Retry; your attempt is preserved.':
+    'Не удалось отправить ответ. Повторите; ваша попытка не потеряна.',
+  'Similar exercise': 'Похожее упражнение',
+  'Discuss exercise': 'Обсудить упражнение',
+  'Previous attempts': 'Предыдущие попытки',
+  'Awaiting evaluation': 'Ожидает проверки',
+  'Not graded — evaluation failed': 'Не оценено — проверка не удалась',
+  Correct: 'Верно',
+  Incorrect: 'Неверно',
+  'Discuss this attempt': 'Обсудить эту попытку',
+  'Retry loading attempts': 'Повторить загрузку попыток',
+  'More attempts': 'Ещё попытки',
+  'Close chat': 'Закрыть чат',
+  'Click the plus to the left of a paragraph to quote it, then ask a question.':
+    'Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.',
+  'Earlier messages': 'Предыдущие сообщения',
+  'AI-generated': 'Создано AI',
+  Copy: 'Копировать',
+  'Show more': 'Показать ещё',
+  Copied: 'Скопировано',
+  'Some earlier history was omitted from the response context.':
+    'Часть ранней истории не вошла в контекст ответа.',
+  'Response interrupted': 'Ответ прерван',
+  'Retry response': 'Повторить ответ',
+  Queued: 'В очереди',
+  'Add to chat': 'Добавить в чат',
+  'In a new conversation': 'В новый разговор',
+  'Select text in the lesson to attach an exact citation.':
+    'Выделите фрагмент в тексте, чтобы приложить точную цитату.',
+  'Dictionary / Chat': 'Словарь / Чат',
+  'The citation position is unavailable: the material has changed.':
+    'Позиция цитаты недоступна: материал изменился.',
+  'Could not load exercise': 'Не удалось загрузить упражнение',
+  'Your current draft will be sent with the similar exercise request.':
+    'Текущий черновик будет отправлен вместе с запросом похожего упражнения.',
+  'Exercise for the new request': 'Упражнение для нового запроса',
+  'The previous exercise or attempt reference will be replaced.':
+    'Прежняя ссылка на упражнение или попытку будет заменена.',
+  'Send draft and create similar': 'Отправить черновик и создать похожее',
+  'Clear answer draft': 'Очистить черновик ответа',
+  'You have 30 unfinished answers. Submit or clear an existing answer to start another.':
+    'У вас 30 незавершённых ответов. Отправьте или очистите прежний ответ, чтобы начать новый.',
+}

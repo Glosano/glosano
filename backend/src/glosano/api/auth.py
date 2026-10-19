@@ -30,6 +30,7 @@ async def register(
         display_name=body.display_name,
         email=body.email,
         password=body.password,
+        ui_language=body.ui_language,
         user_repo=UserRepo(session),
         session_repo=SessionRepo(session),
     )

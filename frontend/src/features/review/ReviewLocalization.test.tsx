@@ -25,6 +25,10 @@ import { NewWordsSession } from './NewWordsSession'
 import { QuizSession } from './QuizSession'
 import { TranslationSession } from './TranslationSession'
 import { FillBlankSession } from './FillBlankSession'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
+const langEn = (code: string) => languageName(code, 'en')
 
 const item = {
   review_item_id: 'R1',
@@ -148,7 +152,7 @@ describe('Review localization', () => {
     )
     show(<TranslationSession lang="pt" />)
     expect(await screen.findByText('Every day is unique.')).toBeInTheDocument()
-    expect(screen.getByText('Translate the sentence into Portuguese.')).toBeInTheDocument()
+    expect(screen.getByText(`Translate the sentence into: ${langEn('pt')}.`)).toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: 'Your translation' }), {
       target: { value: 'Cada dia é único.' },
     })
@@ -156,7 +160,7 @@ describe('Review localization', () => {
     await waitFor(() => expect(reviewApi.exerciseFeedback).toHaveBeenCalledTimes(1))
     act(() => setUiLanguage('ru'))
     expect(await screen.findByText('Каждый день уникален.')).toBeInTheDocument()
-    expect(screen.getByText('Переведите предложение на португальский.')).toBeInTheDocument()
+    expect(screen.getByText(`Переведите предложение на язык: ${langRu('pt')}.`)).toBeInTheDocument()
     await act(async () => {
       finishFeedback({ feedback: 'Old English feedback' })
     })

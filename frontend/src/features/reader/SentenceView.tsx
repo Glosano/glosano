@@ -98,8 +98,8 @@ export function SentenceView({
           <button
             type="button"
             disabled
-            title={tr('Скоро')}
-            aria-label={tr('Воспроизвести аудио')}
+            title={tr('Coming soon')}
+            aria-label={tr('Play audio')}
             className="flex h-[54px] w-[54px] items-center justify-center rounded-full border-[1.5px] border-[#D9DBE0] disabled:opacity-60"
           >
             <Play aria-hidden className="h-5 w-5" />
@@ -136,13 +136,13 @@ export function SentenceView({
             onClick={handleToggle}
             className="text-sm text-muted-foreground underline hover:text-foreground"
           >
-            {tr('Показать перевод ▾')}
+            {tr('Show translation ▾')}
           </button>
         </div>
 
         {expanded && (
           <div data-testid="sentence-translation" className="mt-2 text-sm italic">
-            {translation.isLoading && <p className="text-muted-foreground">{tr('Переводим…')}</p>}
+            {translation.isLoading && <p className="text-muted-foreground">{tr('Translating…')}</p>}
             {translation.isError && (
               <div>
                 <p className="text-destructive">{translationErrorMessage(translation.error)}</p>
@@ -152,7 +152,7 @@ export function SentenceView({
                     onClick={() => translation.refetch()}
                     className="mt-1 text-sm underline"
                   >
-                    {tr('Повторить')}
+                    {tr('Retry')}
                   </button>
                 )}
               </div>

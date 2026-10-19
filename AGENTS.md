@@ -19,6 +19,7 @@ Before proposing or writing any code, read:
 9. `docs/adr/ADR-0006-tech-stack.md` — Python + React tech stack, repository layout, tooling.
 10. `docs/adr/ADR-0030-native-language-translation-target.md` — native language is the translation target; supersedes ADR-0011.
 11. `docs/adr/ADR-0031-foreign-translation-flags.md` — a translation shows its language flag only when it is not in the native language.
+12. `docs/adr/ADR-0032-nine-ui-languages.md` — nine UI languages (EN, RU, PT, ES, FR, DE, ZH-Hans, JA, HI); Arabic is excluded as a UI language; refines ADR-0012 and ADR-0030.
 
 Product direction is fixed by those documents. Do not reintroduce options that were explicitly rejected. If a decision needs to change, write a new ADR or revise the existing one with a clear status transition — never silently override.
 
@@ -46,7 +47,7 @@ Full rationale in the decision log and ADRs. This section is a lookup table, not
 - **Library:** private imports + shared library inside the instance. License/source/author fields are required for shared content.
 - **Import formats:** `.txt`, `.md`; YouTube URL with existing learning-language captions (ADR-0016). PDF/EPUB/scans go through an **external OCR service** with its own API that returns `.md`.
 - **Languages (learning):** EN, RU, PT, ES, FR, DE, ZH-Hans (Simplified Chinese), JA, AR, HI — ADR-0012 supersedes the original three-language scope.
-- **Languages (UI):** EN, RU.
+- **Languages (UI):** EN, RU, PT, ES, FR, DE, ZH-Hans, JA, HI — nine codes, English is the key language; Arabic is deliberately not a UI language (it stays a learning/translation language) — ADR-0032.
 - **Languages (translation / native):** 15-language catalog (learning languages + IT, KO, TR, PL, UK) — ADR-0030. Native language must differ from every learning language; UI language no longer sets the translation target.
 - **Auth:** email + password. No SSO.
 - **Delivery:** Docker Compose. Target class: personal homelab + small team.

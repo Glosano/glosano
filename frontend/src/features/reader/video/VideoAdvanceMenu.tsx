@@ -8,13 +8,13 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import type { VideoAdvance, ViewMode } from '../readerStore'
 
 const OPTIONS: { value: VideoAdvance; label: string; Icon: LucideIcon }[] = [
-  { value: 'stop', label: 'Стоп', Icon: CircleStop },
-  { value: 'play', label: 'Играть при листании', Icon: StepForward },
-  { value: 'auto', label: 'Листать автоматически', Icon: FastForward },
+  { value: 'stop', label: msg('Stop'), Icon: CircleStop },
+  { value: 'play', label: msg('Play on turn'), Icon: StepForward },
+  { value: 'auto', label: msg('Advance automatically'), Icon: FastForward },
 ]
 
 interface Props {
@@ -27,7 +27,7 @@ interface Props {
 export function VideoAdvanceMenu({ mode, value, disabled, onChange }: Props) {
   const tr = useTranslation()
   const current = OPTIONS.find((option) => option.value === value) ?? OPTIONS[0]!
-  const label = `${tr('Режим листания')}: ${tr(current.label)}`
+  const label = `${tr('Page turning')}: ${tr(current.label, { context: 'video' })}`
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -36,7 +36,7 @@ export function VideoAdvanceMenu({ mode, value, disabled, onChange }: Props) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72" collisionPadding={{ bottom: 72 }}>
-        <DropdownMenuLabel>{tr('Режим листания')}</DropdownMenuLabel>
+        <DropdownMenuLabel>{tr('Page turning')}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={value}
           onValueChange={(next) => onChange(next as VideoAdvance)}
@@ -44,7 +44,7 @@ export function VideoAdvanceMenu({ mode, value, disabled, onChange }: Props) {
           {OPTIONS.map(({ value: option, label: text, Icon }) => (
             <DropdownMenuRadioItem key={option} value={option} disabled={disabled}>
               <Icon aria-hidden />
-              {tr(text)}
+              {tr(text, { context: 'video' })}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -52,8 +52,8 @@ export function VideoAdvanceMenu({ mode, value, disabled, onChange }: Props) {
           <p className="px-2 py-1.5 text-xs text-muted-foreground">
             {tr(
               mode === 'page'
-                ? 'Новые слова покинутой страницы становятся известными. Действие можно отменить.'
-                : 'Новые слова покинутого фрагмента становятся известными. Действие можно отменить.',
+                ? msg('New words on the page you leave become known. You can undo this.')
+                : msg('New words in the fragment you leave become known. You can undo this.'),
             )}
           </p>
         )}

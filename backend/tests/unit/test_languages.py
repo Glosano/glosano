@@ -1,9 +1,13 @@
 """Language catalogs: learning (ADR-0012) and translation targets (FLQ-47)."""
 
+from typing import get_args
+
 from glosano.core.languages import (
     LANGUAGE_NAMES,
     SUPPORTED_LEARNING_LANGUAGES,
     SUPPORTED_TRANSLATION_LANGUAGES,
+    UI_LANGUAGE_CODES,
+    UiLanguageCode,
 )
 
 
@@ -18,3 +22,7 @@ def test_translation_catalog_is_superset_of_learning() -> None:
     } == SUPPORTED_TRANSLATION_LANGUAGES - SUPPORTED_LEARNING_LANGUAGES
     assert len(SUPPORTED_TRANSLATION_LANGUAGES) == 15
     assert all(code in LANGUAGE_NAMES for code in SUPPORTED_TRANSLATION_LANGUAGES)
+
+
+def test_ui_language_literal_matches_codes_tuple() -> None:
+    assert get_args(UiLanguageCode) == UI_LANGUAGE_CODES

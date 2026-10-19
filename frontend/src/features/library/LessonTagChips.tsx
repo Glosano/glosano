@@ -14,7 +14,7 @@ export function LessonTagChips({ lang, tags }: { lang: string; tags: string[] })
           key={tag}
           type="button"
           onClick={() => addTag(lang, tag)}
-          aria-label={t('Фильтровать по тегу «{{tag}}»', { tag })}
+          aria-label={t('Filter by tag "{{tag}}"', { tag })}
           className="max-w-full truncate rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
         >
           {tag}

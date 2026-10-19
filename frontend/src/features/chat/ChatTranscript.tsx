@@ -12,7 +12,7 @@ import type { ReactNode } from 'react'
 
 import type { AppendMessage, MessageStatus, ThreadMessageLike } from '@assistant-ui/react'
 
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 
 import type { Translator } from '@/lib/i18n'
 
@@ -95,7 +95,7 @@ function CollapsibleBody({ children, t }: { children: ReactNode; t: Translator }
           onClick={() => setExpanded((v) => !v)}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          {t(expanded ? 'Свернуть' : 'Показать ещё')}
+          {t(expanded ? msg('Collapse') : msg('Show more'))}
           <ChevronDown
             aria-hidden="true"
             className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -150,7 +150,7 @@ function TranscriptMessage({
             })
           ) : (
             <section
-              aria-label={t('Упражнение {{id}}', { id: exercise.exerciseId })}
+              aria-label={t('Exercise {{id}}', { id: exercise.exerciseId })}
               data-exercise-id={exercise.exerciseId}
             >
               {exercise.prompt}
@@ -176,18 +176,18 @@ function TranscriptMessage({
           {user ? <CollapsibleBody t={t}>{body}</CollapsibleBody> : body}
           {status?.type === 'running' ? (
             <span
-              aria-label={t('Ответ формируется')}
+              aria-label={t('Response pending')}
               className="block animate-pulse text-sm text-muted-foreground"
             >
-              {t('Формируем ответ…')}
+              {t('Generating…')}
             </span>
           ) : null}
           {status?.type === 'incomplete' && status.reason === 'cancelled' ? (
-            <span aria-label={t('Ответ остановлен')}>{t('Ответ остановлен')}</span>
+            <span aria-label={t('Response cancelled')}>{t('Response cancelled')}</span>
           ) : null}
           {status?.type === 'incomplete' && status.reason === 'error' ? (
             <p role="alert">
-              {typeof status.error === 'string' ? status.error : t('Не удалось получить ответ')}
+              {typeof status.error === 'string' ? status.error : t('Response failed')}
             </p>
           ) : null}
         </article>
@@ -234,7 +234,7 @@ function ChatTranscriptRuntime({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ThreadPrimitive.Root>
-        <div role="log" aria-label={t('История чата')}>
+        <div role="log" aria-label={t('Chat transcript')}>
           <ThreadPrimitive.Messages>
             {({ message }) => (
               <TranscriptMessage
@@ -253,13 +253,13 @@ function ChatTranscriptRuntime({
         </div>
         {showComposer && (
           <ComposerPrimitive.Root>
-            <ComposerPrimitive.Input aria-label={t('Сообщение')} />
-            <ComposerPrimitive.Send aria-label={t('Отправить сообщение')}>
-              {t('Отправить')}
+            <ComposerPrimitive.Input aria-label={t('Message')} />
+            <ComposerPrimitive.Send aria-label={t('Send message')}>
+              {t('Send')}
             </ComposerPrimitive.Send>
             {canCancel ? (
-              <ComposerPrimitive.Cancel aria-label={t('Остановить ответ')}>
-                {t('Остановить')}
+              <ComposerPrimitive.Cancel aria-label={t('Stop response')}>
+                {t('Stop')}
               </ComposerPrimitive.Cancel>
             ) : null}
           </ComposerPrimitive.Root>

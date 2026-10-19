@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Check, LoaderCircle, Plus } from 'lucide-react'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 
 export type ParagraphQuoteState = 'ready' | 'pending' | 'added'
 export interface ParagraphQuoteAction {
@@ -40,18 +40,18 @@ export function ParagraphQuote({
               type="button"
               aria-label={t(
                 state === 'added'
-                  ? 'Абзац добавлен в чат'
+                  ? msg('Paragraph added to chat')
                   : state === 'pending'
-                    ? 'Добавляем абзац…'
-                    : 'Добавить абзац в чат',
+                    ? msg('Adding paragraph…')
+                    : msg('Add paragraph to chat'),
               )}
               aria-pressed={state === 'added'}
               aria-busy={state === 'pending'}
               disabled={action?.disabled || state !== 'ready'}
               title={t(
                 action?.disabled && state === 'ready'
-                  ? 'Дождитесь добавления предыдущей цитаты'
-                  : 'Добавить абзац в чат',
+                  ? msg('Wait for the previous quotation to finish')
+                  : msg('Add paragraph to chat'),
               )}
               className="absolute left-0 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default"
               onPointerDown={(event) => event.stopPropagation()}

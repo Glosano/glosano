@@ -45,16 +45,16 @@ export function ProtectedRoute({ children }: Props) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">{t('Загрузка…')}</p>
+        <p className="text-muted-foreground">{t('Loading…')}</p>
       </div>
     )
   }
   if (isError && !(error instanceof ApiError && error.status === 401)) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background">
-        <p role="alert">{t('Не удалось загрузить профиль.')}</p>
+        <p role="alert">{t('Could not load your profile.')}</p>
         <button className="rounded-lg border px-4 py-2" onClick={() => void refetch()}>
-          {t('Повторить')}
+          {t('Retry')}
         </button>
       </div>
     )

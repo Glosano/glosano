@@ -10,10 +10,7 @@ interface Props {
 const AUTO_DISMISS_MS = 6000
 
 export function UndoToast({ count, onUndo, onDismiss }: Props) {
-  const { language, t: tr } = useI18n()
-  const plural = new Intl.PluralRules(language).select(count)
-  const message = plural === 'one' ? '{{count}} слово отмечено как известное'
-    : plural === 'few' ? '{{count}} слова отмечены как известные' : '{{count}} слов отмечены как известные'
+  const { t: tr } = useI18n()
   const onDismissRef = useRef(onDismiss)
   onDismissRef.current = onDismiss
 
@@ -30,13 +27,13 @@ export function UndoToast({ count, onUndo, onDismiss }: Props) {
       className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
     >
       <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-2 shadow-lg">
-        <span className="text-sm">{tr(message, { count: count.toLocaleString(language) })}</span>
+        <span className="text-sm">{tr('{{count}} words marked as known', { count })}</span>
         <button
           type="button"
           onClick={onUndo}
           className="text-sm font-medium text-primary hover:underline"
         >
-          {tr('Отменить')}
+          {tr('Undo')}
         </button>
       </div>
     </div>

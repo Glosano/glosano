@@ -75,10 +75,40 @@ async def test_preferences_replace_languages_and_keep_native_target(client: Asyn
         assert user and user.settings.preferred_translation_language_code == "ru"
 
 
+@pytest.mark.parametrize("code", ["en", "ru", "pt", "es", "fr", "de", "zh-Hans", "ja", "hi"])
+async def test_settings_accept_all_nine_ui_languages(client: AsyncClient, code: str):
+    await register(client)
+    response = await client.patch(
+        "/me/preferences",
+        json={
+            "ui_language": code,
+            "learning_languages": ["pt"],
+            "daily_goal_minutes": 15,
+            "daily_goal_reviews": 500,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["ui_language_code"] == code
+
+
+async def test_settings_reject_arabic_ui_language(client: AsyncClient):
+    await register(client)
+    response = await client.patch(
+        "/me/preferences",
+        json={
+            "ui_language": "ar",
+            "learning_languages": ["pt"],
+            "daily_goal_minutes": 15,
+            "daily_goal_reviews": 500,
+        },
+    )
+    assert response.status_code == 422
+
+
 @pytest.mark.parametrize(
     "override",
     [
-        {"ui_language": "pt"},
+        {"ui_language": "ar"},
         {"learning_languages": []},
         {"learning_languages": ["xx"]},
         {"native_language": "xx"},

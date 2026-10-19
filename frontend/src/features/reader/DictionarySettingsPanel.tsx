@@ -22,19 +22,19 @@ function errorMessage(error: unknown, tr: Translator): string {
   const detail = error instanceof ApiError ? error.detail : ''
   switch (detail) {
     case 'invalid_scheme':
-      return tr('Ссылка должна начинаться с http:// или https://')
+      return tr('The link must start with http:// or https://')
     case 'missing_placeholder':
-      return tr('Добавьте {word} на место слова')
+      return tr('Add {word} where the word goes')
     case 'unknown_placeholder':
-      return tr('Кроме {word}, фигурные скобки не допускаются')
+      return tr('Curly braces other than {word} are not allowed')
     case 'placeholder_in_host':
-      return tr('{word} не может стоять в адресе сайта')
+      return tr('{word} cannot be part of the site address')
     case 'too_long':
-      return tr('Ссылка длиннее 500 символов')
+      return tr('The link is longer than 500 characters')
     case 'limit_reached':
-      return tr('Не больше 30 своих словарей')
+      return tr('No more than 30 custom dictionaries')
     default:
-      return tr('Не удалось сохранить')
+      return tr('Could not save')
   }
 }
 
@@ -62,7 +62,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
     return (
       <button
         type="button"
-        aria-label={tr('Изменить «{{name}}»', { name: d.name })}
+        aria-label={tr('Edit «{{name}}»', { name: d.name })}
         onClick={() => setForm({ mode: 'edit', dict: d })}
         className={iconButton}
       >
@@ -75,7 +75,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
     <div data-reader-panel-popover data-testid="dictionary-settings" className="mt-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium">
-          {tr('Словари')}{' '}
+          {tr('Dictionaries')}{' '}
           <span aria-hidden="true" className="ml-1 font-normal">
             {learningLanguageFlag(lang)} → {learningLanguageFlag(target)}
           </span>
@@ -85,11 +85,11 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
           onClick={onDone}
           className="rounded-md px-2 py-1 text-sm text-primary hover:bg-accent"
         >
-          {tr('Готово')}
+          {tr('Done')}
         </button>
       </div>
 
-      <p className="mt-4 text-sm font-medium">{tr('Показываются')}</p>
+      <p className="mt-4 text-sm font-medium">{tr('Shown')}</p>
       <ul className="mt-1 space-y-1">
         {visible.map((d, i) => (
           <li
@@ -102,7 +102,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
                 <button
                   type="button"
                   disabled={busy}
-                  aria-label={tr('Выше «{{name}}»', { name: d.name })}
+                  aria-label={tr('Move «{{name}}» up', { name: d.name })}
                   onClick={() => move(i, -1)}
                   className={iconButton}
                 >
@@ -113,7 +113,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
                 <button
                   type="button"
                   disabled={busy}
-                  aria-label={tr('Ниже «{{name}}»', { name: d.name })}
+                  aria-label={tr('Move «{{name}}» down', { name: d.name })}
                   onClick={() => move(i, 1)}
                   className={iconButton}
                 >
@@ -124,7 +124,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
               <button
                 type="button"
                 disabled={busy}
-                aria-label={tr('Скрыть «{{name}}»', { name: d.name })}
+                aria-label={tr('Hide «{{name}}»', { name: d.name })}
                 onClick={() => m.setLayout.mutate(refs.filter((r) => r !== d.ref))}
                 className={iconButton}
               >
@@ -137,7 +137,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
 
       {available.length > 0 && (
         <>
-          <p className="mt-4 text-sm font-medium">{tr('Доступные')}</p>
+          <p className="mt-4 text-sm font-medium">{tr('Available')}</p>
           <ul className="mt-1 space-y-1">
             {available.map((d) => (
               <li
@@ -150,7 +150,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
                   <button
                     type="button"
                     disabled={busy}
-                    aria-label={tr('Показать «{{name}}»', { name: d.name })}
+                    aria-label={tr('Show «{{name}}»', { name: d.name })}
                     onClick={() => m.setLayout.mutate([...refs, d.ref])}
                     className={iconButton}
                   >
@@ -165,7 +165,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
 
       {m.setLayout.isError && (
         <p role="alert" className="mt-2 text-sm text-destructive">
-          {tr('Не удалось сохранить')}
+          {tr('Could not save')}
         </p>
       )}
 
@@ -183,7 +183,7 @@ export function DictionarySettingsPanel({ lang, target, onDone }: Props) {
           onClick={() => setForm({ mode: 'create' })}
           className="mt-4 text-sm text-primary hover:underline"
         >
-          {tr('+ Добавить свой словарь')}
+          {tr('+ Add your own dictionary')}
         </button>
       )}
     </div>
@@ -235,7 +235,7 @@ function CustomDictionaryForm({
 
   async function remove() {
     if (!editing?.custom_id) return
-    if (!window.confirm(tr('Удалить «{{name}}» во всех языках?', { name: editing.name }))) return
+    if (!window.confirm(tr('Delete «{{name}}» in all languages?', { name: editing.name }))) return
     setError(null)
     try {
       await m.deleteCustom.mutateAsync(editing.custom_id)
@@ -252,7 +252,7 @@ function CustomDictionaryForm({
     <form onSubmit={(e) => void submit(e)} className="mt-4 space-y-3 border-t border-border pt-3">
       <div>
         <label htmlFor="ext-dict-name" className="block text-sm font-medium">
-          {tr('Название')}
+          {tr('Title')}
         </label>
         <input
           id="ext-dict-name"
@@ -264,7 +264,7 @@ function CustomDictionaryForm({
       </div>
       <div>
         <label htmlFor="ext-dict-url" className="block text-sm font-medium">
-          {tr('Ссылка')}
+          {tr('Link')}
         </label>
         <input
           id="ext-dict-url"
@@ -277,7 +277,7 @@ function CustomDictionaryForm({
           onChange={(e) => setUrlTemplate(e.target.value)}
         />
         <p id="ext-dict-url-hint" className="mt-1 text-xs text-muted-foreground">
-          {tr('Замените слово в ссылке на {word}')}
+          {tr('Replace the word in the link with {word}')}
         </p>
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -286,7 +286,7 @@ function CustomDictionaryForm({
           checked={allLanguages}
           onChange={(e) => setAllLanguages(e.target.checked)}
         />
-        {tr('Для всех языков')}
+        {tr('For all languages')}
       </label>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -299,14 +299,14 @@ function CustomDictionaryForm({
           disabled={pending || incomplete}
           className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
         >
-          {tr('Сохранить')}
+          {tr('Save')}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="rounded-md px-3 py-1.5 text-sm hover:bg-accent"
         >
-          {tr('Отмена')}
+          {tr('Cancel')}
         </button>
         {editing && (
           <button
@@ -315,7 +315,7 @@ function CustomDictionaryForm({
             onClick={() => void remove()}
             className="ml-auto rounded-md px-3 py-1.5 text-sm text-destructive hover:bg-accent disabled:opacity-50"
           >
-            {tr('Удалить словарь')}
+            {tr('Delete dictionary')}
           </button>
         )}
       </div>

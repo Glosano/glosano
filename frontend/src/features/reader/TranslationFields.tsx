@@ -1,4 +1,4 @@
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { translationLanguageFlag, translationLanguageLabel } from '@/lib/languages'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
@@ -60,8 +60,8 @@ export function TranslationFields({
     } catch (err) {
       setSaveError(
         err instanceof ApiError && err.status === 409
-          ? 'Такой вариант уже есть'
-          : 'Не удалось сохранить',
+          ? msg('This translation already exists')
+          : msg('Could not save'),
       )
       return false
     }
@@ -110,7 +110,7 @@ export function TranslationFields({
         <div key={t.id} className="group relative">
           {t.target_language_code !== nativeLanguage && <LanguageFlag code={t.target_language_code} />}
           <input
-            aria-label={tr('Перевод: {{language}}', {
+            aria-label={tr('Translation: {{language}}', {
               language: translationLanguageLabel(t.target_language_code, uiLanguage),
             })}
             className={`w-full rounded-md border border-border py-2 pr-16 text-base ${
@@ -123,14 +123,14 @@ export function TranslationFields({
           />
           <span className="absolute inset-y-0 right-2 hidden items-center gap-1 group-focus-within:flex group-hover:flex">
             <button
-              type="button" aria-label={tr('Добавить вариант')}
+              type="button" aria-label={tr('Add a translation')}
               onClick={openNewField}
               className="rounded p-1 text-muted-foreground hover:bg-accent"
             >
               <Plus className="h-4 w-4" />
             </button>
             <button
-              type="button" aria-label={tr('Удалить вариант: {{value0}}', { value0: t.text })}
+              type="button" aria-label={tr('Delete translation: {{value0}}', { value0: t.text })}
               onClick={() => void run(() => onDelete(t.id))}
               className="rounded p-1 text-muted-foreground hover:bg-accent"
             >
@@ -144,11 +144,11 @@ export function TranslationFields({
           <input
             // autoFocus: the field appears on explicit "+" click, not on page load.
             autoFocus={newDraft !== null}
-            aria-label={tr('Новый перевод: {{language}}', {
+            aria-label={tr('New translation: {{language}}', {
               language: translationLanguageLabel(nativeLanguage, uiLanguage),
             })}
             className="w-full rounded-md border border-border px-3 py-2 text-base"
-            placeholder={tr('Введите новый перевод здесь')}
+            placeholder={tr('Enter a new translation here')}
             value={pendingValue}
             onChange={(e) => setNewDraft(e.target.value)}
             onBlur={() => void commitNew()}

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import {
   LEARNING_LANGUAGES,
   learningLanguageLabel,
@@ -82,12 +82,12 @@ export function AddLanguageDialog({ open, onOpenChange, returnFocusRef }: Props)
         }}
       >
         <DialogHeader>
-          <DialogTitle>{t('Добавить язык')}</DialogTitle>
-          <DialogDescription>{t('Выберите язык, который хотите изучать.')}</DialogDescription>
+          <DialogTitle>{t('Add language')}</DialogTitle>
+          <DialogDescription>{t('Choose a language to study.')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={(event) => void submit(event)}>
           <fieldset disabled={pending} className="grid max-h-[50vh] gap-1 overflow-y-auto">
-            <legend className="sr-only">{t('Изучаемые языки')}</legend>
+            <legend className="sr-only">{t('Learning languages')}</legend>
             {LEARNING_LANGUAGES.map((item) => {
               const disabled = unavailable(item.code)
               const label = learningLanguageLabel(item.code, language)
@@ -114,7 +114,7 @@ export function AddLanguageDialog({ open, onOpenChange, returnFocusRef }: Props)
           </fieldset>
           {allAdded && (
             <p className="mt-3 text-sm text-muted-foreground">
-              {t('Все доступные языки уже добавлены.')}
+              {t('All available languages have already been added.')}
             </p>
           )}
           {error && (
@@ -124,7 +124,7 @@ export function AddLanguageDialog({ open, onOpenChange, returnFocusRef }: Props)
           )}
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={!selected || pending || allAdded}>
-              {t(pending ? 'Добавление…' : 'Добавить')}
+              {t(pending ? msg('Adding…') : msg('Add'))}
             </Button>
             <Button
               type="button"
@@ -132,7 +132,7 @@ export function AddLanguageDialog({ open, onOpenChange, returnFocusRef }: Props)
               disabled={pending}
               onClick={() => changeOpen(false)}
             >
-              {t('Отмена')}
+              {t('Cancel')}
             </Button>
           </DialogFooter>
         </form>

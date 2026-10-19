@@ -6,7 +6,7 @@ import { Upload } from 'lucide-react'
 
 import { lessonsApi } from '@/api/lessons'
 import { ApiError, getApiErrorMessage } from '@/api/client'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { parseTagInput, tagInputError } from '@/lib/tags'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,10 +29,10 @@ interface Props {
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024
 const FILE_ERRORS: Record<string, string> = {
-  'unsupported lesson file': 'Поддерживаются только .txt и .md с текстовым содержимым.',
-  'lesson file too large': 'Размер файла не должен превышать 5 МиБ.',
-  'lesson file must be UTF-8': 'Сохраните файл в кодировке UTF-8 и попробуйте снова.',
-  'lesson file must contain text': 'Файл должен содержать непустой текст.',
+  'unsupported lesson file': msg('Only .txt and .md files with text content are supported.'),
+  'lesson file too large': msg('The file must not exceed 5 MiB.'),
+  'lesson file must be UTF-8': msg('Save the file as UTF-8 and try again.'),
+  'lesson file must contain text': msg('The file must contain non-empty text.'),
 }
 
 // A fresh form on every open also prevents a previous upload from closing a new dialog.
@@ -131,20 +131,20 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
     setError(null)
     setFile(null)
     if (files.length !== 1) {
-      setError('Выберите один файл.')
+      setError(msg('Choose one file.'))
       return
     }
     const selected = files[0]!
     if (!/\.(txt|md)$/i.test(selected.name)) {
-      setError('Поддерживаются только .txt и .md с текстовым содержимым.')
+      setError(msg('Only .txt and .md files with text content are supported.'))
       return
     }
     if (selected.size > MAX_FILE_BYTES) {
-      setError('Размер файла не должен превышать 5 МиБ.')
+      setError(msg('The file must not exceed 5 MiB.'))
       return
     }
     if (selected.size === 0) {
-      setError('Файл должен содержать непустой текст.')
+      setError(msg('The file must contain non-empty text.'))
       return
     }
     setFile(selected)
@@ -161,22 +161,22 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
     }
     if (tab === 'youtube') {
       if (!url.trim()) {
-        setError('Введите HTTPS-ссылку на одно видео YouTube.')
+        setError(msg('Enter an HTTPS link to a single YouTube video.'))
         return
       }
       create.mutate()
       return
     }
     if (tab === 'file' && !file) {
-      setError('Выберите файл .txt или .md.')
+      setError(msg('Choose a .txt or .md file.'))
       return
     }
     if (!title.trim() || (tab === 'text' && !text.trim())) {
-      setError('Заполните название и текст')
+      setError(msg('Enter a title and text'))
       return
     }
     if ([...title.trim()].length > 200) {
-      setError('Название должно содержать не более 200 символов.')
+      setError(msg('The title must contain no more than 200 characters.'))
       return
     }
     create.mutate()
@@ -191,19 +191,22 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
     >
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>{t('Импорт урока')}</DialogTitle>
+          <DialogTitle>{t('Import lesson')}</DialogTitle>
           <DialogDescription>
             {tab === 'youtube'
-              ? t('Название и субтитры будут импортированы с YouTube. Язык: {{language}}.', {
+              ? t('Import the title and captions from YouTube. Language: {{language}}.', {
                   language: lang.toUpperCase(),
                 })
               : tab === 'text'
-                ? t('Вставьте текст для нового урока на текущем языке ({{language}}).', {
+                ? t('Paste text for a new lesson in the current language ({{language}}).', {
                     language: lang.toUpperCase(),
                   })
-                : t('Загрузите .txt или .md в UTF-8, до 5 МиБ. Язык урока: {{language}}.', {
-                    language: lang.toUpperCase(),
-                  })}
+                : t(
+                    'Upload a UTF-8 .txt or .md file, up to 5 MiB. Lesson language: {{language}}.',
+                    {
+                      language: lang.toUpperCase(),
+                    },
+                  )}
           </DialogDescription>
         </DialogHeader>
         <form noValidate onSubmit={onSubmit} className="space-y-4">
@@ -215,12 +218,12 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
             }}
           >
             <Tabs.List
-              aria-label={t('Способ импорта')}
+              aria-label={t('Import method')}
               className="mb-4 flex rounded-lg bg-muted p-1"
             >
               {[
-                ['text', 'Текст'],
-                ['file', 'Файл'],
+                ['text', msg('Text')],
+                ['file', msg('File')],
                 ['youtube', 'YouTube'],
               ].map(([value, label]) => (
                 <Tabs.Trigger
@@ -235,7 +238,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
             </Tabs.List>
             {tab !== 'youtube' && (
               <div className="mb-4 space-y-2">
-                <Label htmlFor="lesson-title">{t('Название')}</Label>
+                <Label htmlFor="lesson-title">{t('Title')}</Label>
                 <Input
                   id="lesson-title"
                   required
@@ -247,7 +250,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
               </div>
             )}
             <Tabs.Content value="youtube" className="space-y-3">
-              <Label htmlFor="youtube-url">{t('Ссылка YouTube')}</Label>
+              <Label htmlFor="youtube-url">{t('YouTube link')}</Label>
               <Input
                 id="youtube-url"
                 type="url"
@@ -260,11 +263,11 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
                 }}
               />
               <p className="text-sm text-muted-foreground">
-                {t('Сначала авторские субтитры, затем автоматические на том же языке.')}
+                {t('Prefer creator captions, then automatic captions in the same language.')}
               </p>
             </Tabs.Content>
             <Tabs.Content value="text" className="space-y-2">
-              <Label htmlFor="lesson-text">{t('Текст')}</Label>
+              <Label htmlFor="lesson-text">{t('Text')}</Label>
               <textarea
                 id="lesson-text"
                 required
@@ -277,7 +280,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
             </Tabs.Content>
             <Tabs.Content value="file">
               <div
-                aria-label={t('Перетащите файл сюда')}
+                aria-label={t('Drop a file here')}
                 onDragOver={(e) => {
                   e.preventDefault()
                   if (!busy) setDragging(true)
@@ -291,9 +294,9 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
                 className={`flex flex-col items-center gap-3 rounded-lg border-2 border-dashed p-8 text-center ${dragging ? 'border-primary bg-primary/5' : 'border-border'}`}
               >
                 <Upload aria-hidden="true" className="size-7 text-muted-foreground" />
-                <p className="text-sm">{t('Перетащите файл сюда')}</p>
+                <p className="text-sm">{t('Drop a file here')}</p>
                 <Label htmlFor="lesson-file" className="sr-only">
-                  {t('Выбрать файл')}
+                  {t('Choose file')}
                 </Label>
                 <Button
                   type="button"
@@ -301,7 +304,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
                   disabled={busy}
                   onClick={() => fileInput.current?.click()}
                 >
-                  {t('Выбрать файл')}
+                  {t('Choose file')}
                 </Button>
                 <Input
                   id="lesson-file"
@@ -320,12 +323,12 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
             </Tabs.Content>
           </Tabs.Root>
           <div className="space-y-2">
-            <Label htmlFor="lesson-tags">{t('Теги (через запятую)')}</Label>
+            <Label htmlFor="lesson-tags">{t('Tags (comma-separated)')}</Label>
             <Input
               id="lesson-tags"
               disabled={busy}
               value={tagText}
-              placeholder={t('например: новости, подкаст')}
+              placeholder={t('e.g. news, podcast')}
               onChange={(e) => setTagText(e.target.value)}
             />
           </div>
@@ -338,12 +341,12 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
             <p role="alert" className="text-sm text-destructive">
               {tab === 'youtube'
                 ? t(videoImportError(lesson.data?.import_error?.code))
-                : t('Не удалось обработать урок. Закройте окно и попробуйте импортировать снова.')}
+                : t('Could not process the lesson. Close this window and try importing again.')}
             </p>
           )}
           {lessonId && !failed && !lesson.error && (
             <p role="status" className="text-sm text-muted-foreground">
-              {t('Обработка урока… Можно закрыть окно: импорт продолжится.')}
+              {t('Processing lesson… You can close this window: the import will continue.')}
             </p>
           )}
           <DialogFooter>
@@ -353,7 +356,7 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
               disabled={create.isPending}
               onClick={() => onOpenChange(false)}
             >
-              {lessonId ? t('Закрыть') : t('Отмена')}
+              {lessonId ? t('Close') : t('Cancel')}
             </Button>
             {lesson.error && (
               <Button
@@ -362,21 +365,21 @@ function ImportLessonForm({ open, onOpenChange }: Props) {
                   void lesson.refetch()
                 }}
               >
-                {t('Проверить статус')}
+                {t('Check status')}
               </Button>
             )}
             {failed && tab === 'youtube' && lesson.data?.import_error?.retryable && (
               <Button type="button" disabled={retry.isPending} onClick={() => retry.mutate()}>
-                {retry.isPending ? t('Сохранение…') : t('Повторить импорт')}
+                {retry.isPending ? t('Saving…') : t('Retry import')}
               </Button>
             )}
             {!lessonId && (
               <Button type="submit" disabled={busy}>
                 {create.isPending
-                  ? t('Сохранение…')
+                  ? t('Saving…')
                   : tab === 'youtube'
-                    ? t('Импортировать')
-                    : t('Создать урок')}
+                    ? t('Import')
+                    : t('Create lesson')}
               </Button>
             )}
           </DialogFooter>

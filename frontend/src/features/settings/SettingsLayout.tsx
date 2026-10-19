@@ -2,7 +2,7 @@ import { Link, Outlet } from '@tanstack/react-router'
 
 import { AppTopBar } from '@/components/AppTopBar'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 
 export function SettingsLayout() {
   const t = useTranslation()
@@ -11,17 +11,14 @@ export function SettingsLayout() {
       <div className="min-h-screen bg-background">
         <AppTopBar />
         <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-          <h1 className="mb-7 text-2xl font-semibold tracking-tight">{t('Настройки')}</h1>
+          <h1 className="mb-7 text-2xl font-semibold tracking-tight">{t('Settings')}</h1>
           <div className="grid gap-6 md:grid-cols-[180px_minmax(0,1fr)] md:gap-10">
-            <nav
-              aria-label={t('Настройки')}
-              className="flex flex-wrap gap-1 self-start md:flex-col"
-            >
+            <nav aria-label={t('Settings')} className="flex flex-wrap gap-1 self-start md:flex-col">
               {(
                 [
-                  ['/settings/profile', 'Профиль'],
-                  ['/settings/preferences', 'Предпочтения'],
-                  ['/settings/data', 'Данные'],
+                  ['/settings/profile', msg('Profile')],
+                  ['/settings/preferences', msg('Preferences')],
+                  ['/settings/data', msg('Data')],
                 ] as const
               ).map(([to, label]) => (
                 <Link

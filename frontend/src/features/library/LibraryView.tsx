@@ -46,15 +46,15 @@ export function LibraryView({ lang }: { lang: string }) {
   return (
     <div className="mx-auto max-w-screen-2xl px-4 sm:px-6">
       <FilterRow lang={lang} />
-      {loading && <p className="text-muted-foreground">{t('Загрузка…')}</p>}
-      {failed && <p className="text-destructive">{t('Ошибка загрузки уроков')}</p>}
+      {loading && <p className="text-muted-foreground">{t('Loading…')}</p>}
+      {failed && <p className="text-destructive">{t('Could not load lessons')}</p>}
       {empty &&
         (search || tags.length > 0 ? (
           <div className="flex flex-col items-center gap-3 py-20 text-center text-muted-foreground">
-            <p>{t('Ничего не найдено')}</p>
+            <p>{t('Nothing found')}</p>
             {tags.length > 0 && (
               <Button variant="outline" onClick={clearTags}>
-                {t('Сбросить фильтр')}
+                {t('Clear filter')}
               </Button>
             )}
           </div>

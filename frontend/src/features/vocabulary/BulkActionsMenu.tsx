@@ -28,10 +28,7 @@ interface Props {
 }
 
 export function BulkActionsMenu({ count, onAction }: Props) {
-  const { language, t: tr } = useI18n()
-  const plural = new Intl.PluralRules(language).select(count)
-  const deleteTitle = plural === 'one' ? 'Удалить {{count}} слово?'
-    : plural === 'few' ? 'Удалить {{count}} слова?' : 'Удалить {{count}} слов?'
+  const { t: tr } = useI18n()
   const [menuOpen, setMenuOpen] = useState(false)
   const [tagInputOpen, setTagInputOpen] = useState(false)
   const [tagDraft, setTagDraft] = useState('')
@@ -69,7 +66,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
             disabled={count === 0}
             className="h-8 gap-1 border-0 px-2 text-[13px] font-normal text-[var(--vocab-muted-fg)] hover:bg-transparent hover:text-[var(--vocab-term-fg)]"
           >
-            {tr('Ещё действия ({{value0}})', { value0: count })}
+            {tr('More actions ({{value0}})', { value0: count })}
             <ChevronDown className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
@@ -81,7 +78,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
               closeMenu()
             }}
           >
-            {tr('Отметить как известные')}
+            {tr('Mark as known')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={(e) => {
@@ -90,7 +87,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
               closeMenu()
             }}
           >
-            {tr('Отметить как игнорируемые')}
+            {tr('Mark as ignored')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={(e) => {
@@ -98,13 +95,13 @@ export function BulkActionsMenu({ count, onAction }: Props) {
               setTagInputOpen(true)
             }}
           >
-            {tr('Добавить тег…')}
+            {tr('Add a tag…')}
           </DropdownMenuItem>
           {tagInputOpen && (
             <div className="flex items-center gap-1.5 p-1.5">
               <Input
                 autoFocus
-                aria-label={tr('Название тега')}
+                aria-label={tr('Tag name')}
                 value={tagDraft}
                 onChange={(e) => { setTagDraft(e.target.value) }}
                 onKeyDown={(e) => {
@@ -116,7 +113,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
                 }}
               />
               <Button type="button" size="sm" onClick={submitTag}>
-                {tr('Добавить')}
+                {tr('Add')}
               </Button>
             </div>
           )}
@@ -129,7 +126,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
               closeMenu()
             }}
           >
-            {tr('Удалить из словаря')}
+            {tr('Delete from vocabulary')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -137,8 +134,8 @@ export function BulkActionsMenu({ count, onAction }: Props) {
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{tr(deleteTitle, { count: count.toLocaleString(language) })}</DialogTitle>
-            <DialogDescription>{tr('Переводы, заметки и теги будут удалены')}</DialogDescription>
+            <DialogTitle>{tr('Delete {{count}} words?', { count })}</DialogTitle>
+            <DialogDescription>{tr('Translations, notes and tags will be deleted')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -146,7 +143,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
               variant="outline"
               onClick={() => { setDeleteConfirmOpen(false) }}
             >
-              {tr('Отмена')}
+              {tr('Cancel')}
             </Button>
             <Button
               type="button"
@@ -156,7 +153,7 @@ export function BulkActionsMenu({ count, onAction }: Props) {
                 onAction('delete')
               }}
             >
-              {tr('Удалить')}
+              {tr('Delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

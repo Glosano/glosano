@@ -1,5 +1,5 @@
 import { ignoreReviewKey } from './keyboard'
-import { useTranslation, useI18n } from '@/lib/i18n'
+import { useTranslation, useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -59,19 +59,19 @@ function ReviewPageContent({ lang, lessonId, mode, itemKind, from }: Props) {
   }
   const scope = { lang, lessonId, itemKind }
   const titles = {
-    cards: 'Карточки',
-    new: 'Новые слова',
-    cloze: 'Квиз: пропуск',
-    reverse: 'Квиз: перевод',
-    translation: 'Практика перевода',
-    fill: 'Вставить слово',
+    cards: msg('Flashcards'),
+    new: msg('New words'),
+    cloze: msg('Quiz: fill the gap'),
+    reverse: msg('Quiz: translation'),
+    translation: msg('Translation practice'),
+    fill: msg('Fill in the word'),
   }
   let content
   if (!mode) content = <ModeSelect {...scope} from={from} />
   else if (mode !== 'cards' && counts.data?.ai_enabled === false)
     content = (
       <SessionShell subtitle={t(titles[mode])}>
-        <p>{t('AI отключён')}</p>
+        <p>{t('AI is disabled')}</p>
         <button
           type="button"
           className="mt-4 min-h-11 underline"
@@ -83,7 +83,7 @@ function ReviewPageContent({ lang, lessonId, mode, itemKind, from }: Props) {
             })
           }
         >
-          {t('Перейти к карточкам')}
+          {t('Open flashcards')}
         </button>
       </SessionShell>
     )
@@ -171,10 +171,10 @@ function CardsSession({
     return () => window.removeEventListener('keydown', onKey)
   }, [current, flipped, grade])
 
-  const subtitle = sessionSubtitle(t, { title: 'Карточки', lessonId, itemKind })
+  const subtitle = sessionSubtitle(t, { title: msg('Flashcards'), lessonId, itemKind })
   const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
-  if (!current) return <SessionShell subtitle={subtitle}>{t('Загрузка…')}</SessionShell>
+  if (!current) return <SessionShell subtitle={subtitle}>{t('Loading…')}</SessionShell>
 
   return (
     <SessionShell subtitle={subtitle} idx={idx} total={total} session={s}>
@@ -190,7 +190,7 @@ function CardsSession({
         disabled={answering}
         onClick={s.skip}
       >
-        {t('Пропустить')}
+        {t('Skip')}
       </button>
       {flipped && <GradeBar onGrade={grade} disabled={answering} />}
       {graduated && <GraduationToast onDismiss={dismissGraduation} />}

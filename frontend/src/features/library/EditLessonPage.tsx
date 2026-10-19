@@ -6,7 +6,7 @@ import { lessonsApi, type LessonEditData } from '@/api/lessons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { invalidateMaterial } from './materialQueries'
 import { mediaTime } from '@/lib/mediaTime'
 
@@ -26,17 +26,17 @@ export function EditLessonPage({ lessonId, lang, onClose }: Props) {
   const unavailable = lesson.error instanceof ApiError && lesson.error.status === 404
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
-      <h1 className="mb-6 text-2xl font-semibold">{t('Редактирование материала')}</h1>
-      {lesson.isPending && <p role="status">{t('Загрузка…')}</p>}
+      <h1 className="mb-6 text-2xl font-semibold">{t('Edit material')}</h1>
+      {lesson.isPending && <p role="status">{t('Loading…')}</p>}
       {lesson.isError && (
         <div className="space-y-4">
           <p role="alert" className="text-destructive">
             {unavailable
-              ? t('Материал не найден или недоступен для редактирования.')
-              : t('Ошибка загрузки материала')}
+              ? t('Material not found or unavailable for editing.')
+              : t('Could not load the material')}
           </p>
           <Button variant="outline" onClick={onClose}>
-            {t('Отмена')}
+            {t('Cancel')}
           </Button>
         </div>
       )}
@@ -86,8 +86,8 @@ function LessonEditForm({
     save.error instanceof ApiError && save.error.status === 409
       ? t(
           lesson.media
-            ? 'Материал изменился или ещё обрабатывается. Обновите страницу перед сохранением.'
-            : 'Материал ещё обрабатывается. Попробуйте сохранить позже.',
+            ? msg('The material has changed or is still processing. Reload before saving.')
+            : msg('The material is still processing. Try saving again later.'),
         )
       : getApiErrorMessage(save.error)
   return (
@@ -102,18 +102,18 @@ function LessonEditForm({
           !title.trim() ||
           (lesson.media ? fragments.some((fragment) => !fragment.text.trim()) : !text.trim())
         ) {
-          setValidation('Заполните название и текст')
+          setValidation(msg('Enter a title and text'))
           return
         }
         if ([...title.trim()].length > 200) {
-          setValidation('Название должно содержать не более 200 символов.')
+          setValidation(msg('The title must contain no more than 200 characters.'))
           return
         }
         save.mutate()
       }}
     >
       <div className="space-y-2">
-        <Label htmlFor="edit-lesson-title">{t('Название')}</Label>
+        <Label htmlFor="edit-lesson-title">{t('Title')}</Label>
         <Input
           id="edit-lesson-title"
           value={title}
@@ -125,12 +125,12 @@ function LessonEditForm({
         {lesson.media ? (
           <>
             <p className="text-sm text-muted-foreground">
-              {t('Исправляйте текст внутри фрагментов. Их время и порядок сохраняются.')}
+              {t('Edit text within each fragment. Timing and order stay the same.')}
             </p>
             {fragments.map((fragment, index) => (
               <div key={fragment.seg_id} className="space-y-2 py-2">
                 <Label htmlFor={`fragment-${fragment.seg_id}`}>
-                  {t('Фрагмент {{number}} · {{range}}', {
+                  {t('Fragment {{number}} · {{range}}', {
                     number: index + 1,
                     range: `${mediaTime(fragment.media_start_ms)}–${mediaTime(fragment.media_end_ms)}`,
                   })}
@@ -154,7 +154,7 @@ function LessonEditForm({
           </>
         ) : (
           <>
-            <Label htmlFor="edit-lesson-text">{t('Текст')}</Label>
+            <Label htmlFor="edit-lesson-text">{t('Text')}</Label>
             <textarea
               id="edit-lesson-text"
               rows={18}
@@ -167,7 +167,7 @@ function LessonEditForm({
         )}
         <p className="text-sm text-muted-foreground">
           {t(
-            'Изменение текста сбросит позицию чтения. Сохранённые слова, повторения и статистика останутся.',
+            'Changing the text resets the reading position. Saved words, reviews and statistics will remain.',
           )}
         </p>
       </div>
@@ -178,10 +178,10 @@ function LessonEditForm({
       )}
       <div className="flex justify-end gap-3">
         <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
-          {t('Отмена')}
+          {t('Cancel')}
         </Button>
         <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? t('Сохранение…') : t('Сохранить')}
+          {save.isPending ? t('Saving…') : t('Save')}
         </Button>
       </div>
     </form>

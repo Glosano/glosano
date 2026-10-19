@@ -1,5 +1,5 @@
 import type { ParagraphQuoteAction } from './ParagraphQuote'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -584,10 +584,10 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
       if (current()) {
         const message =
           error instanceof ApiError && error.detail === 'inline_quote_too_large'
-            ? 'Цитата не помещается в сообщение. Сократите текст и попробуйте ещё раз.'
+            ? msg('The quote does not fit in the message. Shorten the text and try again.')
             : error instanceof ApiError && error.detail === 'citation_too_large'
-              ? 'Абзац слишком большой для цитаты. Выберите более короткий абзац.'
-              : 'Не удалось приложить цитату. Попробуйте ещё раз.'
+              ? msg('This paragraph is too large to quote. Choose a shorter paragraph.')
+              : msg('Could not attach the quotation. Try again.')
         if (paragraph) setParagraphErrors((errors) => ({ ...errors, [selectionKey]: message }))
         else if (visible()) setCitationError(message)
         chatDrafts.cancelCitation(cid, request, error)
@@ -955,9 +955,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         role="alert"
         className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center gap-4 px-6 text-center"
       >
-        <p>{tr('Материал изменился. Обновите страницу, чтобы продолжить чтение.')}</p>
+        <p>{tr('The material has changed. Reload the page to continue reading.')}</p>
         <a href={`/learn/${lang}/lessons/${lessonId}`} className="text-primary underline">
-          {tr('Обновить страницу')}
+          {tr('Reload page')}
         </a>
       </div>
     )
@@ -969,9 +969,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         data-testid="reader-error"
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
-        <p className="text-destructive">{tr('Не удалось загрузить урок')}</p>
+        <p className="text-destructive">{tr('Could not load the lesson')}</p>
         <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-          {tr('В библиотеку')}
+          {tr('Back to library')}
         </Link>
       </div>
     )
@@ -980,7 +980,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
   if (!lessonDetail) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">{tr('Загрузка…')}</p>
+        <p className="text-muted-foreground">{tr('Loading…')}</p>
       </div>
     )
   }
@@ -992,7 +992,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-muted-foreground">{tr('Урок готовится…')}</p>
+        <p className="text-muted-foreground">{tr('Preparing the lesson…')}</p>
       </div>
     )
   }
@@ -1003,9 +1003,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         data-testid="reader-failed"
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
-        <p className="text-destructive">{tr('Не удалось обработать урок')}</p>
+        <p className="text-destructive">{tr('Could not process the lesson')}</p>
         <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-          {tr('В библиотеку')}
+          {tr('Back to library')}
         </Link>
       </div>
     )
@@ -1017,9 +1017,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
         data-testid="reader-unavailable"
         className="flex min-h-[50vh] flex-col items-center justify-center gap-4"
       >
-        <p className="text-muted-foreground">{tr('Урок недоступен')}</p>
+        <p className="text-muted-foreground">{tr('Lesson unavailable')}</p>
         <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-          {tr('В библиотеку')}
+          {tr('Back to library')}
         </Link>
       </div>
     )
@@ -1072,7 +1072,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
 
       {citationError && <p role="alert">{tr(citationError)}</p>}
       {sourcePosition && content && content.source_version !== sourcePosition.sourceVersion && (
-        <p role="status">{tr('Позиция цитаты недоступна: материал изменился.')}</p>
+        <p role="status">{tr('The citation position is unavailable: the material has changed.')}</p>
       )}
       <aside
         data-reader-panel
@@ -1177,7 +1177,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           {autoTransition.saving && (
             <p role="status">
               {tr(
-                mode === 'page' ? 'Сохраняем прогресс страницы…' : 'Сохраняем прогресс фрагмента…',
+                mode === 'page' ? msg('Saving page progress…') : msg('Saving fragment progress…'),
               )}
             </p>
           )}
@@ -1186,12 +1186,12 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
               <p>
                 {tr(
                   mode === 'page'
-                    ? 'Не удалось сохранить страницу. Повторите сохранение, затем нажмите Play.'
-                    : 'Не удалось сохранить фрагмент. Повторите сохранение, затем нажмите Play.',
+                    ? msg('Could not save the page. Retry saving, then press Play.')
+                    : msg('Could not save the fragment. Retry saving, then press Play.'),
                 )}
               </p>
               <Button variant="outline" onClick={autoTransition.retry}>
-                {tr('Повторить сохранение')}
+                {tr('Retry saving')}
               </Button>
             </div>
           )}
@@ -1208,9 +1208,9 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm"
         >
           <Check aria-hidden="true" className="size-5 text-primary" />
-          <span>{tr('Материал завершён')}</span>
+          <span>{tr('Material completed')}</span>
           <Button variant="outline" size="sm" onClick={() => setResultsDismissed(false)}>
-            {tr('Итоги чтения')}
+            {tr('Reading results')}
           </Button>
           {completionActionId && (
             <Button
@@ -1219,11 +1219,11 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
               disabled={busy}
               onClick={() => handleUndoAction(completionActionId)}
             >
-              {tr('Отменить завершение')}
+              {tr('Undo completion')}
             </Button>
           )}
           <Link to="/learn/$lang/library" params={{ lang }} className="text-primary underline">
-            {tr('В библиотеку')}
+            {tr('Back to library')}
           </Link>
         </div>
       )}
@@ -1236,7 +1236,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           >
             <span className="font-medium">{touchPreview.text}</span>
             {touchPreview.limited && (
-              <span className="ml-2 text-muted-foreground">{tr('Не больше 8 слов')}</span>
+              <span className="ml-2 text-muted-foreground">{tr('Up to 8 words')}</span>
             )}
           </div>
         </div>
@@ -1329,8 +1329,8 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             type="button"
             aria-label={
               mode === 'sentence'
-                ? tr(content?.media ? 'Предыдущий фрагмент' : 'Предыдущее предложение')
-                : tr('Предыдущая страница')
+                ? tr(content?.media ? msg('Previous fragment') : msg('Previous sentence'))
+                : tr('Previous page')
             }
             onClick={handlePrev}
             disabled={busy || (!atEnd && (mode === 'sentence' ? !canPrevSentence : !canPrev))}
@@ -1345,8 +1345,8 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             type="button"
             aria-label={
               mode === 'sentence'
-                ? tr(content?.media ? 'Следующий фрагмент' : 'Следующее предложение')
-                : tr('Следующая страница')
+                ? tr(content?.media ? msg('Next fragment') : msg('Next sentence'))
+                : tr('Next page')
             }
             ref={finishButton}
             onClick={handleNext}
@@ -1428,7 +1428,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
             }}
             sentenceText={selectedSentenceText}
             embedded
-            closeLabel={vocabularyPanelPinned ? tr('К списку') : tr('Закрыть карточку')}
+            closeLabel={vocabularyPanelPinned ? tr('Back to list') : tr('Close card')}
           />
         }
         renderList={(listState) => (
@@ -1452,7 +1452,7 @@ export function ReaderPage({ lang, lessonId, sourcePosition }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-destructive bg-card px-4 py-2 text-sm text-destructive shadow-lg">
-            {tr('Не удалось сохранить')}
+            {tr('Could not save')}
           </div>
         </div>
       )}

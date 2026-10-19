@@ -1,11 +1,11 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 const GRADE_LABELS: Record<number, string> = {
-  5: 'Вспомнил сразу',
-  4: 'Вспомнил',
-  3: 'Вспомнил с трудом',
-  2: 'Почти вспомнил',
-  1: 'Узнал после ответа',
-  0: 'Не вспомнил',
+  5: msg('Recalled immediately'),
+  4: msg('Recalled'),
+  3: msg('Recalled with difficulty'),
+  2: msg('Almost recalled'),
+  1: msg('Recognized after reveal'),
+  0: msg('Could not recall'),
 }
 
 interface Props {
@@ -18,7 +18,7 @@ export function GradeBar({ onGrade, disabled }: Props) {
   return (
     <div className="mt-6 w-full">
       <p className="mb-3 text-sm text-muted-foreground">
-        {t('Оцените, насколько легко вы вспомнили слово.')}
+        {t('Rate how easily you recalled the word.')}
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[0, 1, 2, 3, 4, 5].map((q) => (

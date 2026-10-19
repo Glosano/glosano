@@ -1,6 +1,6 @@
 import { exerciseErrorKey } from './exerciseError'
 import { ignoreReviewKey } from './keyboard'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
@@ -74,7 +74,7 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const subtitle = sessionSubtitle(t, { title: 'Новые слова', lessonId, itemKind })
+  const subtitle = sessionSubtitle(t, { title: msg('New words'), lessonId, itemKind })
 
   const states = SessionStates(s, subtitle, { lessonId, lang })
   if (states) return states
@@ -83,20 +83,22 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
   return (
     <SessionShell subtitle={subtitle} idx={s.idx} total={s.total} session={s}>
       <div className="min-h-56 w-full rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
-        <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
+        <p className="mb-3 text-xs text-muted-foreground">{t('AI-generated example')}</p>
         <p className="text-center text-2xl font-medium">{item.text}</p>
         {exercise.isPending && (
-          <p className="mt-4 text-center text-sm text-muted-foreground">{t('Готовим пример…')}</p>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            {t('Preparing an example…')}
+          </p>
         )}
         {exercise.isError && (
           <div className="mt-4 text-center">
             <p className="text-sm text-destructive">{t(exerciseErrorKey(exercise.error))}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
-                {t('Повторить')}
+                {t('Retry')}
               </button>
               <button type="button" className="underline" onClick={s.skip}>
-                {t('Пропустить')}
+                {t('Skip')}
               </button>
             </div>
           </div>
@@ -116,17 +118,17 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
                 onClick={() => setRevealed(true)}
                 className="mt-6 w-full rounded-md border border-border py-3 text-sm hover:bg-accent"
               >
-                {t('Показать перевод')}
+                {t('Show translation')}
               </button>
             ) : (
               <>
                 <hr className="my-4 border-border" />
-                <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
+                <p className="text-xs text-muted-foreground">{t('Your translation')}</p>
                 <p className="text-center text-xl">
                   {item.translation !== null && (
                     <ForeignLanguageFlag code={item.translation_language_code} className="mr-2" />
                   )}
-                  {item.translation ?? t('Перевод не сохранён')}
+                  {item.translation ?? t('No saved translation')}
                 </p>
                 {exercise.data.payload.base_form.normalize('NFC').toLowerCase() !==
                   item.text.normalize('NFC').toLowerCase() && (
@@ -135,7 +137,9 @@ function NewWordsSessionContent({ lang, lessonId, itemKind }: NewWordsSessionPro
                     {exercise.data.payload.base_form_translation}
                   </p>
                 )}
-                <p className="mt-3 text-xs text-muted-foreground">{t('AI-перевод примера')}</p>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {t('AI translation of the example')}
+                </p>
                 <p className="mt-1 text-center text-sm text-muted-foreground">
                   {exercise.data.payload.sentence_translation}
                 </p>

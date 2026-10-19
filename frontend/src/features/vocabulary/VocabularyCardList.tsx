@@ -45,12 +45,12 @@ export function VocabularyCardList({
       <label className="mb-3 inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm text-[var(--vocab-muted-fg)]">
         <input
           type="checkbox"
-          aria-label={tr('Выбрать все на странице')}
+          aria-label={tr('Select all on this page')}
           checked={allSelected}
           onChange={() => (allSelected ? onClearSelection() : onSelectPage(pageIds))}
           className="size-4"
         />
-        <span aria-hidden>{tr('Выбрать все на странице')}</span>
+        <span aria-hidden>{tr('Select all on this page')}</span>
       </label>
       <div className="grid gap-3 md:grid-cols-2">
         {items.map((item) => (
@@ -63,7 +63,7 @@ export function VocabularyCardList({
             <label className="absolute right-0 top-0 flex size-11 cursor-pointer items-center justify-center">
               <input
                 type="checkbox"
-                aria-label={tr('Выбрать {{value0}}', { value0: item.text })}
+                aria-label={tr('Select {{value0}}', { value0: item.text })}
                 checked={selection.includes(item.item_id)}
                 onChange={() => onToggleSelected(item.item_id)}
                 className="size-4"
@@ -107,7 +107,7 @@ export function VocabularyCardList({
                     {item.ai_tags?.includes(tag) && (
                       <span
                         className="ml-1 text-[10px] text-muted-foreground"
-                        aria-label={tr('Создано AI')}
+                        aria-label={tr('AI-generated')}
                       >
                         AI
                       </span>

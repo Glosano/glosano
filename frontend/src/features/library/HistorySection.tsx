@@ -43,16 +43,16 @@ export function HistorySection({
   return (
     <section aria-labelledby="library-history" className="py-4">
       <h2 id="library-history" className="text-lg font-semibold">
-        {t('История')}
+        {t('History')}
       </h2>
       {days.map((day) => (
         <DaySection key={day.date} day={day} />
       ))}
       <div ref={sentinelRef} className="flex justify-center py-4">
-        {isFetchingNextPage && <p className="text-muted-foreground">{t('Загрузка…')}</p>}
+        {isFetchingNextPage && <p className="text-muted-foreground">{t('Loading…')}</p>}
         {hasNextPage && !isFetchingNextPage && (
           <Button variant="outline" onClick={fetchNextPage}>
-            {t('Показать ещё')}
+            {t('Show more')}
           </Button>
         )}
       </div>

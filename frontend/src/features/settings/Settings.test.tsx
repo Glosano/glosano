@@ -5,12 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { meApi, type MeResponse } from '@/api/me'
 import { ApiError } from '@/api/client'
 import { setUiLanguage } from '@/lib/i18n'
+import { UI_LANGUAGE_CODES, uiLanguageEndonym } from '@/lib/uiLanguages'
 import { useUserStore } from '@/stores/userStore'
 
 import { ProfileSettings } from './ProfileSettings'
 import { PreferencesSettings } from './PreferencesSettings'
 import { DataSettings } from './DataSettings'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
+const langEn = (code: string) => languageName(code, 'en')
 
 const navigate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }))
@@ -115,16 +120,26 @@ describe('settings', () => {
     await waitFor(() => expect(screen.getByLabelText('Daily review limit')).toHaveValue(35))
     expect(screen.getByLabelText('Interface language')).toHaveValue('en')
     expect(screen.getByLabelText('Native language')).toHaveValue('en')
-    expect(screen.getByRole('checkbox', { name: 'Russian' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: langEn('ru') })).toBeChecked()
     expect(screen.getByLabelText('Reading goal, minutes per day')).toHaveValue(45)
+  })
+
+  it('lists every enabled interface language under its own name', () => {
+    show(<PreferencesSettings />)
+
+    const options = within(screen.getByLabelText('Язык интерфейса')).getAllByRole('option')
+    expect(options.map((option) => option.getAttribute('value'))).toEqual([...UI_LANGUAGE_CODES])
+    expect(options.map((option) => option.textContent)).toEqual(
+      UI_LANGUAGE_CODES.map((code) => uiLanguageEndonym(code)),
+    )
   })
 
   it('offers the complete localized learning-language catalog with flags', () => {
     show(<PreferencesSettings />)
 
     expect(screen.getAllByRole('checkbox')).toHaveLength(10)
-    expect(screen.getByRole('checkbox', { name: 'Китайский (упрощённый)' })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Арабский' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: langRu('zh-Hans') })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: langRu('ar') })).toBeInTheDocument()
     expect(screen.getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByText('🇸🇦')).toHaveAttribute('aria-hidden', 'true')
   })
@@ -169,11 +184,11 @@ describe('settings', () => {
       ui_language_code: 'en',
     })
     show(<PreferencesSettings />)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Португальский' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: langRu('pt') }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Выберите хотя бы один язык.')
     expect(meApi.updatePreferences).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Португальский' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: langRu('pt') }))
     fireEvent.change(screen.getByLabelText('Язык интерфейса'), { target: { value: 'en' } })
     expect(screen.getByLabelText('Родной язык')).toHaveValue('ru')
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
@@ -195,7 +210,7 @@ describe('settings', () => {
     const native = screen.getByLabelText('Родной язык')
     expect(native).toHaveValue('ru')
     expect(within(native).getAllByRole('option')).toHaveLength(15)
-    expect(within(native).getByRole('option', { name: /Украинский/ })).toBeInTheDocument()
+    expect(within(native).getByRole('option', { name: new RegExp(langRu('uk')) })).toBeInTheDocument()
     expect(
       screen.getByText('Новые переводы делаются на этот язык. Сохранённые переводы не меняются.'),
     ).toBeInTheDocument()
@@ -204,35 +219,35 @@ describe('settings', () => {
   it('never lets the native language be a learning language', () => {
     show(<PreferencesSettings />)
 
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Испанский' })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: langRu('es') })).toBeEnabled()
     const native = screen.getByLabelText('Родной язык')
-    expect(within(native).getByRole('option', { name: /Португальский/ })).toBeDisabled()
+    expect(within(native).getByRole('option', { name: new RegExp(langRu('pt')) })).toBeDisabled()
 
     fireEvent.change(native, { target: { value: 'es' } })
-    expect(screen.getByRole('checkbox', { name: 'Испанский' })).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Русский' }))
-    expect(within(native).getByRole('option', { name: /Русский/ })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: langRu('es') })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).toBeEnabled()
+    fireEvent.click(screen.getByRole('checkbox', { name: langRu('ru') }))
+    expect(within(native).getByRole('option', { name: new RegExp(langRu('ru')) })).toBeDisabled()
   })
 
   it('explains why the native language is disabled among learning languages', () => {
     show(<PreferencesSettings />)
 
     const note = 'Это ваш родной язык — смените его выше'
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).toHaveAccessibleDescription(note)
-    expect(screen.getByRole('checkbox', { name: 'Испанский' })).not.toHaveAccessibleDescription()
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).toHaveAccessibleDescription(note)
+    expect(screen.getByRole('checkbox', { name: langRu('es') })).not.toHaveAccessibleDescription()
 
     fireEvent.change(screen.getByLabelText('Родной язык'), { target: { value: 'es' } })
-    expect(screen.getByRole('checkbox', { name: 'Испанский' })).toHaveAccessibleDescription(note)
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).not.toHaveAccessibleDescription()
+    expect(screen.getByRole('checkbox', { name: langRu('es') })).toHaveAccessibleDescription(note)
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).not.toHaveAccessibleDescription()
   })
 
   it('translates the native-language note into English', () => {
     act(() => setUiLanguage('en'))
     show(<PreferencesSettings />)
 
-    expect(screen.getByRole('checkbox', { name: 'Russian' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('checkbox', { name: langEn('ru') })).toHaveAccessibleDescription(
       'This is your native language — change it above',
     )
   })

@@ -17,7 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { chatDrafts, useChatStore } from './chatStore'
 import { useChatList } from './useChat'
@@ -61,7 +61,7 @@ export function ChatSidebarToggle({
   const t = useTranslation()
   return (
     <SidebarButton
-      label={t(open ? 'Закрыть боковую панель' : 'Открыть боковую панель')}
+      label={t(open ? msg('Close sidebar') : msg('Open sidebar'))}
       aria-expanded={open}
       aria-controls={controls}
       onClick={onToggle}
@@ -75,7 +75,7 @@ export function ChatNewButton({ onSelect }: { onSelect?: () => void }) {
   const t = useTranslation()
   return (
     <SidebarButton
-      label={t('Новый разговор')}
+      label={t('New conversation')}
       onClick={() => {
         chatDrafts.select(null)
         onSelect?.()
@@ -128,13 +128,13 @@ export function ChatSidebar({
   }
   return (
     <nav
-      aria-label={t('Разговоры')}
+      aria-label={t('Conversations')}
       className="flex h-full min-h-0 flex-col bg-muted/25 text-foreground"
     >
       <div className={cn('flex shrink-0 items-center gap-1 p-1.5', collapsed && 'flex-col gap-3')}>
         {onToggle && <ChatSidebarToggle open={!collapsed} onToggle={onToggle} controls={listId} />}
         {!collapsed && (
-          <h2 className="flex-1 px-1.5 text-xs font-medium text-muted-foreground">{t('Чаты')}</h2>
+          <h2 className="flex-1 px-1.5 text-xs font-medium text-muted-foreground">{t('Chats')}</h2>
         )}
         <ChatNewButton onSelect={onSelect} />
       </div>
@@ -145,12 +145,12 @@ export function ChatSidebar({
         >
           {query.isLoading && (
             <p role="status" className="px-2 py-3 text-sm text-muted-foreground">
-              {t('Загрузка…')}
+              {t('Loading…')}
             </p>
           )}
           {query.isError && (
             <Button variant="outline" onClick={() => void query.refetch()}>
-              {t('Повторить загрузку')}
+              {t('Retry loading')}
             </Button>
           )}
           {query.data?.pages
@@ -179,7 +179,7 @@ export function ChatSidebar({
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={t('Действия с разговором: {{title}}', { title: c.title })}
+                      aria-label={t('Conversation actions: {{title}}', { title: c.title })}
                       className={cn(
                         'absolute right-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100',
                         active === c.id && 'opacity-100',
@@ -201,7 +201,7 @@ export function ChatSidebar({
                       }}
                     >
                       <Pencil />
-                      {t('Переименовать')}
+                      {t('Rename')}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
@@ -211,7 +211,7 @@ export function ChatSidebar({
                       }}
                     >
                       <Trash2 />
-                      {t('Удалить')}
+                      {t('Delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -219,7 +219,7 @@ export function ChatSidebar({
             ))}
           {query.data?.pages[0]?.items.length === 0 && (
             <p className="px-2 py-3 text-sm text-muted-foreground">
-              {t('Разговор появится после первого сообщения.')}
+              {t('Your conversation appears after the first message.')}
             </p>
           )}
           {query.hasNextPage && (
@@ -229,7 +229,7 @@ export function ChatSidebar({
               disabled={query.isFetchingNextPage}
               onClick={() => void query.fetchNextPage()}
             >
-              {t('Ещё разговоры')}
+              {t('More conversations')}
             </Button>
           )}
         </div>
@@ -244,22 +244,24 @@ export function ChatSidebar({
         }}
       >
         <DialogContent className="z-[var(--z-popover)]">
-          <DialogTitle>{t(deleting ? 'Удалить разговор?' : 'Переименовать разговор')}</DialogTitle>
+          <DialogTitle>
+            {t(deleting ? msg('Delete conversation?') : msg('Rename conversation'))}
+          </DialogTitle>
           <DialogDescription>
             {deleting
-              ? t('История, упражнения и попытки этого разговора будут удалены.')
-              : t('Название разговора')}
+              ? t('This conversation’s history, exercises and attempts will be deleted.')
+              : t('Conversation title')}
           </DialogDescription>
           {editing && (
             <input
-              aria-label={t('Название разговора')}
+              aria-label={t('Conversation title')}
               className="rounded border p-2"
               maxLength={120}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           )}
-          {error && <p role="alert">{t('Не удалось выполнить запрос. Попробуйте ещё раз.')}</p>}
+          {error && <p role="alert">{t('The request failed. Please try again.')}</p>}
           <DialogFooter>
             <Button
               variant="outline"
@@ -269,13 +271,13 @@ export function ChatSidebar({
                 setDeleting(null)
               }}
             >
-              {t('Отмена')}
+              {t('Cancel')}
             </Button>
             <Button
               disabled={busy || (!deleting && !title.trim())}
               onClick={() => void change(!!deleting)}
             >
-              {t(deleting ? 'Удалить' : 'Сохранить')}
+              {t(deleting ? msg('Delete') : msg('Save'))}
             </Button>
           </DialogFooter>
         </DialogContent>

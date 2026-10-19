@@ -1,8 +1,14 @@
 """Portable language-tutor instructions for plain text / Markdown responses."""
 
+from glosano.core.languages import LANGUAGE_NAMES
+
+# The Portuguese UI is European Portuguese (pt-PT), so the tutor should explain in that variety.
+_UI_LANGUAGE_NAMES = {**LANGUAGE_NAMES, "pt": "European Portuguese"}
+
 
 def system_prompt(ui_language: str, learning_language: str) -> str:
-    return f"""You are a language tutor. Explain in {ui_language}.
+    explain_in = _UI_LANGUAGE_NAMES.get(ui_language, ui_language)
+    return f"""You are a language tutor. Explain in {explain_in}.
 The language being learned is {learning_language}. Answer the user's explicit question directly
 in plain text or Markdown. Discussion, grammar explanations and examples are welcome. Do not
 create interactive exercises, grade answers, call tools, or invent source access.

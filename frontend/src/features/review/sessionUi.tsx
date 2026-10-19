@@ -1,4 +1,4 @@
-import { useTranslation, useI18n, translate } from '@/lib/i18n'
+import { useTranslation, useI18n, translate, msg } from '@/lib/i18n'
 import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { useContext, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
@@ -34,7 +34,7 @@ export function SessionShell({
   return (
     <section className="mx-auto w-full max-w-xl px-4 pb-12 pt-6 text-center sm:pt-8">
       <header className="mb-6 min-h-36">
-        <h1 className="text-xl font-semibold">{t('Повторение')}</h1>
+        <h1 className="text-xl font-semibold">{t('Review')}</h1>
         {subtitle && <p className="mt-1 font-medium">{subtitle}</p>}
         {nav?.returnToLesson && (
           <p
@@ -56,7 +56,7 @@ export function SessionShell({
             className={`min-h-11 underline disabled:opacity-50 ${session?.status === 'active' || finish ? '' : 'invisible'}`}
             onClick={finish ?? session?.finish}
           >
-            {t('Завершить занятие')}
+            {t('Finish session')}
           </button>
           {nav && (
             <button
@@ -65,7 +65,7 @@ export function SessionShell({
               className="min-h-11 underline disabled:opacity-50"
               onClick={nav.choose}
             >
-              {t('Выбрать занятие')}
+              {t('Choose an activity')}
             </button>
           )}
           {nav?.returnToLesson && (
@@ -75,15 +75,15 @@ export function SessionShell({
               className="col-span-2 min-h-11 underline disabled:opacity-50"
               onClick={nav.returnToLesson}
             >
-              {t('К итогам материала')}
+              {t('Back to material results')}
             </button>
           )}
         </div>
       </header>
       {session?.selectionSize !== undefined && session.status === 'active' && (
         <p className="mb-3 text-sm text-muted-foreground">
-          {t('Ошибки предыдущего занятия: доступно {{count}} из {{total}}.', {
-            count: session.total,
+          {t('Mistakes from the previous session: {{count}} of {{total}} available.', {
+            count: String(session.total),
             total: session.selectionSize,
           })}
         </p>
@@ -115,7 +115,7 @@ export function GraduationToast({ onDismiss }: { onDismiss: () => void }) {
       className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
     >
       <div className="rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
-        {t('Слово выучено ✓')}
+        {t('Word learned ✓')}
       </div>
     </div>
   )
@@ -135,18 +135,15 @@ export function SessionSummary({
   const practiceIds = s.results.filter((r) => r.quality < 4).map((r) => r.item.review_item_id)
   return (
     <>
-      <h2 className="text-lg font-medium">{t('Сессия завершена')}</h2>
+      <h2 className="text-lg font-medium">{t('Session complete')}</h2>
       <dl className="mt-5 grid grid-cols-2 gap-3 text-left">
         {[
-          [t('Ответов сохранено'), s.results.length],
-          [t('Пропущено'), s.skipped],
-          [t('Осталось без ответа'), s.remaining],
-          [t('Ошибки'), errors.length],
-          [t('С трудом'), difficult.length],
-          [
-            t('Перешло в известные'),
-            s.results.filter((r) => r.response.new_status === 'known').length,
-          ],
+          [t('Answers saved'), s.results.length],
+          [t('Skipped'), s.skipped],
+          [t('Unanswered'), s.remaining],
+          [t('Mistakes'), errors.length],
+          [t('With difficulty'), difficult.length],
+          [t('Moved to known'), s.results.filter((r) => r.response.new_status === 'known').length],
         ].map(([label, count]) => (
           <div key={label} className="rounded-lg border border-border p-4">
             <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -156,7 +153,7 @@ export function SessionSummary({
       </dl>
       {s.answerError && (
         <p role="alert" className="mt-4 text-destructive">
-          {t('Последняя попытка не подтверждена и не включена в итоги.')}
+          {t('The last attempt is unconfirmed and is not included in these results.')}
         </p>
       )}
       {s.results.some((r) => r.quality < 4) && (
@@ -171,7 +168,7 @@ export function SessionSummary({
                 )}
                 {r.item.translation ?? '—'}{' '}
                 <span className="text-muted-foreground">
-                  · {t(r.quality <= 2 ? 'Ошибка' : 'С трудом')}
+                  · {t(r.quality <= 2 ? msg('Mistake') : msg('With difficulty'))}
                 </span>
               </li>
             ))}
@@ -183,12 +180,12 @@ export function SessionSummary({
           className="mt-5 min-h-11 w-full rounded-md border border-border px-3 py-2 hover:bg-accent"
           onClick={s.restart}
         >
-          {t('Повторить ошибки')} ({Math.min(100, errors.length + s.retryRemaining)})
+          {t('Review mistakes')} ({Math.min(100, errors.length + s.retryRemaining)})
         </button>
       )}
       {errors.length + s.retryRemaining > 100 && (
         <p className="mt-2 text-sm text-muted-foreground">
-          {t('Остальные ошибки доступны в следующем занятии.')}
+          {t('The remaining mistakes are available in the next session.')}
         </p>
       )}
       {showWriting && practiceIds.length > 0 && nav && (
@@ -197,7 +194,8 @@ export function SessionSummary({
           className="mt-3 min-h-11 w-full underline"
           onClick={() => nav.practice(practiceIds.slice(0, 20))}
         >
-          {t('Закрепить трудные слова')} ({Math.min(20, practiceIds.length)} / {practiceIds.length})
+          {t('Practise difficult words')} ({Math.min(20, practiceIds.length)} / {practiceIds.length}
+          )
         </button>
       )}
       {s.graduated && <GraduationToast onDismiss={s.dismissGraduation} />}
@@ -214,7 +212,7 @@ function SelectedPractice({ ids }: { ids: string[] | undefined }) {
       className="mt-4 min-h-11 underline"
       onClick={() => nav.practice(ids.slice(0, 20))}
     >
-      {t('Закрепить трудные слова')} ({Math.min(20, ids.length)})
+      {t('Practise difficult words')} ({Math.min(20, ids.length)})
     </button>
   ) : null
 }
@@ -235,10 +233,10 @@ export function LessonEmptyState({ lang }: LessonEmptyStateProps) {
   const t = useTranslation()
   return (
     <>
-      <p className="text-lg font-medium">{t('В этом уроке пока нет слов')}</p>
+      <p className="text-lg font-medium">{t('No vocabulary from this lesson yet')}</p>
       <p className="mt-1 text-sm text-muted-foreground">
         {t(
-          'Здесь появятся слова и фразы, которые вы добавите в этом уроке. Слова, добавленные раньше, доступны в общем повторении.',
+          'Words and phrases you add in this lesson will appear here. Words added earlier are available in the general review.',
         )}
       </p>
       {lang && (
@@ -248,7 +246,7 @@ export function LessonEmptyState({ lang }: LessonEmptyStateProps) {
           search={{}}
           className="mt-3 inline-block underline"
         >
-          {t('Повторить весь словарь')}
+          {t('Review all vocabulary')}
         </Link>
       )}
     </>
@@ -272,7 +270,7 @@ export function SessionStates(
           role="status"
           className="min-h-56 animate-pulse rounded-lg border border-border bg-muted/30 p-6"
         >
-          {t('Загрузка…')}
+          {t('Loading…')}
         </div>
       </SessionShell>
     )
@@ -280,9 +278,9 @@ export function SessionStates(
   if (s.status === 'error') {
     return (
       <SessionShell subtitle={subtitle} session={s}>
-        <p className="text-destructive">{t('Не удалось загрузить очередь')}</p>
+        <p className="text-destructive">{t('Could not load the review queue')}</p>
         <button type="button" className="mt-2 underline" onClick={() => void s.retryQueue()}>
-          {t('Повторить')}
+          {t('Retry')}
         </button>
       </SessionShell>
     )
@@ -290,9 +288,9 @@ export function SessionStates(
   if (s.status === 'limit') {
     return (
       <SessionShell subtitle={subtitle} session={s}>
-        <p className="text-lg font-medium">{t('Дневной лимит достигнут')}</p>
+        <p className="text-lg font-medium">{t('Daily limit reached')}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t('Сегодня: {{done}} / {{limit}}. Возвращайтесь завтра!', {
+          {t('Today: {{done}} / {{limit}}. Come back tomorrow!', {
             done: s.daily?.done_today ?? 0,
             limit: s.daily?.limit ?? 0,
           })}
@@ -305,7 +303,7 @@ export function SessionStates(
     if (s.selectionSize !== undefined)
       return (
         <SessionShell subtitle={subtitle} session={s}>
-          <p>{t('Выбранные ошибки больше не доступны для повторения.')}</p>
+          <p>{t('These mistakes are no longer available for review.')}</p>
         </SessionShell>
       )
     if (opts?.lessonId) {
@@ -317,8 +315,8 @@ export function SessionStates(
     }
     return (
       <SessionShell subtitle={subtitle} session={s}>
-        <p className="text-lg font-medium">{t('Всё повторено')}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t('Нет карточек к повторению.')}</p>
+        <p className="text-lg font-medium">{t('All caught up')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t('No cards due for review.')}</p>
       </SessionShell>
     )
   }

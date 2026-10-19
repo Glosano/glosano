@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { chatsApi } from '@/api/chats'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { useChatStore } from './chatStore'
 
 export function ChatReference({
@@ -32,13 +32,13 @@ export function ChatReference({
     attempt = query.data?.attempt
   return (
     <div className="min-w-0 space-y-1 text-sm">
-      <strong>{t(attemptId ? 'Обсуждение попытки' : 'Контекст упражнения')}</strong>
+      <strong>{t(attemptId ? msg('Discussing attempt') : msg('Exercise context'))}</strong>
       {exercise ? (
         <p className="line-clamp-3 whitespace-pre-wrap break-words">
           {exercise.prompt.replace('{{gap}}', '_____')}
         </p>
       ) : (
-        <p>{t(query.isError ? 'Не удалось загрузить упражнение' : 'Загрузка…')}</p>
+        <p>{t(query.isError ? msg('Could not load exercise') : msg('Loading…'))}</p>
       )}
       {attempt && (
         <>
@@ -48,12 +48,12 @@ export function ChatReference({
           <p>
             {t(
               attempt.status === 'pending'
-                ? 'Ожидает проверки'
+                ? msg('Awaiting evaluation')
                 : attempt.status === 'failed'
-                  ? 'Не оценено — проверка не удалась'
+                  ? msg('Not graded — evaluation failed')
                   : attempt.correct
-                    ? 'Верно'
-                    : 'Неверно',
+                    ? msg('Correct')
+                    : msg('Incorrect'),
             )}
           </p>
           {attempt.feedback && <p className="line-clamp-3">{attempt.feedback}</p>}
@@ -61,7 +61,7 @@ export function ChatReference({
       )}
       {query.isError && (
         <button type="button" className="underline" onClick={() => void query.refetch()}>
-          {t('Повторить загрузку')}
+          {t('Retry loading')}
         </button>
       )}
     </div>

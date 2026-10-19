@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { chatsApi, type Citation } from '@/api/chats'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { randomId } from '@/lib/randomId'
 import { chatDrafts, useChatStore } from './chatStore'
 
@@ -59,7 +59,7 @@ export function ChatCitation({
     }
   }
   return (
-    <section className="my-2 rounded-lg border bg-muted/30 p-3 text-sm" aria-label={t('Цитата')}>
+    <section className="my-2 rounded-lg border bg-muted/30 p-3 text-sm" aria-label={t('Citation')}>
       {citation ? (
         <>
           <div className="flex items-start justify-between gap-2">
@@ -67,7 +67,7 @@ export function ChatCitation({
             {draftId !== undefined && (
               <button
                 type="button"
-                aria-label={t('Убрать цитату')}
+                aria-label={t('Remove citation')}
                 onClick={() =>
                   chatDrafts.edit(draftId, {
                     citation_ids: chatDrafts
@@ -84,7 +84,7 @@ export function ChatCitation({
             {citation.selected_text}
           </blockquote>
           <details className="mt-2">
-            <summary>{t('Сохранённый снимок контекста')}</summary>
+            <summary>{t('Saved context snapshot')}</summary>
             <p className="mt-2 whitespace-pre-wrap break-words">
               {citation.context_start_offset != null && citation.context_end_offset != null ? (
                 <>
@@ -102,14 +102,14 @@ export function ChatCitation({
                 citation.context_text
               )}
             </p>
-            <small>{t('Версия источника {{version}}', { version: citation.source_version })}</small>
+            <small>{t('Source version {{version}}', { version: citation.source_version })}</small>
           </details>
           {!citation.source_current && (
             <p className="mt-2 text-muted-foreground">
               {t(
                 citation.source_available
-                  ? 'Источник изменился. Откроется без старой позиции.'
-                  : 'Источник недоступен. Снимок сохранён.',
+                  ? msg('The source has changed. It will open without the old position.')
+                  : msg('The source is unavailable. The snapshot is preserved.'),
               )}
             </p>
           )}
@@ -120,14 +120,16 @@ export function ChatCitation({
               disabled={busy || !citation.source_available}
               onClick={() => void openSource()}
             >
-              {t('Открыть источник')}
+              {t('Open source')}
             </button>
           </div>
         </>
       ) : (
-        <p>{t(query.isError ? 'Не удалось загрузить цитату' : 'Загрузка…')}</p>
+        <p>{t(query.isError ? msg('Could not load citation') : msg('Loading…'))}</p>
       )}
-      {error && <p role="alert">{t('Источник недоступен или изменился. Снимок сохранён.')}</p>}
+      {error && (
+        <p role="alert">{t('The source is unavailable or changed. The snapshot is preserved.')}</p>
+      )}
     </section>
   )
 }

@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { MeResponse } from '@/api/me'
 import { useUserStore } from '@/stores/userStore'
 import { ForeignLanguageFlag } from './ForeignLanguageFlag'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
 
 afterEach(() => {
   useUserStore.getState().reset()
@@ -26,7 +29,7 @@ describe('ForeignLanguageFlag', () => {
     setNative('uk')
     render(<ForeignLanguageFlag code="ru" />)
     expect(screen.getByText('🇷🇺')).toHaveAttribute('aria-hidden', 'true')
-    expect(screen.getByText('Русский')).toHaveClass('sr-only')
+    expect(screen.getByText(langRu('ru'))).toHaveClass('sr-only')
   })
 
   it('renders nothing without a language', () => {

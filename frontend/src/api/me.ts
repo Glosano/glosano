@@ -1,5 +1,6 @@
 import { api } from './client'
 import type { LearningLanguageCode, TranslationLanguageCode } from '@/lib/languages'
+import type { UiLanguage } from '@/lib/uiLanguages'
 
 export type UserRole = 'learner' | 'admin'
 
@@ -22,7 +23,7 @@ export interface MeResponse {
 }
 
 export interface PreferencesPayload {
-  ui_language: 'en' | 'ru'
+  ui_language: UiLanguage
   learning_languages: LearningLanguageCode[]
   native_language: TranslationLanguageCode
   daily_goal_minutes: number

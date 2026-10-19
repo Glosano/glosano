@@ -35,7 +35,7 @@ export function LessonCarousel({ items, variant = 'history', more = 0 }: Props) 
         onClick={() => {
           scroll('left')
         }}
-        aria-label={t('Предыдущий')}
+        aria-label={t('Previous')}
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
@@ -48,7 +48,7 @@ export function LessonCarousel({ items, variant = 'history', more = 0 }: Props) 
         ))}
         {more > 0 && (
           <div className="flex w-[120px] shrink-0 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-            {t('ещё {{count}}', { count: more })}
+            {t('{{count}} more', { count: more })}
           </div>
         )}
       </div>
@@ -60,7 +60,7 @@ export function LessonCarousel({ items, variant = 'history', more = 0 }: Props) 
         onClick={() => {
           scroll('right')
         }}
-        aria-label={t('Следующий')}
+        aria-label={t('Next')}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>

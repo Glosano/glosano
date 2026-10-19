@@ -65,13 +65,29 @@ async def test_onboarding_validates_language_codes() -> None:
         r = await c.post(
             "/me/onboarding",
             json={
-                "ui_language": "fr",  # not supported
+                "ui_language": "ar",  # not a UI language
                 "learning_languages": ["pt"],
                 "translation_language": "ru",
             },
             headers={"X-CSRF-Token": csrf},
         )
         assert r.status_code == 422
+
+
+async def test_onboarding_accepts_hindi_ui_language() -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        csrf = await _register(c, email="onb-hindi@example.com")
+
+        r = await c.post(
+            "/me/onboarding",
+            json={"ui_language": "hi", "learning_languages": ["pt"]},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert r.status_code == 200
+        me = (await c.get("/me")).json()
+        assert me["ui_language_code"] == "hi"
+        assert me["native_language_code"] == "hi"
 
 
 async def test_onboarding_ignores_legacy_translation_language() -> None:

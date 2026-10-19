@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -71,6 +71,24 @@ describe('Authentication localization', () => {
       'Пароль должен содержать от 10 до 128 символов.',
     )
     expect(authApi.register).not.toHaveBeenCalled()
+  })
+
+  it('registers with the active interface language', async () => {
+    setUiLanguage('en')
+    vi.mocked(authApi.register).mockRejectedValue(new Error('stop here'))
+    render(<RegisterForm />)
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Alex' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'learner@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'long-enough-pass' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+    await waitFor(() =>
+      expect(authApi.register).toHaveBeenCalledWith({
+        display_name: 'Alex',
+        email: 'learner@example.com',
+        password: 'long-enough-pass',
+        ui_language: 'en',
+      }),
+    )
   })
 
   it('switches labels and an already rendered login error without clearing user input', async () => {

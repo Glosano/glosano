@@ -47,7 +47,7 @@ export function LessonTagsDialog({
   const message = inputError
     ? t(inputError)
     : unavailable
-      ? t('Материал недоступен.')
+      ? t('The material is unavailable.')
       : save.isError
         ? getApiErrorMessage(save.error)
         : null
@@ -74,19 +74,19 @@ export function LessonTagsDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{t('Теги материала')}</DialogTitle>
+          <DialogTitle>{t('Material tags')}</DialogTitle>
           <DialogDescription className="[overflow-wrap:anywhere]">
-            {t('«{{title}}». Теги видны только вам.', { title: lesson.title })}
+            {t('"{{title}}". Only you can see these tags.', { title: lesson.title })}
           </DialogDescription>
         </DialogHeader>
         <form noValidate onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="material-tags">{t('Теги (через запятую)')}</Label>
+            <Label htmlFor="material-tags">{t('Tags (comma-separated)')}</Label>
             <Input
               id="material-tags"
               value={value}
               disabled={save.isPending}
-              placeholder={t('например: новости, подкаст')}
+              placeholder={t('e.g. news, podcast')}
               onChange={(e) => setValue(e.target.value)}
             />
           </div>
@@ -97,10 +97,10 @@ export function LessonTagsDialog({
           )}
           <DialogFooter>
             <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
-              {t('Отмена')}
+              {t('Cancel')}
             </Button>
             <Button type="submit" disabled={save.isPending}>
-              {save.isPending ? t('Сохранение…') : t('Сохранить')}
+              {save.isPending ? t('Saving…') : t('Save')}
             </Button>
           </DialogFooter>
         </form>

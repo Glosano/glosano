@@ -20,7 +20,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { mediaTime } from '@/lib/mediaTime'
 import { cn } from '@/lib/utils'
 import { observePlayback, type Interval, type Observation } from './playback'
@@ -299,11 +299,11 @@ export function VideoPlayer(props: Props) {
   const pinned = props.pin?.pinned ?? false
   // Only a pinned player shrinks; elsewhere it already scrolls out of the text's way.
   const mini = pinned && (props.size?.mini ?? false)
-  const captions = t(props.media.is_generated ? 'Автоматические субтитры' : 'Авторские субтитры')
-  const playLabel = playing ? t('Пауза') : t('Воспроизвести фрагмент')
+  const captions = t(props.media.is_generated ? msg('Automatic captions') : msg('Creator captions'))
+  const playLabel = playing ? t('Pause') : t('Play fragment')
   return (
     <section
-      aria-label={t('Видеоплеер')}
+      aria-label={t('Video player')}
       data-video-pinned={pinned ? '' : undefined}
       data-video-mini={mini ? '' : undefined}
       className={cn(
@@ -327,7 +327,7 @@ export function VideoPlayer(props: Props) {
             <span className="line-clamp-2 font-medium">{props.media.title}</span>
             <span className="text-xs text-neutral-400">YouTube · {props.media.author}</span>
             <span className="max-w-sm text-xs text-neutral-400">
-              {t('При нажатии Play браузер подключится к YouTube.')}
+              {t('Pressing Play connects your browser to YouTube.')}
             </span>
           </div>
         )}
@@ -359,8 +359,8 @@ export function VideoPlayer(props: Props) {
           size="icon-lg"
           disabled={loading || props.blocked}
           onClick={() => void play(true)}
-          aria-label={t('Повторить фрагмент')}
-          title={t('Повторить фрагмент')}
+          aria-label={t('Replay fragment')}
+          title={t('Replay fragment')}
         >
           <RotateCcw aria-hidden />
         </Button>
@@ -371,7 +371,7 @@ export function VideoPlayer(props: Props) {
           {props.toolbar}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-lg" aria-label={t('Ещё')} title={t('Ещё')}>
+              <Button variant="ghost" size="icon-lg" aria-label={t('More')} title={t('More')}>
                 <Ellipsis aria-hidden />
               </Button>
             </DropdownMenuTrigger>
@@ -386,7 +386,7 @@ export function VideoPlayer(props: Props) {
               <DropdownMenuItem asChild>
                 <a href={props.media.canonical_url} target="_blank" rel="noreferrer">
                   <ExternalLink aria-hidden />
-                  {t('Открыть на YouTube')}
+                  {t('Open on YouTube')}
                 </a>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -395,8 +395,8 @@ export function VideoPlayer(props: Props) {
             <Button
               variant="ghost"
               size="icon-lg"
-              aria-label={t('Закрепить видео')}
-              title={t('Закрепить видео')}
+              aria-label={t('Pin video')}
+              title={t('Pin video')}
               aria-pressed={pinned}
               onClick={() => props.pin?.onChange(!pinned)}
             >
@@ -407,8 +407,8 @@ export function VideoPlayer(props: Props) {
             <Button
               variant="ghost"
               size="icon-lg"
-              aria-label={t('Уменьшить видео')}
-              title={t('Уменьшить видео')}
+              aria-label={t('Shrink video')}
+              title={t('Shrink video')}
               aria-pressed={mini}
               onClick={() => props.size?.onChange(!mini)}
             >
@@ -422,20 +422,20 @@ export function VideoPlayer(props: Props) {
       >
         {error && (
           <p role="alert" className="text-destructive">
-            {t('Не удалось открыть видео. Текст доступен для изучения.')}{' '}
+            {t('Could not open the video. You can still study the text.')}{' '}
             <a
               href={props.media.canonical_url}
               target="_blank"
               rel="noreferrer"
               className="underline"
             >
-              {t('Открыть на YouTube')}
+              {t('Open on YouTube')}
             </a>
           </p>
         )}
         {autoplayBlocked && (
           <p role="status" className="text-muted-foreground">
-            {t('Браузер остановил запуск. Нажмите ▶ ещё раз.')}
+            {t('Your browser blocked playback. Press ▶ again.')}
           </p>
         )}
         {props.children}

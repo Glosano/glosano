@@ -21,7 +21,7 @@ export function FilterRow({ lang }: { lang: string }) {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            placeholder={t('Поиск в Библиотеке')}
+            placeholder={t('Search the library')}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value)
@@ -35,7 +35,7 @@ export function FilterRow({ lang }: { lang: string }) {
               setImportOpen(true)
             }}
           >
-            {t('+ Импортировать урок')}
+            {t('+ Import lesson')}
           </Button>
         </div>
         <ImportLessonDialog open={importOpen} onOpenChange={setImportOpen} />

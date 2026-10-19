@@ -6,7 +6,9 @@ import pytest
 from httpx import AsyncClient
 
 from glosano.core.config import get_settings
+from glosano.core.languages import UI_LANGUAGE_CODES
 from glosano.modules.ai_translation import service
+from glosano.modules.ai_translation.grammar import _LABELS, parse_grammar_tags
 from glosano.modules.ai_translation.provider import LLMCompletion
 
 
@@ -179,3 +181,18 @@ async def test_invalid_grammar_is_not_returned_as_tags(
         },
     )
     assert response.status_code == 502
+
+
+@pytest.mark.parametrize(
+    ("ui_language", "label"),
+    [("de", "Substantiv"), ("ja", "名詞"), ("ru", "Существительное"), ("xx", "Noun")],
+)
+def test_grammar_tags_use_ui_language_labels(ui_language: str, label: str) -> None:
+    tags = parse_grammar_tags('{"part_of_speech":"noun"}', ui_language=ui_language)
+    assert tags == [label]
+
+
+def test_every_part_of_speech_has_all_ui_languages() -> None:
+    for pos, labels in _LABELS.items():
+        assert set(labels) == set(UI_LANGUAGE_CODES), pos
+        assert all(label for label in labels.values()), pos

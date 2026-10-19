@@ -6,7 +6,7 @@
  * `X-CSRF-Token` header (double-submit pattern).
  */
 
-import { translate } from '@/lib/i18n'
+import { translate, msg } from '@/lib/i18n'
 
 export interface HealthResponse {
   status: string
@@ -25,22 +25,22 @@ export class ApiError extends Error {
 }
 
 export function getApiErrorKey(error: unknown): string {
-  if (!(error instanceof ApiError)) return 'Не удалось выполнить запрос. Попробуйте ещё раз.'
+  if (!(error instanceof ApiError)) return msg('The request failed. Please try again.')
   const known: Record<string, string> = {
-    'Invalid password': 'Неверный пароль.',
-    'Invalid current password': 'Неверный пароль.',
-    'Invalid email or password': 'Неверный email или пароль.',
-    'Email already in use': 'Этот email уже используется.',
-    'Registration is disabled': 'Регистрация закрыта администратором.',
-    native_language_is_learning: 'Родной язык не может быть изучаемым',
+    'Invalid password': msg('Incorrect password.'),
+    'Invalid current password': msg('Incorrect password.'),
+    'Invalid email or password': msg('Incorrect email or password.'),
+    'Email already in use': msg('This email is already in use.'),
+    'Registration is disabled': msg('Registration is closed by the administrator.'),
+    native_language_is_learning: msg('Your native language cannot be a learning language'),
   }
   const key = known[error.detail]
   if (key) return key
-  if (error.status === 401) return 'Сессия истекла. Войдите снова.'
-  if (error.status === 403) return 'Недостаточно прав для этого действия.'
-  if (error.status === 422 || error.status === 400) return 'Проверьте заполненные поля.'
-  if (error.status === 429) return 'Слишком много попыток. Попробуйте позже.'
-  return 'Не удалось выполнить запрос. Попробуйте ещё раз.'
+  if (error.status === 401) return msg('Your session expired. Sign in again.')
+  if (error.status === 403) return msg('You do not have permission for this action.')
+  if (error.status === 422 || error.status === 400) return msg('Check the form fields.')
+  if (error.status === 429) return msg('Too many attempts. Try again later.')
+  return msg('The request failed. Please try again.')
 }
 
 export function getApiErrorMessage(error: unknown): string {

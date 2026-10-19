@@ -38,7 +38,7 @@ export function LessonActions({ lesson }: { lesson: LessonSummary }) {
             variant="outline"
             size="icon"
             className="absolute right-2 top-2 size-9 bg-background/95 shadow-sm"
-            aria-label={t('Действия с материалом')}
+            aria-label={t('Material actions')}
           >
             <MoreHorizontal aria-hidden="true" className="size-5" />
           </Button>
@@ -52,7 +52,7 @@ export function LessonActions({ lesson }: { lesson: LessonSummary }) {
         >
           <DropdownMenuItem onSelect={() => setEditingTags(true)}>
             <Tags aria-hidden="true" />
-            {t('Теги…')}
+            {t('Tags…')}
           </DropdownMenuItem>
           {lesson.can_manage && (
             <>
@@ -62,12 +62,12 @@ export function LessonActions({ lesson }: { lesson: LessonSummary }) {
                   params={{ lang: lesson.language_code, lessonId: lesson.id }}
                 >
                   <Pencil aria-hidden="true" />
-                  {t('Редактировать')}
+                  {t('Edit')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
                 <Trash2 aria-hidden="true" />
-                {t('Удалить')}
+                {t('Delete')}
               </DropdownMenuItem>
             </>
           )}
@@ -129,12 +129,11 @@ function DeleteMaterialDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{t('Удалить материал?')}</DialogTitle>
+          <DialogTitle>{t('Delete material?')}</DialogTitle>
           <DialogDescription className="[overflow-wrap:anywhere]">
-            {t(
-              'Материал «{{title}}» будет удалён без возможности восстановления. Сохранённые слова и повторения останутся.',
-              { title: lesson.title },
-            )}
+            {t('“{{title}}” will be permanently deleted. Saved words and reviews will remain.', {
+              title: lesson.title,
+            })}
           </DialogDescription>
         </DialogHeader>
         {deletion.isError && (
@@ -144,14 +143,14 @@ function DeleteMaterialDialog({
         )}
         <DialogFooter>
           <Button ref={cancel} variant="outline" disabled={deletion.isPending} onClick={onClose}>
-            {t('Отмена')}
+            {t('Cancel')}
           </Button>
           <Button
             variant="destructive"
             disabled={deletion.isPending}
             onClick={() => deletion.mutate()}
           >
-            {deletion.isPending ? t('Удаление…') : t('Да')}
+            {deletion.isPending ? t('Deleting…') : t('Yes')}
           </Button>
         </DialogFooter>
       </DialogContent>

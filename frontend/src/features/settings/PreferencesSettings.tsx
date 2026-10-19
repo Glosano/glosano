@@ -2,8 +2,9 @@ import { useId, useState } from 'react'
 
 import { getApiErrorKey } from '@/api/client'
 import { meApi } from '@/api/me'
-import { useI18n, type UiLanguage } from '@/lib/i18n'
+import { useI18n, type UiLanguage, msg } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
+import { UI_LANGUAGE_CODES, uiLanguageEndonym } from '@/lib/uiLanguages'
 import {
   LEARNING_LANGUAGES,
   TRANSLATION_LANGUAGES,
@@ -37,13 +38,13 @@ export function PreferencesSettings() {
     setError('')
     setSaved(false)
     if (!languages.length) {
-      setError('Выберите хотя бы один язык.')
+      setError(msg('Choose at least one language.'))
       return
     }
     const m = Number(minutes)
     const r = Number(reviews)
     if (!Number.isInteger(m) || m < 1 || m > 1440 || !Number.isInteger(r) || r < 1 || r > 10000) {
-      setError('Укажите целое число в допустимом диапазоне.')
+      setError(msg('Enter a whole number within the allowed range.'))
       return
     }
     setPending(true)
@@ -66,28 +67,31 @@ export function PreferencesSettings() {
   }
 
   return (
-    <SettingsSection title={t('Предпочтения')}>
+    <SettingsSection title={t('Preferences')}>
       <form noValidate onSubmit={(e) => void save(e)} className="space-y-6">
         <div>
           <label htmlFor="ui-language" className="block text-sm font-medium">
-            {t('Язык интерфейса')}
+            {t('Interface language')}
             <select
               id="ui-language"
               className={inputClass}
               value={locale}
               onChange={(e) => setLocale(e.target.value as UiLanguage)}
             >
-              <option value="ru">Русский</option>
-              <option value="en">English</option>
+              {UI_LANGUAGE_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {uiLanguageEndonym(code)}
+                </option>
+              ))}
             </select>
           </label>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t('Инструкции и объяснения будут на языке интерфейса.')}
+            {t('Instructions and explanations will use the interface language.')}
           </p>
         </div>
         <div>
           <label htmlFor="native-language" className="block text-sm font-medium">
-            {t('Родной язык')}
+            {t('Native language')}
             <select
               id="native-language"
               className={inputClass}
@@ -107,11 +111,11 @@ export function PreferencesSettings() {
             </select>
           </label>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t('Новые переводы делаются на этот язык. Сохранённые переводы не меняются.')}
+            {t('New translations are made into this language. Saved translations stay unchanged.')}
           </p>
         </div>
         <fieldset>
-          <legend className="mb-2 text-sm font-medium">{t('Изучаемые языки')}</legend>
+          <legend className="mb-2 text-sm font-medium">{t('Learning languages')}</legend>
           <div className="flex flex-col items-start gap-3">
             {LEARNING_LANGUAGES.map((item) => {
               const isNative = item.code === native
@@ -136,7 +140,7 @@ export function PreferencesSettings() {
                   </label>
                   {isNative && (
                     <span id={nativeNoteId} className="text-xs text-muted-foreground">
-                      {t('Это ваш родной язык — смените его выше')}
+                      {t('This is your native language — change it above')}
                     </span>
                   )}
                 </div>
@@ -144,12 +148,12 @@ export function PreferencesSettings() {
             })}
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t('Удаление языка из списка сохраняет уроки, словарь и прогресс.')}
+            {t('Removing a language from this list keeps your lessons, vocabulary and progress.')}
           </p>
         </fieldset>
         <div>
           <label htmlFor="minutes" className="block text-sm font-medium">
-            {t('Цель чтения, минут в день')}
+            {t('Reading goal, minutes per day')}
             <input
               id="minutes"
               className={inputClass}
@@ -163,11 +167,11 @@ export function PreferencesSettings() {
             />
           </label>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t('Личная цель. Время чтения пока не измеряется.')}
+            {t('A personal goal. Reading time is not measured yet.')}
           </p>
         </div>
         <label htmlFor="reviews" className="block text-sm font-medium">
-          {t('Лимит повторений в день')}
+          {t('Daily review limit')}
           <input
             id="reviews"
             className={inputClass}
@@ -180,9 +184,9 @@ export function PreferencesSettings() {
             onChange={(e) => setReviews(e.target.value)}
           />
         </label>
-        <FormMessage error={error && t(error)} success={saved ? t('Сохранено') : ''} />
+        <FormMessage error={error && t(error)} success={saved ? t('Saved') : ''} />
         <button className={buttonClass} disabled={pending}>
-          {t(pending ? 'Сохранение…' : 'Сохранить предпочтения')}
+          {t(pending ? msg('Saving…') : msg('Save preferences'))}
         </button>
       </form>
     </SettingsSection>

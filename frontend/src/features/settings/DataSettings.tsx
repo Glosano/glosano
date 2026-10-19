@@ -6,7 +6,7 @@ import { getApiErrorKey } from '@/api/client'
 import { meApi } from '@/api/me'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { useLibraryStore } from '@/features/library/libraryStore'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
 import { buttonClass, FormMessage, inputClass, SettingsSection } from './shared'
 
@@ -75,26 +75,26 @@ export function DataSettings() {
 
   return (
     <div className="space-y-6">
-      <SettingsSection title={t('Экспорт данных')}>
+      <SettingsSection title={t('Export data')}>
         <p className="mb-5 text-sm text-muted-foreground">
           {t(
-            'Скачайте профиль, настройки, уроки, словарь, историю повторений и статистику в JSON.',
+            'Download your profile, preferences, lessons, vocabulary, review history and statistics as JSON.',
           )}
         </p>
         <button className={buttonClass} onClick={() => void download()} disabled={busy !== null}>
-          {t(busy === 'export' ? 'Подготовка файла…' : 'Скачать JSON')}
+          {t(busy === 'export' ? msg('Preparing download…') : msg('Download JSON'))}
         </button>
         <div className="mt-3">
           <FormMessage
             error={exportError && t(exportError)}
-            success={downloaded ? t('Файл подготовлен.') : ''}
+            success={downloaded ? t('Your download is ready.') : ''}
           />
         </div>
       </SettingsSection>
-      <SettingsSection title={t('Удалить аккаунт')}>
+      <SettingsSection title={t('Delete account')}>
         <p className="mb-5 text-sm text-muted-foreground">
           {t(
-            'Удаление необратимо. Будут удалены ваш профиль, собственные уроки, словарь и прогресс.',
+            'Deletion is permanent. Your profile, your own lessons, vocabulary and progress will be deleted.',
           )}
         </p>
         <button
@@ -102,7 +102,7 @@ export function DataSettings() {
           disabled={busy !== null}
           onClick={() => setStep(1)}
         >
-          {t('Удалить аккаунт')}
+          {t('Delete account')}
         </button>
       </SettingsSection>
       <Dialog
@@ -112,27 +112,31 @@ export function DataSettings() {
         }}
       >
         <DialogContent showCloseButton={busy !== 'delete'}>
-          <DialogTitle>{t(step === 2 ? 'Подтвердите удаление' : 'Удалить аккаунт')}</DialogTitle>
+          <DialogTitle>
+            {t(step === 2 ? msg('Confirm deletion') : msg('Delete account'))}
+          </DialogTitle>
           <DialogDescription>
             {t(
               step === 2
-                ? 'Введите пароль, чтобы окончательно удалить аккаунт.'
-                : 'Собственные опубликованные уроки тоже будут удалены. Уроки других пользователей и общий словарь останутся.',
+                ? msg('Enter your password to permanently delete your account.')
+                : msg(
+                    'Your own shared lessons will also be deleted. Other users’ lessons and the shared dictionary will remain.',
+                  ),
             )}
           </DialogDescription>
           {step === 1 ? (
             <div className="flex flex-wrap justify-end gap-3">
               <button className="rounded-lg px-3 py-2 text-sm" onClick={close}>
-                {t('Отмена')}
+                {t('Cancel')}
               </button>
               <button className={buttonClass} onClick={() => setStep(2)}>
-                {t('Продолжить удаление')}
+                {t('Continue with deletion')}
               </button>
             </div>
           ) : (
             <form noValidate onSubmit={(e) => void remove(e)} className="space-y-4">
               <label htmlFor="delete-password" className="block text-sm font-medium">
-                {t('Пароль')}
+                {t('Password')}
                 <input
                   id="delete-password"
                   className={inputClass}
@@ -153,13 +157,13 @@ export function DataSettings() {
                   onClick={close}
                   disabled={busy === 'delete'}
                 >
-                  {t('Отмена')}
+                  {t('Cancel')}
                 </button>
                 <button
                   className="rounded-lg bg-destructive px-4 py-2 text-sm text-white disabled:opacity-50"
                   disabled={!password || busy !== null}
                 >
-                  {t(busy === 'delete' ? 'Удаление…' : 'Удалить навсегда')}
+                  {t(busy === 'delete' ? msg('Deleting…') : msg('Delete permanently'))}
                 </button>
               </div>
             </form>

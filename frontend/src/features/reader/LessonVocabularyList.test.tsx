@@ -75,6 +75,7 @@ it('filters real snapshot rows by provenance and status', async () => {
   const { rerender } = renderList('added')
 
   const added = await screen.findByRole('list', { name: 'Добавленные слова' })
+  expect(screen.getByRole('tabpanel', { name: 'Добавленные слова' })).toBeInTheDocument()
   expect(within(added).getAllByRole('listitem')).toHaveLength(2)
   expect(within(added).getByText('ação')).toBeInTheDocument()
   expect(within(added).getByText('livro')).toBeInTheDocument()
@@ -97,6 +98,7 @@ it('filters real snapshot rows by provenance and status', async () => {
     </QueryClientProvider>,
   )
   const fresh = await screen.findByRole('list', { name: 'Новые слова' })
+  expect(screen.getByRole('tabpanel', { name: 'Новые слова' })).toBeInTheDocument()
   expect(within(fresh).getAllByRole('listitem')).toHaveLength(2)
   expect(within(fresh).getByText('Casa')).toBeInTheDocument()
   expect(within(fresh).getByText('rua')).toBeInTheDocument()
@@ -123,6 +125,7 @@ it('exposes bottom tabs and reports scroll position', async () => {
   )
 
   expect(await screen.findByRole('tab', { name: 'Все', selected: true })).toBeInTheDocument()
+  expect(screen.getByRole('tabpanel', { name: 'Все слова' })).toBeInTheDocument()
   const newTab = screen.getByRole('tab', { name: 'Новые' })
   fireEvent.keyDown(newTab, { key: 'Enter' })
   expect(onTabChange).toHaveBeenCalledWith('new')

@@ -1,4 +1,4 @@
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -114,7 +114,7 @@ export function useReviewSession(
       await invalidateVocabularyViews(queryClient)
       await queryClient.invalidateQueries({ queryKey: ['review-counts'] })
     },
-    onError: () => setAnswerError('Не удалось сохранить ответ'),
+    onError: () => setAnswerError(msg('Could not save your answer')),
     onSettled: () => {
       answeringRef.current = false
     },

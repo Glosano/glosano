@@ -229,7 +229,7 @@ export function WordCard({
     >
       <button
         type="button"
-        aria-label={closeLabel ?? tr('Закрыть')}
+        aria-label={closeLabel ?? tr('Close')}
         onClick={onClose}
         className="absolute right-3 top-3 rounded-md p-1 hover:bg-accent"
       >
@@ -247,7 +247,7 @@ export function WordCard({
         <>
           {kind === 'token' && lessonId && (
             <p className="mt-1 hidden text-xs text-muted-foreground [@media(hover:none)]:block">
-              {tr('Удерживайте слово и ведите пальцем, чтобы выделить фразу')}
+              {tr('Hold a word and drag to select a phrase')}
             </p>
           )}
           {data && (
@@ -273,7 +273,7 @@ export function WordCard({
                   className="text-primary underline disabled:opacity-50"
                   onClick={() => onAddToChat(false)}
                 >
-                  {tr('Добавить в чат')}
+                  {tr('Add to chat')}
                 </button>
                 <button
                   type="button"
@@ -281,12 +281,12 @@ export function WordCard({
                   className="underline disabled:opacity-50"
                   onClick={() => onAddToChat(true)}
                 >
-                  {tr('В новый разговор')}
+                  {tr('In a new conversation')}
                 </button>
               </div>
               {!canAddToChat && (
                 <p className="text-muted-foreground">
-                  {tr('Выделите фрагмент в тексте, чтобы приложить точную цитату.')}
+                  {tr('Select text in the lesson to attach an exact citation.')}
                 </p>
               )}
             </div>
@@ -295,7 +295,7 @@ export function WordCard({
           {!isIgnored && (
             <>
               {/* Saved translation */}
-              <label className="mt-4 block text-sm font-medium">{tr('Перевод')}</label>
+              <label className="mt-4 block text-sm font-medium">{tr('Translation')}</label>
               <TranslationFields
                 key={`${kind}:${text}:${target}`}
                 translations={variants}
@@ -333,12 +333,12 @@ export function WordCard({
                 {dict.data?.availability === 'not_installed' && (
                   <p className="mb-2 text-sm text-muted-foreground">
                     {tr(
-                      'Словарь для этой языковой пары не установлен. Можно добавить перевод вручную.',
+                      'The dictionary for this language pair is not installed. You can add a translation manually.',
                     )}
                   </p>
                 )}
                 {(visibleSuggestions.length > 0 || aiPending) && (
-                  <p className="text-sm font-medium">{tr('Подсказки')}</p>
+                  <p className="text-sm font-medium">{tr('Suggestions')}</p>
                 )}
                 <ul className="mt-1 space-y-1">
                   {aiPending && (
@@ -346,7 +346,7 @@ export function WordCard({
                       data-testid="word-card-ai-pending"
                       className="flex animate-pulse items-center rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
                     >
-                      {tr('Переводим…')}
+                      {tr('Translating…')}
                       <span aria-hidden="true" className="ml-2">
                         ✦
                       </span>
@@ -364,11 +364,11 @@ export function WordCard({
                           type="button"
                           aria-label={
                             sug.fromDictionary
-                              ? tr('Добавить перевод из {{value0}}: {{value1}}', {
+                              ? tr('Add translation from {{value0}}: {{value1}}', {
                                   value0: sourceLabel,
                                   value1: sug.text,
                                 })
-                              : tr('Добавить AI перевод: {{value0}}', { value0: sug.text })
+                              : tr('Add AI translation: {{value0}}', { value0: sug.text })
                           }
                           onClick={() => {
                             setSuggestionError(false)
@@ -406,12 +406,12 @@ export function WordCard({
                 </ul>
                 {suggestionError && (
                   <p role="alert" className="mt-2 text-sm text-destructive">
-                    {tr('Не удалось сохранить')}
+                    {tr('Could not save')}
                   </p>
                 )}
                 {showDictionaryAttribution && dict.data?.attribution && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {tr('Источник:')}{' '}
+                    {tr('Source:')}{' '}
                     {dict.data.attribution.url ? (
                       <a
                         href={dict.data.attribution.url}
@@ -434,9 +434,9 @@ export function WordCard({
                 )}
                 {ai.isError && !aiDisabled && (
                   <p className="mt-1 text-sm text-destructive">
-                    {tr('Не удалось получить AI-перевод')}{' '}
+                    {tr('Could not get an AI translation')}{' '}
                     <button type="button" onClick={() => void ai.refetch()} className="underline">
-                      {tr('Повторить')}
+                      {tr('Retry')}
                     </button>
                   </p>
                 )}
@@ -446,9 +446,9 @@ export function WordCard({
 
           {isIgnored && (
             <div data-testid="word-card-ignored" className="mt-4">
-              <p className="text-sm font-medium">{tr('Игнорируется')}</p>
+              <p className="text-sm font-medium">{tr('Ignored')}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {tr('Выберите уровень 1–4 или ✓, чтобы вернуть слово в изучение')}
+                {tr('Choose level 1–4 or ✓ to reactivate this word')}
               </p>
             </div>
           )}
@@ -456,7 +456,7 @@ export function WordCard({
           {expanded && !isIgnored && (
             <div data-testid="word-card-expanded" className="mt-4 space-y-4">
               <div>
-                <p className="text-sm font-medium">{tr('Заметки')}</p>
+                <p className="text-sm font-medium">{tr('Notes')}</p>
                 <textarea
                   className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
                   rows={3}
@@ -465,7 +465,7 @@ export function WordCard({
                   onBlur={() => void saveNote()}
                 />
                 {saveError && (
-                  <p className="mt-1 text-sm text-destructive">{tr('Не удалось сохранить')}</p>
+                  <p className="mt-1 text-sm text-destructive">{tr('Could not save')}</p>
                 )}
               </div>
             </div>
@@ -487,7 +487,7 @@ export function WordCard({
           {!isIgnored && (
             <button
               type="button"
-              aria-label={expanded ? tr('Свернуть') : tr('Развернуть')}
+              aria-label={expanded ? tr('Collapse') : tr('Expand')}
               onClick={() => setExpanded(!expanded)}
               className="mx-auto mt-2 flex rounded-md p-1 text-muted-foreground hover:bg-accent"
             >

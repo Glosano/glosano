@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { chatsApi, type Generation } from '@/api/chats'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { COMPACT_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 import { chatDrafts, useChatStore } from './chatStore'
 import { useChat } from './useChat'
@@ -86,12 +86,12 @@ export function ChatWorkspace({
   return (
     <section
       data-reader-panel
-      aria-label={t('AI-чат')}
+      aria-label={t('AI chat')}
       className={`relative flex min-h-0 bg-background ${embedded ? 'min-w-0 flex-1 flex-col overflow-hidden' : 'h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)]'}`}
     >
       {!embedded && listOpen && (
         <button
-          aria-label={t('Закрыть список разговоров')}
+          aria-label={t('Close conversation list')}
           onClick={toggleList}
           className="absolute inset-0 z-30 bg-black/10 md:hidden"
         />
@@ -112,7 +112,7 @@ export function ChatWorkspace({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* No visible title, as in ChatGPT (FLQ-32.10): the list shows which
             conversation is open; screen readers still get its name. */}
-        <h2 className="sr-only">{detail?.title ?? t('Новый разговор')}</h2>
+        <h2 className="sr-only">{detail?.title ?? t('New conversation')}</h2>
         {(compact || embedded || onReturn) && (
           <header className="flex h-[52px] shrink-0 items-center justify-between gap-2 px-1.5">
             <div className="flex items-center">
@@ -129,8 +129,8 @@ export function ChatWorkspace({
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label={t('Закрыть чат')}
-                  title={t('Закрыть чат')}
+                  aria-label={t('Close chat')}
+                  title={t('Close chat')}
                   onClick={onReturn}
                 >
                   <X aria-hidden="true" />
@@ -164,13 +164,13 @@ export function ChatWorkspace({
           <div data-chat-column className={CHAT_COLUMN_CLASS}>
             {!id && (
               <p className="mx-auto max-w-xl py-6 text-center text-sm text-muted-foreground">
-                {t('Нажмите плюс слева от абзаца, чтобы добавить цитату, и задайте вопрос.')}
+                {t('Click the plus to the left of a paragraph to quote it, then ask a question.')}
               </p>
             )}
-            {id && history.isLoading && <p>{t('Загрузка…')}</p>}
+            {id && history.isLoading && <p>{t('Loading…')}</p>}
             {history.isError && (
               <Button variant="outline" onClick={() => void history.refetch()}>
-                {t('Повторить загрузку')}
+                {t('Retry loading')}
               </Button>
             )}
             {history.hasNextPage && (
@@ -182,7 +182,7 @@ export function ChatWorkspace({
                   void history.fetchNextPage()
                 }}
               >
-                {t('Предыдущие сообщения')}
+                {t('Earlier messages')}
               </Button>
             )}
             <ChatTranscript
@@ -212,7 +212,7 @@ export function ChatWorkspace({
             />
             {generations.some((g) => g.context_truncated) && (
               <p className="my-3 text-sm text-muted-foreground">
-                {t('Часть ранней истории не вошла в контекст ответа.')}
+                {t('Some earlier history was omitted from the response context.')}
               </p>
             )}
             {generations
@@ -225,13 +225,13 @@ export function ChatWorkspace({
                   <p>
                     {t(
                       g.status === 'cancelled'
-                        ? 'Ответ остановлен'
+                        ? msg('Response cancelled')
                         : g.status === 'interrupted'
-                          ? 'Ответ прерван'
-                          : 'Не удалось получить ответ',
+                          ? msg('Response interrupted')
+                          : msg('Response failed'),
                     )}
                     {g.error_code === 'context_limit'
-                      ? `: ${t('Контекст слишком большой. Сократите сообщение или уберите цитаты.')}`
+                      ? `: ${t('The context is too large. Shorten the message or remove citations.')}`
                       : ''}
                   </p>
                   <Button
@@ -240,7 +240,7 @@ export function ChatWorkspace({
                     disabled={!aiEnabled || !!active || acting}
                     onClick={() => void command(g, false)}
                   >
-                    {t('Повторить ответ')}
+                    {t('Retry response')}
                   </Button>
                 </div>
               ))}
@@ -249,16 +249,16 @@ export function ChatWorkspace({
         {/* The stop control lives in the composer; the state stays announced. */}
         {active && (
           <p role="status" className="sr-only">
-            {t(active.status === 'queued' ? 'В очереди' : 'Формируем ответ…')}
+            {t(active.status === 'queued' ? msg('Queued') : msg('Generating…'))}
           </p>
         )}
         {error && (
           <p role="alert" className="px-3 text-sm">
-            {t('Не удалось выполнить запрос. Попробуйте ещё раз.')}
+            {t('The request failed. Please try again.')}
           </p>
         )}
         {capabilities.isError && (
-          <button onClick={() => void capabilities.refetch()}>{t('Повторить загрузку')}</button>
+          <button onClick={() => void capabilities.refetch()}>{t('Retry loading')}</button>
         )}
         <div data-chat-composer className="min-h-0 max-h-[55%] shrink-0 overflow-y-auto">
           <ChatComposer

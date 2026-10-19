@@ -79,7 +79,7 @@ export function LessonVocabularyRow({
           <button
             type="button"
             data-vocabulary-action="add"
-            aria-label={tr('Добавить {{value0}} в изучение', { value0: item.display_text })}
+            aria-label={tr('Add {{value0}} to study', { value0: item.display_text })}
             disabled={pending}
             onClick={() => void apply({ action: 'add', status: 'tracked', confidence: 1 })}
             className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-accent disabled:opacity-50"
@@ -95,7 +95,7 @@ export function LessonVocabularyRow({
               <button
                 type="button"
                 data-vocabulary-action="confidence"
-                aria-label={tr('Изменить уровень {{value0}}, текущий {{value1}}', { value0: item.display_text, value1: item.confidence ?? '—' })}
+                aria-label={tr('Change level for {{value0}}, currently {{value1}}', { value0: item.display_text, value1: item.confidence ?? '—' })}
                 disabled={pending}
                 className="flex min-h-11 min-w-11 items-center justify-center rounded-full"
               >
@@ -128,7 +128,7 @@ export function LessonVocabularyRow({
         {item.status === 'known' && (
           <span
             role="img"
-            aria-label={tr('Известно')}
+            aria-label={tr('Known', { context: 'status' })}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--vocab-known-bg)] text-white"
           >
             <Check className="h-4 w-4" />
@@ -137,7 +137,7 @@ export function LessonVocabularyRow({
         {item.status === 'ignored' && (
           <span
             role="img"
-            aria-label={tr('Игнорируется')}
+            aria-label={tr('Ignored')}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground"
           >
             <CircleSlash2 className="h-4 w-4" />
@@ -148,7 +148,7 @@ export function LessonVocabularyRow({
       <button
         type="button"
         data-vocabulary-action="open"
-        aria-label={tr('Открыть карточку {{value0}}', { value0: item.display_text })}
+        aria-label={tr('Open card for {{value0}}', { value0: item.display_text })}
         disabled={pending}
         onClick={() => onOpen(item)}
         className="min-w-0 border-b border-border py-3 text-left disabled:opacity-60"
@@ -166,12 +166,12 @@ export function LessonVocabularyRow({
                 {item.primary_translation.text}
               </>
             ) : (
-              tr('Без перевода')
+              tr('No translation')
             )}
           </span>
         )}
         {item.context === null && (
-          <span className="mt-1 block text-xs text-muted-foreground">{tr('Нет в текущем тексте')}</span>
+          <span className="mt-1 block text-xs text-muted-foreground">{tr('Not in the current text')}</span>
         )}
       </button>
 
@@ -181,22 +181,22 @@ export function LessonVocabularyRow({
             <button
               type="button"
               data-vocabulary-action="known"
-              aria-label={tr('Отметить {{value0}} как известное', { value0: item.display_text })}
+              aria-label={tr('Mark {{value0}} as known', { value0: item.display_text })}
               disabled={pending}
               onClick={() => void apply({ action: 'known', status: 'known', confidence: null })}
               className="min-h-11 rounded-md px-2 text-xs font-medium hover:bg-accent disabled:opacity-50"
             >
-              {tr('Знаю')}
+              {tr('I know this')}
             </button>
             <button
               type="button"
               data-vocabulary-action="ignore"
-              aria-label={tr('Игнорировать {{value0}}', { value0: item.display_text })}
+              aria-label={tr('Ignore {{value0}}', { value0: item.display_text })}
               disabled={pending}
               onClick={() => void apply({ action: 'ignore', status: 'ignored', confidence: null })}
               className="min-h-11 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50"
             >
-              {tr('Игнорировать')}
+              {tr('Ignore')}
             </button>
           </>
         )}
@@ -207,14 +207,14 @@ export function LessonVocabularyRow({
           role="alert"
           className="col-span-3 flex items-center justify-between pb-2 text-sm text-destructive"
         >
-          <span>{tr('Не удалось сохранить')}</span>
+          <span>{tr('Could not save')}</span>
           <button
             type="button"
             disabled={pending}
             onClick={() => void apply(failedAttempt)}
             className="rounded px-2 py-1 underline disabled:opacity-50"
           >
-            {tr('Повторить')}
+            {tr('Retry')}
           </button>
         </div>
       )}

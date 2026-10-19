@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { PanelRight, X } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 
@@ -26,9 +26,9 @@ const SIZE_OPTIONS = [
 ]
 
 const LINE_HEIGHT_OPTIONS = [
-  { label: 'Компактно', lineHeight: 0 as const },
-  { label: 'Обычно', lineHeight: 1 as const },
-  { label: 'Просторно', lineHeight: 2 as const },
+  { label: msg('Compact'), lineHeight: 0 as const },
+  { label: msg('Normal'), lineHeight: 1 as const },
+  { label: msg('Spacious'), lineHeight: 2 as const },
 ]
 
 export function ReaderTopBar({
@@ -46,7 +46,7 @@ export function ReaderTopBar({
     <div className="flex h-14 items-center gap-4 border-b border-border">
       <button
         type="button"
-        aria-label={tr('Закрыть')}
+        aria-label={tr('Close')}
         onClick={() => {
           void navigate({ to: '/learn/$lang/library', params: { lang } })
         }}
@@ -108,7 +108,7 @@ export function ReaderTopBar({
             }}
             className={cn(font.serif && 'bg-accent')}
           >
-            {tr('С засечками')}
+            {tr('Serif')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -116,7 +116,7 @@ export function ReaderTopBar({
       <button
         type="button"
         aria-label={
-          vocabularyPanelPinned ? tr('Скрыть словарь урока') : tr('Показать словарь урока')
+          vocabularyPanelPinned ? tr('Hide lesson vocabulary') : tr('Show lesson vocabulary')
         }
         aria-expanded={vocabularyPanelPinned}
         aria-controls="lesson-vocabulary-panel"

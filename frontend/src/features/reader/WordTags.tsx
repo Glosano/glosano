@@ -161,7 +161,7 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
               {tag}
             </span>
             {aiNames.has(tag) && (
-              <span className="text-[10px] text-muted-foreground" aria-label={tr('Создано AI')}>
+              <span className="text-[10px] text-muted-foreground" aria-label={tr('AI-generated')}>
                 AI
               </span>
             )}
@@ -169,7 +169,7 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
               <button
                 type="button"
                 disabled={busy}
-                aria-label={tr('Удалить тег: {{value0}}', { value0: tag })}
+                aria-label={tr('Remove tag: {{value0}}', { value0: tag })}
                 onClick={() => void remove(tag)}
                 className="rounded p-0.5 text-muted-foreground hover:bg-accent disabled:opacity-50"
               >
@@ -183,7 +183,7 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
           onClick={() => setAdding(true)}
           className="px-1 py-0.5 text-xs underline underline-offset-2"
         >
-          {tr('Тег+')}
+          {tr('Tag+')}
         </button>
         {tags.length > 0 && (
           <button
@@ -191,7 +191,7 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
             onClick={() => setEditing(!editing)}
             className="px-1 py-0.5 text-xs text-muted-foreground underline underline-offset-2"
           >
-            {editing ? tr('Готово') : tr('Изменить теги')}
+            {editing ? tr('Done') : tr('Edit tags')}
           </button>
         )}
         {kind === 'token' && !aiDisabled && (!isNew || ai.isError) && (
@@ -201,7 +201,7 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
             onClick={() => void generate()}
             className="px-1 py-0.5 text-xs text-muted-foreground underline underline-offset-2 disabled:opacity-50"
           >
-            {tr('Получить AI-теги')}
+            {tr('Get AI tags')}
           </button>
         )}
       </div>
@@ -215,8 +215,8 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
         >
           <input
             autoFocus
-            aria-label={tr('Новый тег')}
-            placeholder={tr('Тег+')}
+            aria-label={tr('New tag')}
+            placeholder={tr('Tag+')}
             maxLength={64}
             disabled={busy}
             value={draft}
@@ -238,26 +238,26 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
             disabled={busy || !draft.trim()}
             className="text-xs text-primary disabled:opacity-50"
           >
-            {tr('Добавить тег')}
+            {tr('Add tag')}
           </button>
         </form>
       )}
       {ai.isFetching && (
         <p role="status" className="text-xs text-muted-foreground">
-          {tr('Определяем грамматику…')}
+          {tr('Analyzing grammar…')}
         </p>
       )}
       {ai.isError && !aiDisabled && (
-        <p className="text-xs text-muted-foreground">{tr('Не удалось получить AI-теги')}</p>
+        <p className="text-xs text-muted-foreground">{tr('Could not get AI tags')}</p>
       )}
       {ai.isSuccess && ai.data.tags.length === 0 && (
         <p className="text-xs text-muted-foreground">
-          {tr('AI не определил теги. Можно добавить вручную.')}
+          {tr('AI could not determine tags. You can add them manually.')}
         </p>
       )}
       {saveError && (
         <p role="alert" className="text-xs text-destructive">
-          {tr('Не удалось сохранить теги')}
+          {tr('Could not save tags')}
           {retrySave.current && (
             <button
               type="button"
@@ -274,7 +274,7 @@ export function WordTags({ ref, data, kind, text, lang, context, lessonId, ensur
                     .catch(() => setSaveError(true))
               }}
             >
-              {tr('Повторить сохранение тегов')}
+              {tr('Retry saving tags')}
             </button>
           )}
         </p>

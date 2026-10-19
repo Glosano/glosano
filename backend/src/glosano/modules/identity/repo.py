@@ -27,13 +27,14 @@ class UserRepo:
         password_hash: str,
         display_name: str,
         role: str = "learner",
+        ui_language_code: str = "en",
     ) -> User:
         user = User(
             email=email.lower().strip(),
             password_hash=password_hash,
             role=role,
         )
-        user.profile = UserProfile(display_name=display_name)
+        user.profile = UserProfile(display_name=display_name, ui_language_code=ui_language_code)
         user.settings = UserSettings(preferred_translation_language_code="en")
         self.session.add(user)
         await self.session.flush()

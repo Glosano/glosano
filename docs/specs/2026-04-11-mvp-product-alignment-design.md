@@ -34,7 +34,7 @@
 | 18 | Streak | Вне MVP | отказ от рекомендации |
 | 19 | Метрики MVP | Прочитанные токены, счётчик `tracked`, счётчик `known`, счётчик `ignored` (вспомогательный) | **зауже** |
 | 20 | Языки изучения | EN, RU, PT, ES, FR, DE, ZH-Hans, JA, AR, HI | расширено ADR-0012 |
-| 21 | Язык UI | EN, RU | совпадает |
+| 21 | Язык UI | EN, RU, PT, ES, FR, DE, ZH-Hans, JA, HI (арабский как язык UI исключён) | расширено ADR-0032 |
 | 22 | LLM-провайдер | OpenAI-compatible adapter (покрывает облачные и локальные бэкенды) | → ADR-0003 |
 | 23 | Словарь | Wiktionary dump (CC-BY-SA) + provider interface | → ADR-0004 |
 | 24 | Privacy MVP | JSON export, hard-delete профиля, admin kill-switch на внешний AI | совпадает |
@@ -142,7 +142,7 @@
 ### 10.1 Поддерживаемые языки
 
 - **Языки изучения:** EN, RU, PT, ES, FR, DE, ZH-Hans (китайский упрощённый), JA, AR, HI. Первоначальное ограничение EN/RU/PT заменено [ADR-0012](../adr/ADR-0012-ten-learning-languages.md), расширение явно согласовано в FLQ-25.
-- **Язык UI:** EN, RU.
+- **Язык UI:** EN, RU, PT, ES, FR, DE, ZH-Hans, JA, HI; арабский намеренно не входит в языки UI (остаётся языком изучения и перевода). Расширено [ADR-0032](../adr/ADR-0032-nine-ui-languages.md).
 - **Язык перевода:** любой изучаемый может использоваться как язык перевода, так что пары — EN↔RU, EN↔PT, RU↔PT.
 
 Новые языки добавляются без переработки ядра, но Wiktionary dump и AI prompt templates нужно подготавливать для каждой пары отдельно.
@@ -183,6 +183,7 @@
 - `docs/adr/ADR-0007-url-and-routing.md` — path-схема `/learn/:lang/...`, query только для major tabs, остальное client-state.
 - `docs/adr/ADR-0008-auth-model.md` — email + password, argon2id, server-side sessions в Postgres, CSRF double-submit, CLI-only forgot password, env-bootstrap admin.
 - `docs/adr/ADR-0009-frontend-ui-kit.md` — shadcn/ui поверх Radix + Tailwind v4, two-level design tokens (oklch base + Tailwind theme mapping), light mode only в MVP.
+- `docs/adr/ADR-0032-nine-ui-languages.md` — девять языков интерфейса (EN, RU, PT, ES, FR, DE, ZH-Hans, JA, HI), английский как исходный язык ключей; арабский не входит в языки UI. Уточняет ADR-0012 и ADR-0030.
 
 ## 13. Non-goals MVP (для явной фиксации)
 

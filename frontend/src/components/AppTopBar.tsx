@@ -32,7 +32,7 @@ export function AppTopBar() {
             className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
-            {t('Библиотека')}
+            {t('Library')}
           </Link>
           <Link
             to="/learn/$lang/vocabulary"
@@ -42,7 +42,7 @@ export function AppTopBar() {
             className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium text-foreground hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
-            {t('Словарь')}
+            {t('Vocabulary')}
           </Link>
           <Link
             to="/learn/$lang/chat"
@@ -50,7 +50,7 @@ export function AppTopBar() {
             className="rounded-md px-2 py-1.5 md:px-3 text-sm font-medium hover:bg-accent [&.active]:border-b-2 [&.active]:border-primary"
             activeProps={{ className: 'active' }}
           >
-            {t('Чат')}
+            {t('Chat')}
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-1 md:gap-3">

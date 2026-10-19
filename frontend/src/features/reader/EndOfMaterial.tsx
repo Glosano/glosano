@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link } from '@tanstack/react-router'
 
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 
 interface Props {
   lang: string
@@ -44,16 +44,16 @@ export function EndOfMaterial({
       className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 text-center"
     >
       <h2 ref={heading} tabIndex={-1} className="text-2xl font-semibold outline-none">
-        {tr(completed ? 'Материал завершён' : 'Вы всё прочитали')}
+        {tr(completed ? msg('Material completed') : msg('You have read everything'))}
       </h2>
       {!completed && showNewWordsNote && (
         <p className="text-muted-foreground">
-          {tr('Новые слова последней страницы будут отмечены как известные')}
+          {tr('New words on the last page will be marked as known')}
         </p>
       )}
       {error && (
         <p role="alert" className="text-destructive">
-          {tr('Не удалось завершить материал. Попробуйте ещё раз.')}
+          {tr('Could not complete the material. Please try again.')}
         </p>
       )}
       <div className="flex flex-wrap justify-center gap-3">
@@ -61,7 +61,7 @@ export function EndOfMaterial({
           <>
             <Button asChild>
               <Link to="/learn/$lang/library" params={{ lang }}>
-                {tr('В библиотеку')}
+                {tr('Back to library')}
               </Link>
             </Button>
             <Button asChild variant="outline">
@@ -70,17 +70,17 @@ export function EndOfMaterial({
                 params={{ lang }}
                 search={{ lessonId, mode: 'cards', from: 'completion' }}
               >
-                {tr('Повторить лексику урока')}
+                {tr('Review lesson vocabulary')}
               </Link>
             </Button>
           </>
         ) : (
           <Button disabled={busy} onClick={onFinish}>
-            {tr('Завершить материал')}
+            {tr('Finish material')}
           </Button>
         )}
         <Button variant="ghost" onClick={onBack}>
-          {tr('Вернуться к тексту')}
+          {tr('Back to the text')}
         </Button>
       </div>
     </section>

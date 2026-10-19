@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export function RegisterForm() {
-  const t = useTranslation()
+  const { language, t } = useI18n()
   const navigate = useNavigate()
   const setUser = useUserStore((s) => s.setUser)
   const [displayName, setDisplayName] = useState('')
@@ -23,34 +23,41 @@ export function RegisterForm() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!displayName.trim() || [...displayName.trim()].length > 80) {
-      setError('Введите имя от 1 до 80 символов.')
+      setError(msg('Enter a display name of 1 to 80 characters.'))
       return
     }
     const emailInput = e.currentTarget.querySelector<HTMLInputElement>('[type="email"]')
     if (!email.trim() || emailInput?.validity.typeMismatch) {
-      setError('Введите корректный адрес электронной почты.')
+      setError(msg('Enter a valid email address.'))
       return
     }
     if ([...password].length < 10 || [...password].length > 128) {
-      setError('Пароль должен содержать от 10 до 128 символов.')
+      setError(msg('Password must contain 10 to 128 characters.'))
       return
     }
     setSubmitting(true)
     setError(null)
     try {
-      await authApi.register({ display_name: displayName, email, password })
+      await authApi.register({
+        display_name: displayName,
+        email,
+        password,
+        ui_language: language,
+      })
       const me = await meApi.get()
       setUser(me)
       await navigate({ to: '/onboarding' })
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 409) setError('Этот email уже используется')
-        else if (err.status === 403) setError('Регистрация закрыта администратором')
-        else if (err.status === 422) setError('Минимум 10 символов в пароле')
-        else if (err.status === 429) setError('Слишком много попыток. Попробуйте позже.')
-        else setError('Не удалось зарегистрироваться')
+        if (err.status === 409) setError(msg('This email is already in use'))
+        else if (err.status === 403)
+          setError(msg('Registration has been disabled by the administrator'))
+        else if (err.status === 422)
+          setError(msg('The password must contain at least 10 characters'))
+        else if (err.status === 429) setError(msg('Too many attempts. Try again later.'))
+        else setError(msg('Could not create your account'))
       } else {
-        setError('Не удалось зарегистрироваться')
+        setError(msg('Could not create your account'))
       }
     } finally {
       setSubmitting(false)
@@ -59,9 +66,9 @@ export function RegisterForm() {
 
   return (
     <form noValidate onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-      <h1 className="text-3xl font-semibold text-center">{t('Регистрация')}</h1>
+      <h1 className="text-3xl font-semibold text-center">{t('Sign up', { context: 'title' })}</h1>
       <div className="space-y-2">
-        <Label htmlFor="name">{t('Имя')}</Label>
+        <Label htmlFor="name">{t('Display name')}</Label>
         <Input
           id="name"
           autoComplete="name"
@@ -74,7 +81,7 @@ export function RegisterForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">{t('Электронная почта')}</Label>
+        <Label htmlFor="email">{t('Email', { context: 'auth' })}</Label>
         <Input
           id="email"
           type="email"
@@ -87,7 +94,7 @@ export function RegisterForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">{t('Пароль')}</Label>
+        <Label htmlFor="password">{t('Password')}</Label>
         <Input
           id="password"
           type="password"
@@ -99,7 +106,7 @@ export function RegisterForm() {
             setPassword(e.target.value)
           }}
         />
-        <p className="text-xs text-muted-foreground">{t('мин 10 символов')}</p>
+        <p className="text-xs text-muted-foreground">{t('At least 10 characters')}</p>
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -107,12 +114,12 @@ export function RegisterForm() {
         </p>
       )}
       <Button type="submit" className="w-full" disabled={submitting}>
-        {t('Создать аккаунт')}
+        {t('Create account')}
       </Button>
       <p className="text-sm text-center text-muted-foreground">
-        {t('Уже есть аккаунт?')}{' '}
+        {t('Already have an account?')}{' '}
         <Link to="/login" className="text-primary hover:underline">
-          {t('Войти')}
+          {t('Log in', { context: 'link' })}
         </Link>
       </p>
     </form>

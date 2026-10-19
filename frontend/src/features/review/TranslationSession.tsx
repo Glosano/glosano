@@ -1,5 +1,5 @@
 import { exerciseErrorKey } from './exerciseError'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { learningLanguageLabel } from '@/lib/languages'
 import { useEffect, useId, useState } from 'react'
@@ -9,7 +9,7 @@ import { reviewApi, type ReviewItemKind } from '@/api/review'
 import { LessonEmptyState, SessionShell } from './sessionUi'
 import { sessionSubtitle } from './sessionSubtitle'
 
-const SUBTITLE = 'Практика перевода'
+const SUBTITLE = msg('Translation practice')
 
 interface TranslationTaskExercise {
   sentence_translation: string
@@ -124,9 +124,9 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
     return (
       <SessionShell
         subtitle={subtitle}
-        intro={t('Дополнительная практика — без изменения расписания.')}
+        intro={t('Extra practice — your review schedule stays the same.')}
       >
-        {t('Загрузка…')}
+        {t('Loading…')}
       </SessionShell>
     )
   }
@@ -134,11 +134,11 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
     return (
       <SessionShell
         subtitle={subtitle}
-        intro={t('Дополнительная практика — без изменения расписания.')}
+        intro={t('Extra practice — your review schedule stays the same.')}
       >
-        <p className="text-destructive">{t('Не удалось загрузить очередь')}</p>
+        <p className="text-destructive">{t('Could not load the review queue')}</p>
         <button type="button" className="mt-2 underline" onClick={() => void queue.refetch()}>
-          {t('Повторить')}
+          {t('Retry')}
         </button>
       </SessionShell>
     )
@@ -148,7 +148,7 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
       return (
         <SessionShell
           subtitle={subtitle}
-          intro={t('Дополнительная практика — без изменения расписания.')}
+          intro={t('Extra practice — your review schedule stays the same.')}
         >
           <LessonEmptyState lang={lang} />
         </SessionShell>
@@ -157,9 +157,9 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
     return (
       <SessionShell
         subtitle={subtitle}
-        intro={t('Дополнительная практика — без изменения расписания.')}
+        intro={t('Extra practice — your review schedule stays the same.')}
       >
-        <p className="text-lg font-medium">{t('Нет предложений для практики')}</p>
+        <p className="text-lg font-medium">{t('No sentences available to practice')}</p>
       </SessionShell>
     )
   }
@@ -167,18 +167,18 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
     return (
       <SessionShell
         subtitle={subtitle}
-        intro={t('Дополнительная практика — без изменения расписания.')}
+        intro={t('Extra practice — your review schedule stays the same.')}
       >
-        <p className="text-lg font-medium">{t('Практика завершена')}</p>
+        <p className="text-lg font-medium">{t('Practice complete')}</p>
         <p className="mt-3">
-          {t('Попыток: {{count}} · Пропущено: {{skipped}} · Осталось: {{remaining}}', {
-            count: checkedCount,
+          {t('Attempts: {{count}} · Skipped: {{skipped}} · Remaining: {{remaining}}', {
+            count: String(checkedCount),
             skipped,
             remaining: total - checkedCount - skipped,
           })}
         </p>
         <button type="button" className="mt-3 underline" onClick={restart}>
-          {t('Ещё раз')}
+          {t('Try again', { context: 'review' })}
         </button>
       </SessionShell>
     )
@@ -187,26 +187,26 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
   return (
     <SessionShell
       subtitle={subtitle}
-      intro={t('Дополнительная практика — без изменения расписания.')}
+      intro={t('Extra practice — your review schedule stays the same.')}
       idx={idx}
       total={total}
       finish={() => setFinished(true)}
       busy={feedbackMutation.isPending}
     >
       <div className="min-h-56 w-full rounded-lg border border-border bg-card p-6 shadow-sm">
-        <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
+        <p className="mb-3 text-xs text-muted-foreground">{t('AI-generated example')}</p>
         {exercise.isPending && (
-          <p className="text-center text-sm text-muted-foreground">{t('Готовим предложение…')}</p>
+          <p className="text-center text-sm text-muted-foreground">{t('Preparing a sentence…')}</p>
         )}
         {exercise.isError && (
           <div className="text-center">
             <p className="text-sm text-destructive">{t(exerciseErrorKey(exercise.error))}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
-                {t('Повторить')}
+                {t('Retry')}
               </button>
               <button type="button" className="underline" onClick={next}>
-                {t('Пропустить')}
+                {t('Skip')}
               </button>
             </div>
           </div>
@@ -217,15 +217,12 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
             {feedback === null ? (
               <>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {t('Переведите предложение на {{language}}.', {
-                    language:
-                      language === 'ru'
-                        ? learningLanguageLabel(lang, language).toLocaleLowerCase('ru')
-                        : learningLanguageLabel(lang, language),
+                  {t('Translate the sentence into: {{language}}.', {
+                    language: learningLanguageLabel(lang, language),
                   })}
                 </p>
                 <textarea
-                  aria-label={t('Ваш перевод')}
+                  aria-label={t('Your translation')}
                   className="mt-4 w-full rounded-md border border-border p-2 text-sm"
                   value={userText}
                   onChange={(e) => setUserText(e.target.value)}
@@ -233,7 +230,7 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
                 />
                 {feedbackMutation.isError && (
                   <p className="mt-2 text-center text-sm text-destructive">
-                    {t('Не удалось получить обратную связь')}
+                    {t('Could not get feedback')}
                   </p>
                 )}
                 <button
@@ -242,15 +239,15 @@ function TranslationSessionContent({ lang, lessonId, itemKind }: TranslationSess
                   disabled={feedbackMutation.isPending || userText.trim().length === 0}
                   onClick={() => feedbackMutation.mutate()}
                 >
-                  {t('Проверить')}
+                  {t('Check answer', { context: 'review' })}
                 </button>
               </>
             ) : (
               <>
-                <p className="mt-4 text-xs text-muted-foreground">{t('AI-проверка')}</p>
+                <p className="mt-4 text-xs text-muted-foreground">{t('AI feedback')}</p>
                 <p className="mt-1 text-center text-sm">{feedback}</p>
                 <button type="button" className="mt-3 underline" onClick={next}>
-                  {t('Дальше')}
+                  {t('Next', { context: 'review' })}
                 </button>
               </>
             )}

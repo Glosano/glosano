@@ -38,7 +38,7 @@ export function InlineSentenceTranslation({ lessonId, segId, targetLang }: Props
         data-testid="sentence-translation-toggle"
         aria-expanded={open}
         aria-busy={loading || undefined}
-        aria-label={open ? tr('Скрыть перевод предложения') : tr('Показать перевод предложения')}
+        aria-label={open ? tr('Hide sentence translation') : tr('Show sentence translation')}
         onClick={(e) => {
           e.stopPropagation()
           toggle()

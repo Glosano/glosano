@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { copyText } from '@/lib/copyText'
-import { useTranslation } from '@/lib/i18n'
+import { intlLocale, useI18n, msg } from '@/lib/i18n'
 
 const COPIED_MS = 1500
 
@@ -19,15 +19,15 @@ export function ChatMessageActions({
   text: string
   createdAt: string
 }) {
-  const t = useTranslation()
+  const { language, t } = useI18n()
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     if (!copied) return
     const timer = window.setTimeout(() => setCopied(false), COPIED_MS)
     return () => window.clearTimeout(timer)
   }, [copied])
-  const when = new Date(createdAt).toLocaleString()
-  const label = t(copied ? 'Скопировано' : 'Копировать')
+  const when = new Date(createdAt).toLocaleString(intlLocale(language))
+  const label = t(copied ? msg('Copied') : msg('Copy'))
   return (
     <div
       title={when}
@@ -47,7 +47,7 @@ export function ChatMessageActions({
       >
         {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
       </Button>
-      {role === 'assistant' && <span>{t('Создано AI')}</span>}
+      {role === 'assistant' && <span>{t('AI-generated')}</span>}
       <time dateTime={createdAt} className="sr-only">
         {when}
       </time>

@@ -1,9 +1,12 @@
+import type { UiLanguage } from '@/lib/uiLanguages'
+
 import { api } from './client'
 
 export interface RegisterPayload {
   display_name: string
   email: string
   password: string
+  ui_language?: UiLanguage
 }
 
 export interface LoginPayload {

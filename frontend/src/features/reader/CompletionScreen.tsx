@@ -6,7 +6,7 @@ import { Check, ArrowLeft, BookOpen } from 'lucide-react'
 import { readerApi } from '@/api/reader'
 import { ApiError } from '@/api/client'
 import { Button } from '@/components/ui/button'
-import { useI18n } from '@/lib/i18n'
+import { intlLocale, useI18n } from '@/lib/i18n'
 
 interface Props {
   lessonId: string
@@ -48,7 +48,7 @@ export function CompletionScreen({
   }, [actionId, statusRef])
   const changed = error instanceof ApiError && (error.status === 409 || error.status === 404)
   const summary = data?.summary
-  const number = (value: number) => new Intl.NumberFormat(language).format(value)
+  const number = (value: number) => new Intl.NumberFormat(intlLocale(language)).format(value)
 
   return (
     <section data-testid="completion-screen" className="mx-auto max-w-3xl px-5 py-10 sm:py-16">
@@ -62,22 +62,22 @@ export function CompletionScreen({
           <Check aria-hidden="true" className="size-7" />
         </div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          {t('Материал завершён')}
+          {t('Material completed')}
         </h1>
         <p className="mt-2 break-words text-muted-foreground">{title}</p>
       </div>
 
       {isPending && (
         <p role="status" className="my-10 text-center text-muted-foreground">
-          {t('Загрузка итогов…')}
+          {t('Loading results…')}
         </p>
       )}
       {isError && (
         <div role="alert" className="my-8 rounded-xl border border-border p-5 text-center">
           <p>
             {changed
-              ? t('Завершение изменилось в другой вкладке. Обновите материал.')
-              : t('Не удалось загрузить итоги. Завершение материала сохранено.')}
+              ? t('Completion changed in another tab. Refresh this material.')
+              : t('Could not load results. Your completion has been saved.')}
           </p>
           <Button
             variant="outline"
@@ -87,21 +87,23 @@ export function CompletionScreen({
               else void refetch()
             }}
           >
-            {changed ? t('Обновить материал') : t('Повторить загрузку')}
+            {changed ? t('Refresh material') : t('Retry loading')}
           </Button>
         </div>
       )}
       {data && !summary && (
         <p className="my-10 text-center text-muted-foreground">
-          {t('Этот материал завершён до появления итогов. Снимок статистики не сохранён.')}
+          {t(
+            'This material was completed before results were available. No statistics snapshot was saved.',
+          )}
         </p>
       )}
       {summary && (
         <div className="my-8 space-y-6">
           <dl className="grid grid-cols-2 gap-3">
             {[
-              [t('Слов в тексте'), summary.total_words],
-              [t('Уникальных слов'), summary.unique_words],
+              [t('Words in the text'), summary.total_words],
+              [t('Unique words'), summary.unique_words],
             ].map(([label, value]) => (
               <div key={label} className="rounded-xl border border-border bg-card p-5">
                 <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -112,16 +114,16 @@ export function CompletionScreen({
             ))}
           </dl>
           <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="font-medium">{t('Слова перед завершением')}</h2>
+            <h2 className="font-medium">{t('Words before completion')}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t('Уникальные словоформы до обработки последней страницы или предложения.')}
+              {t('Unique word forms before processing the final page or sentence.')}
             </p>
             <dl className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
               {[
-                [t('Известных'), summary.known_words],
-                [t('Новых'), summary.new_words],
-                [t('На изучении'), summary.tracked_words],
-                [t('Игнорируемых'), summary.ignored_words],
+                [t('Known', { context: 'completion' }), summary.known_words],
+                [t('New', { context: 'completion' }), summary.new_words],
+                [t('Studying', { context: 'completion' }), summary.tracked_words],
+                [t('Ignored', { context: 'completion' }), summary.ignored_words],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -132,7 +134,7 @@ export function CompletionScreen({
               ))}
             </dl>
             <p className="mt-5 border-t border-border pt-4 text-sm text-muted-foreground">
-              {t('При завершении отмечено известными: {{count}}', {
+              {t('Marked as known on completion: {{count}}', {
                 count: number(summary.marked_known_words),
               })}
             </p>
@@ -140,42 +142,42 @@ export function CompletionScreen({
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-border bg-card p-5">
               <dt className="text-sm text-muted-foreground">
-                {t('Добавлено на изучение из материала')}
+                {t('Added to study from this material')}
               </dt>
               <dd className="mt-2 text-xl font-semibold tabular-nums">
-                {t('Слов: {{words}} · Фраз: {{phrases}}', {
+                {t('Words: {{words}} · Phrases: {{phrases}}', {
                   words: number(summary.added_words),
                   phrases: number(summary.added_phrases),
                 })}
               </dd>
               <p className="mt-2 text-xs text-muted-foreground">
                 {t(
-                  'Сохранённые слова и фразы, впервые взятые на изучение здесь. Автоматическая отметка «известно» не считается добавлением.',
+                  'Saved entries first added to study here. Automatically marked known words are excluded.',
                 )}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-5">
-              <dt className="text-sm text-muted-foreground">{t('Дней чтения')}</dt>
+              <dt className="text-sm text-muted-foreground">{t('Reading days')}</dt>
               <dd className="mt-2 text-3xl font-semibold tabular-nums">
                 {number(summary.reading_days)}
               </dd>
               <p className="mt-2 text-xs text-muted-foreground">
                 {t(
-                  'Дни с учтёнными словами в текущей версии текста, по UTC. Повтор в тот же день не добавляет день.',
+                  'Days with recorded words in the current text version, in UTC. Rereading on the same day counts once.',
                 )}
               </p>
             </div>
           </dl>
           <p className="text-center text-xs text-muted-foreground">
             {t(
-              'Снимок сохранён при завершении. Более ранняя история без учёта чтения не восстанавливается.',
+              'Snapshot saved at completion. Earlier reading that was not recorded cannot be reconstructed.',
             )}
           </p>
         </div>
       )}
       {undoError && (
         <p role="alert" className="my-4 text-center text-destructive">
-          {t('Не удалось отменить завершение. Попробуйте ещё раз.')}
+          {t('Could not undo completion. Please try again.')}
         </p>
       )}
       <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
@@ -189,23 +191,23 @@ export function CompletionScreen({
               if (busy || changed) e.preventDefault()
             }}
           >
-            {t('Повторить лексику')}
+            {t('Review vocabulary')}
           </Link>
         </Button>
         <Button variant="outline" asChild>
           <Link to="/learn/$lang/library" params={{ lang }}>
             <ArrowLeft aria-hidden="true" className="size-4" />
-            {t('В библиотеку')}
+            {t('Back to library')}
           </Link>
         </Button>
         <Button variant="outline" onClick={onRead} disabled={busy}>
           <BookOpen aria-hidden="true" className="size-4" />
-          {t('Продолжить чтение')}
+          {t('Continue reading')}
         </Button>
       </div>
       <div className="mt-4 text-center">
         <Button variant="ghost" disabled={busy || changed} onClick={onUndo}>
-          {t('Отменить завершение')}
+          {t('Undo completion')}
         </Button>
       </div>
     </section>

@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
@@ -134,13 +134,13 @@ export function LessonVocabularyPanel({
         >
           <button
             type="button"
-            aria-label={tr('Скрыть словарь урока')}
+            aria-label={tr('Hide lesson vocabulary')}
             onClick={onHide}
             className="absolute right-3 top-3 z-10 rounded-md p-1 hover:bg-accent"
           >
             <X className="h-4 w-4" />
           </button>
-          <h2 className="shrink-0 px-4 py-4 pr-12 text-base font-semibold">{tr('Словарь урока')}</h2>
+          <h2 className="shrink-0 px-4 py-4 pr-12 text-base font-semibold">{tr('Lesson vocabulary')}</h2>
           {renderList({
             tab,
             onTabChange: setTab,
@@ -156,20 +156,20 @@ export function LessonVocabularyPanel({
   const body = (
     <>
       {onChat && (
-        <div className="flex shrink-0 gap-2 border-b p-2" aria-label={tr('Словарь / Чат')}>
+        <div className="flex shrink-0 gap-2 border-b p-2" aria-label={tr('Dictionary / Chat')}>
           <button
             className="flex-1 rounded p-2 text-sm aria-pressed:bg-accent"
             aria-pressed={!chatOpen}
             onClick={onDictionary}
           >
-            {tr('Словарь')}
+            {tr('Vocabulary')}
           </button>
           <button
             className="flex-1 rounded p-2 text-sm aria-pressed:bg-accent"
             aria-pressed={chatOpen}
             onClick={onChat}
           >
-            {tr('Чат')}
+            {tr('Chat')}
           </button>
         </div>
       )}
@@ -181,7 +181,7 @@ export function LessonVocabularyPanel({
     return (
       <aside
         id="lesson-vocabulary-panel"
-        aria-label={tr(chatOpen ? 'AI-чат' : 'Словарь урока')}
+        aria-label={tr(chatOpen ? msg('AI chat') : msg('Lesson vocabulary'))}
         data-reader-panel
         className="fixed bottom-24 right-4 top-20 z-[var(--z-fixed)] flex w-[var(--reader-panel-width)] min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg"
       >
@@ -215,7 +215,7 @@ export function LessonVocabularyPanel({
             dismissCurrentLayer()
           }}
         >
-          <DialogPrimitive.Title className="sr-only">{tr('Словарь урока')}</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="sr-only">{tr('Lesson vocabulary')}</DialogPrimitive.Title>
           {body}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

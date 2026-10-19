@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/api/client'
 import type { TranslationOut } from '@/api/vocabulary'
 import { TranslationFields } from './TranslationFields'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
 
 const tr = (id: string, text: string, primary = false, lang = 'ru'): TranslationOut => ({
   id, text, target_language_code: lang, is_primary: primary, source_type: 'user',
@@ -135,8 +138,8 @@ describe('TranslationFields', () => {
 
   it('labels every variant with its language and flags only non-native ones', () => {
     setup([tr('T1', 'привет', true, 'ru'), tr('T2', 'привіт', true, 'uk')], 'uk')
-    const ru = screen.getByRole('textbox', { name: 'Перевод: Русский' })
-    const uk = screen.getByRole('textbox', { name: 'Перевод: Украинский' })
+    const ru = screen.getByRole('textbox', { name: `Перевод: ${langRu('ru')}` })
+    const uk = screen.getByRole('textbox', { name: `Перевод: ${langRu('uk')}` })
     expect(ru).toHaveValue('привет')
     expect(uk).toHaveValue('привіт')
     const flags = screen.getAllByText(/🇷🇺|🇺🇦/)
@@ -148,7 +151,7 @@ describe('TranslationFields', () => {
 
   it('keeps an empty native field when only foreign-language variants exist', async () => {
     const { onCreate, onUpdate } = setup([tr('T1', 'привет', true, 'ru')], 'uk')
-    const empty = screen.getByRole('textbox', { name: 'Новый перевод: Украинский' })
+    const empty = screen.getByRole('textbox', { name: `Новый перевод: ${langRu('uk')}` })
     expect(empty).toHaveAttribute('placeholder', 'Введите новый перевод здесь')
     expect(screen.queryByText('🇺🇦')).not.toBeInTheDocument()
     expect(screen.getByText('🇷🇺')).toHaveAttribute('aria-hidden', 'true')
@@ -156,7 +159,7 @@ describe('TranslationFields', () => {
     fireEvent.keyDown(empty, { key: 'Enter' })
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith('привіт'))
 
-    const ru = screen.getByRole('textbox', { name: 'Перевод: Русский' })
+    const ru = screen.getByRole('textbox', { name: `Перевод: ${langRu('ru')}` })
     fireEvent.change(ru, { target: { value: 'здравствуй' } })
     fireEvent.keyDown(ru, { key: 'Enter' })
     await waitFor(() => expect(onUpdate).toHaveBeenCalledWith('T1', 'здравствуй'))

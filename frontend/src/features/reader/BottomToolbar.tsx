@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 import type { ViewMode } from './readerStore'
@@ -49,23 +49,23 @@ export function BottomToolbar({ mode, onToggleMode, panelOpen, onReview, disable
           panelOpen && 'lg:pr-[var(--reader-panel-reserve)]',
         )}
       >
-        <Action icon="♪" label={tr('Сгенерировать аудио')} disabled title={tr('Скоро')} />
+        <Action icon="♪" label={tr('Generate audio')} disabled title={tr('Coming soon')} />
         <Action
           icon="📖"
           label={
             mode === 'sentence'
-              ? tr('Показать всю страницу')
-              : tr(video ? 'По фрагментам' : 'По предложениям')
+              ? tr('Show full page')
+              : tr(video ? msg('By fragment') : msg('Sentence view'))
           }
           disabled={disabled}
           onClick={onToggleMode}
         />
         <Action
           icon="✓"
-          label={tr('Повторить лексику')}
+          label={tr('Review vocabulary')}
           onClick={onReview}
           disabled={disabled || !onReview}
-          title={onReview ? undefined : tr('Скоро (FLQ-7)')}
+          title={onReview ? undefined : tr('Coming soon')}
         />
       </div>
     </div>

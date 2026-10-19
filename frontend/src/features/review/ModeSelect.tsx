@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { reviewApi, type ReviewItemKind, type ReviewMode } from '@/api/review'
@@ -11,39 +11,56 @@ const GROUPS: {
   modes: { mode: ReviewMode; title: string; hint: string; ai: boolean }[]
 }[] = [
   {
-    title: 'Знакомство',
+    title: msg('Getting started'),
     key: 'new',
-    modes: [{ mode: 'new', title: 'Новые слова', hint: 'AI-пример и первое знакомство', ai: true }],
-  },
-  {
-    title: 'Повторение по расписанию',
-    key: 'due',
     modes: [
-      { mode: 'cards', title: 'Карточки', hint: 'Вспомните значение и раскройте ответ', ai: false },
       {
-        mode: 'cloze',
-        title: 'Квиз: пропуск',
-        hint: 'Предложение с пропуском, 4 варианта',
+        mode: 'new',
+        title: msg('New words'),
+        hint: msg('An AI example to introduce each word'),
         ai: true,
       },
-      { mode: 'reverse', title: 'Квиз: перевод', hint: 'Слово и 4 варианта перевода', ai: true },
     ],
   },
   {
-    title: 'Дополнительная практика',
+    title: msg('Scheduled review'),
+    key: 'due',
+    modes: [
+      {
+        mode: 'cards',
+        title: msg('Flashcards'),
+        hint: msg('Recall the meaning and reveal the answer'),
+        ai: false,
+      },
+      {
+        mode: 'cloze',
+        title: msg('Quiz: fill the gap'),
+        hint: msg('A sentence with a gap and 4 options'),
+        ai: true,
+      },
+      {
+        mode: 'reverse',
+        title: msg('Quiz: translation'),
+        hint: msg('A word and 4 translation options'),
+        ai: true,
+      },
+    ],
+  },
+  {
+    title: msg('Extra practice'),
     key: 'fill',
     practice: true,
     modes: [
       {
         mode: 'fill',
-        title: 'Вставить слово',
-        hint: 'Введите пропущенное слово или фразу',
+        title: msg('Fill in the word'),
+        hint: msg('Type the missing word or phrase'),
         ai: true,
       },
       {
         mode: 'translation',
-        title: 'Практика перевода',
-        hint: 'Переведи предложение, AI проверит',
+        title: msg('Translation practice'),
+        hint: msg('Translate a sentence and get AI feedback'),
         ai: true,
       },
     ],
@@ -70,13 +87,15 @@ export function ModeSelect({
   })
   const scope = sessionSubtitle(t, { lessonId, itemKind })
   const countText = (key: 'due' | 'new' | 'practice' | 'fill') =>
-    t('Доступно: {{total}} · В занятии: {{count}}', {
+    t('Available: {{total}} · This session: {{count}}', {
       total: data?.[key] ?? 0,
-      count: data?.session_sizes?.[key] ?? data?.[key] ?? 0,
+      count: String(data?.session_sizes?.[key] ?? data?.[key] ?? 0),
     })
   return (
     <section className="mx-auto max-w-xl px-4 py-8">
-      <h1 className="text-center text-xl font-semibold">{t('Выберите занятие')}</h1>
+      <h1 className="text-center text-xl font-semibold">
+        {t('Choose an activity', { context: 'title' })}
+      </h1>
       {scope && <p className="mt-1 text-center text-sm text-muted-foreground">{scope}</p>}
       {data?.lesson_title && (
         <p className="mt-1 break-words text-center text-sm">{data.lesson_title}</p>
@@ -95,18 +114,18 @@ export function ModeSelect({
             )
           }
         >
-          {t('К итогам материала')}
+          {t('Back to material results')}
         </button>
       )}
       {isPending ? (
         <p role="status" className="mt-6">
-          {t('Загрузка…')}
+          {t('Loading…')}
         </p>
       ) : isError ? (
         <div className="mt-6">
-          <p className="text-destructive">{t('Не удалось загрузить счётчики')}</p>
+          <p className="text-destructive">{t('Could not load review counts')}</p>
           <button type="button" className="min-h-11 underline" onClick={() => void refetch()}>
-            {t('Повторить')}
+            {t('Retry')}
           </button>
         </div>
       ) : (
@@ -114,7 +133,7 @@ export function ModeSelect({
           <>
             {!lessonId && data.daily && (
               <p className="mt-4 text-center text-sm text-muted-foreground">
-                {t('Сегодня сохранено: {{done}} из {{limit}} повторений.', {
+                {t('Saved today: {{done}} of {{limit}} reviews.', {
                   done: data.daily.done_today,
                   limit: data.daily.limit,
                 })}
@@ -124,12 +143,14 @@ export function ModeSelect({
               <section key={group.key} className="mt-7">
                 <h2 className="font-semibold">
                   {t(
-                    group.key === 'due' && lessonId ? 'Повторение лексики материала' : group.title,
+                    group.key === 'due' && lessonId
+                      ? msg('Review this material’s vocabulary')
+                      : group.title,
                   )}
                 </h2>
                 <p className="mb-3 mt-1 text-sm text-muted-foreground">
                   {group.practice
-                    ? t('Дополнительная практика — без изменения расписания.')
+                    ? t('Extra practice — your review schedule stays the same.')
                     : countText(group.key)}
                 </p>
                 {!group.practice &&
@@ -140,8 +161,8 @@ export function ModeSelect({
                         !lessonId &&
                           data.daily &&
                           data.daily.limit - data.daily.done_today <= data.session_sizes[group.key]
-                          ? 'Размер занятия ограничен остатком дневного лимита.'
-                          : 'Остальная лексика доступна в следующих занятиях.',
+                          ? msg('Session size is limited by your remaining daily allowance.')
+                          : msg('The remaining vocabulary is available in later sessions.'),
                       )}
                     </p>
                   )}
@@ -167,7 +188,7 @@ export function ModeSelect({
                     >
                       <span className="block font-medium">{t(m.title)}</span>
                       <span className="mt-1 block text-sm text-muted-foreground">
-                        {t(m.ai && !data.ai_enabled ? 'AI отключён' : m.hint)}
+                        {t(m.ai && !data.ai_enabled ? msg('AI is disabled') : m.hint)}
                       </span>
                       {group.practice && (
                         <span className="mt-2 block text-xs text-muted-foreground">

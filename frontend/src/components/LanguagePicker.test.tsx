@@ -27,6 +27,10 @@ vi.mock('@/api/me', async (loadOriginal) => {
 
 import { meApi } from '@/api/me'
 import { LanguagePicker } from './LanguagePicker'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
+const langEn = (code: string) => languageName(code, 'en')
 
 const baseUser = {
   id: 'user-1',
@@ -94,12 +98,12 @@ describe('LanguagePicker add-language flow', () => {
     setUiLanguage('en')
     show({ ...baseUser, ui_language_code: 'en' })
 
-    expect(screen.getByRole('button', { name: 'Material language: Portuguese' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Material language: ${langEn('pt')}` })).toBeInTheDocument()
     const dialog = await openAddDialog()
     const choices = within(dialog).getAllByRole('radio')
     expect(choices).toHaveLength(10)
-    expect(within(dialog).getByRole('radio', { name: 'Chinese (Simplified)' })).toBeEnabled()
-    expect(within(dialog).getByRole('radio', { name: 'Portuguese' })).toBeDisabled()
+    expect(within(dialog).getByRole('radio', { name: langEn('zh-Hans') })).toBeEnabled()
+    expect(within(dialog).getByRole('radio', { name: langEn('pt') })).toBeDisabled()
     expect(within(dialog).getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
     expect(within(dialog).getByText('🇵🇹')).toHaveAttribute('aria-hidden', 'true')
   })
@@ -108,8 +112,8 @@ describe('LanguagePicker add-language flow', () => {
     show({ ...baseUser, native_language_code: 'ru', preferred_translation_language_code: 'ru' })
 
     const dialog = await openAddDialog()
-    expect(within(dialog).getByRole('radio', { name: 'Русский' })).toBeDisabled()
-    expect(within(dialog).getByRole('radio', { name: 'Английский' })).toBeEnabled()
+    expect(within(dialog).getByRole('radio', { name: langRu('ru') })).toBeDisabled()
+    expect(within(dialog).getByRole('radio', { name: langRu('en') })).toBeEnabled()
   })
 
   it('shows the all-added state when only the native language is left', async () => {
@@ -131,7 +135,7 @@ describe('LanguagePicker add-language flow', () => {
     )
     show()
     const dialog = await openAddDialog()
-    await user.click(within(dialog).getByRole('radio', { name: 'Испанский' }))
+    await user.click(within(dialog).getByRole('radio', { name: langRu('es') }))
     await user.click(within(dialog).getByRole('button', { name: 'Добавить' }))
 
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
@@ -144,7 +148,7 @@ describe('LanguagePicker add-language flow', () => {
     show()
     const dialog = await openAddDialog()
 
-    await user.click(within(dialog).getByRole('radio', { name: 'Китайский (упрощённый)' }))
+    await user.click(within(dialog).getByRole('radio', { name: langRu('zh-Hans') }))
     await user.click(within(dialog).getByRole('button', { name: 'Отмена' }))
 
     expect(screen.queryByRole('dialog', { name: 'Добавить язык' })).not.toBeInTheDocument()
@@ -158,7 +162,7 @@ describe('LanguagePicker add-language flow', () => {
     show()
     const dialog = await openAddDialog()
 
-    const chinese = within(dialog).getByRole('radio', { name: 'Китайский (упрощённый)' })
+    const chinese = within(dialog).getByRole('radio', { name: langRu('zh-Hans') })
     await user.click(chinese)
     await user.click(within(dialog).getByRole('button', { name: 'Добавить' }))
 
@@ -176,15 +180,15 @@ describe('LanguagePicker add-language flow', () => {
     show()
 
     await user.tab()
-    const trigger = screen.getByRole('button', { name: 'Язык материала: Португальский' })
+    const trigger = screen.getByRole('button', { name: `Язык материала: ${langRu('pt')}` })
     expect(trigger).toHaveFocus()
     await user.keyboard('{Enter}{End}{Enter}')
 
     const dialog = await screen.findByRole('dialog', { name: 'Добавить язык' })
-    const english = within(dialog).getByRole('radio', { name: 'Английский' })
-    const russian = within(dialog).getByRole('radio', { name: 'Русский' })
-    const portuguese = within(dialog).getByRole('radio', { name: 'Португальский' })
-    const spanish = within(dialog).getByRole('radio', { name: 'Испанский' })
+    const english = within(dialog).getByRole('radio', { name: langRu('en') })
+    const russian = within(dialog).getByRole('radio', { name: langRu('ru') })
+    const portuguese = within(dialog).getByRole('radio', { name: langRu('pt') })
+    const spanish = within(dialog).getByRole('radio', { name: langRu('es') })
     expect(english).toHaveFocus()
     await user.keyboard('{ArrowDown}')
     expect(russian).toHaveFocus()
@@ -214,7 +218,7 @@ describe('LanguagePicker add-language flow', () => {
     const { queryClient, rerenderPicker } = show()
     const dialog = await openAddDialog()
 
-    await user.click(within(dialog).getByRole('radio', { name: 'Китайский (упрощённый)' }))
+    await user.click(within(dialog).getByRole('radio', { name: langRu('zh-Hans') }))
     const submit = within(dialog).getByRole('button', { name: 'Добавить' })
     await user.click(submit)
     expect(submit).toBeDisabled()
@@ -234,7 +238,7 @@ describe('LanguagePicker add-language flow', () => {
     router.lang = 'zh-Hans'
     rerenderPicker()
     expect(
-      screen.getByRole('button', { name: 'Язык материала: Китайский (упрощённый)' }),
+      screen.getByRole('button', { name: `Язык материала: ${langRu('zh-Hans')}` }),
     ).toBeInTheDocument()
   })
 
@@ -258,9 +262,9 @@ describe('LanguagePicker add-language flow', () => {
 
 it('shows only the flag on phones while keeping the language name for assistive tech', () => {
   show()
-  const trigger = screen.getByRole('button', { name: 'Язык материала: Португальский' })
-  expect(trigger).toHaveAttribute('title', 'Язык материала: Португальский')
-  const name = within(trigger).getByText('Португальский')
+  const trigger = screen.getByRole('button', { name: `Язык материала: ${langRu('pt')}` })
+  expect(trigger).toHaveAttribute('title', `Язык материала: ${langRu('pt')}`)
+  const name = within(trigger).getByText(langRu('pt'))
   // Hidden below `sm` so the top bar keeps two rows on 320px screens (FLQ-32.11).
   expect(name).toHaveClass('hidden', 'sm:inline')
 })

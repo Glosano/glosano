@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 
@@ -25,11 +25,11 @@ export function LoginForm() {
     e.preventDefault()
     const emailInput = e.currentTarget.querySelector<HTMLInputElement>('[type="email"]')
     if (!email.trim() || emailInput?.validity.typeMismatch) {
-      setError('Введите корректный адрес электронной почты.')
+      setError(msg('Enter a valid email address.'))
       return
     }
     if (!password) {
-      setError('Введите пароль.')
+      setError(msg('Enter your password.'))
       return
     }
     setSubmitting(true)
@@ -50,9 +50,9 @@ export function LoginForm() {
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        setError('Слишком много попыток. Попробуйте позже.')
+        setError(msg('Too many attempts. Try again later.'))
       } else {
-        setError('Неверный email или пароль')
+        setError(msg('Incorrect email or password'))
       }
     } finally {
       setSubmitting(false)
@@ -61,9 +61,9 @@ export function LoginForm() {
 
   return (
     <form noValidate onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-      <h1 className="text-3xl font-semibold text-center">{t('Вход')}</h1>
+      <h1 className="text-3xl font-semibold text-center">{t('Log in')}</h1>
       <div className="space-y-2">
-        <Label htmlFor="email">{t('Электронная почта')}</Label>
+        <Label htmlFor="email">{t('Email', { context: 'auth' })}</Label>
         <Input
           id="email"
           type="email"
@@ -76,7 +76,7 @@ export function LoginForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">{t('Пароль')}</Label>
+        <Label htmlFor="password">{t('Password')}</Label>
         <Input
           id="password"
           type="password"
@@ -95,7 +95,7 @@ export function LoginForm() {
             setRemember(v === true)
           }}
         />
-        {t('Запомнить меня')}
+        {t('Remember me')}
       </label>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -103,12 +103,12 @@ export function LoginForm() {
         </p>
       )}
       <Button type="submit" className="w-full" disabled={submitting}>
-        {t('Вход')}
+        {t('Log in')}
       </Button>
       <p className="text-sm text-center text-muted-foreground">
-        {t('Нет аккаунта?')}{' '}
+        {t('No account yet?')}{' '}
         <Link to="/register" className="text-primary hover:underline">
-          {t('Зарегистрироваться')}
+          {t('Sign up')}
         </Link>
       </p>
     </form>

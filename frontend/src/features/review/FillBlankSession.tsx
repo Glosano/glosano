@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reviewApi, type FillBlankExercise, type ReviewItemKind } from '@/api/review'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { exerciseErrorKey } from './exerciseError'
 import { normalizeFillAnswer } from './fillAnswer'
@@ -50,7 +50,7 @@ export function FillBlankSession({ lang, lessonId, itemKind, ids }: Props) {
   })
   const item = finished ? undefined : queue.data?.items[idx]
   const total = queue.data?.items.length ?? 0
-  const subtitle = sessionSubtitle(t, { title: 'Вставить слово', lessonId, itemKind })
+  const subtitle = sessionSubtitle(t, { title: msg('Fill in the word'), lessonId, itemKind })
   const next = () => setIdx((value) => value + 1)
   return (
     <SessionShell
@@ -60,31 +60,31 @@ export function FillBlankSession({ lang, lessonId, itemKind, ids }: Props) {
       finish={item ? () => setFinished(true) : undefined}
     >
       <p className="mb-4 text-sm text-muted-foreground">
-        {t('Дополнительная практика — без изменения расписания.')}
+        {t('Extra practice — your review schedule stays the same.')}
       </p>
       {queue.isPending ? (
         <p role="status" className="min-h-56">
-          {t('Загрузка…')}
+          {t('Loading…')}
         </p>
       ) : queue.isError ? (
         <div>
-          <p>{t('Не удалось загрузить очередь')}</p>
+          <p>{t('Could not load the review queue')}</p>
           <button type="button" className="min-h-11 underline" onClick={() => void queue.refetch()}>
-            {t('Повторить')}
+            {t('Retry')}
           </button>
         </div>
       ) : total === 0 ? (
-        <p>{t('Нет доступных слов для этой практики.')}</p>
+        <p>{t('No words are available for this practice.')}</p>
       ) : !item ? (
         <>
-          <h2 className="text-lg font-medium">{t('Практика завершена')}</h2>
+          <h2 className="text-lg font-medium">{t('Practice complete')}</h2>
           <dl className="mt-5 grid grid-cols-2 gap-3 text-left">
             {[
-              [t('Попыток'), attempts.length],
-              [t('Совпадений'), attempts.filter((a) => a.correct).length],
-              [t('С подсказкой'), attempts.filter((a) => a.hinted).length],
-              [t('Пропущено'), skipped],
-              [t('Осталось без ответа'), Math.max(0, total - attempts.length - skipped)],
+              [t('Attempts'), attempts.length],
+              [t('Matches'), attempts.filter((a) => a.correct).length],
+              [t('With a hint'), attempts.filter((a) => a.hinted).length],
+              [t('Skipped'), skipped],
+              [t('Unanswered'), Math.max(0, total - attempts.length - skipped)],
             ].map(([label, count]) => (
               <div key={label} className="rounded-lg border p-4">
                 <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -97,8 +97,8 @@ export function FillBlankSession({ lang, lessonId, itemKind, ids }: Props) {
         <>
           {ids && (
             <p className="mb-3 text-sm text-muted-foreground">
-              {t('Трудные слова: доступно {{count}} из {{total}}.', {
-                count: total,
+              {t('Difficult words: {{count}} of {{total}} available.', {
+                count: String(total),
                 total: ids.length,
               })}
             </p>
@@ -161,8 +161,8 @@ function FillCard({
   }
   return (
     <div className="min-h-64 rounded-lg border border-border bg-card p-5 text-left shadow-sm sm:p-6">
-      <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
-      {exercise.isPending && <p role="status">{t('Готовим упражнение…')}</p>}
+      <p className="mb-3 text-xs text-muted-foreground">{t('AI-generated example')}</p>
+      {exercise.isPending && <p role="status">{t('Preparing an exercise…')}</p>}
       {exercise.isError && (
         <div role="alert">
           <p>{t(exerciseErrorKey(exercise.error))}</p>
@@ -171,7 +171,7 @@ function FillCard({
             className="min-h-11 underline"
             onClick={() => void exercise.refetch()}
           >
-            {t('Повторить')}
+            {t('Retry')}
           </button>
         </div>
       )}
@@ -193,7 +193,7 @@ function FillCard({
               }}
             >
               <label className="text-sm" htmlFor={`fill-${instance}`}>
-                {t(phrase ? 'Введите фразу целиком' : 'Введите пропущенное слово')}
+                {t(phrase ? msg('Enter the whole phrase') : msg('Enter the missing word'))}
               </label>
               <input
                 id={`fill-${instance}`}
@@ -224,7 +224,7 @@ function FillCard({
                 disabled={!text.trim()}
                 className="mt-4 min-h-11 w-full rounded-md bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
               >
-                {t('Проверить')}
+                {t('Check answer', { context: 'review' })}
               </button>
               <button
                 type="button"
@@ -232,21 +232,21 @@ function FillCard({
                 onClick={() => setHinted(true)}
                 disabled={hinted}
               >
-                {t('Подсказка')}
+                {t('Hint')}
               </button>
             </form>
           ) : (
             <div className="mt-5" role="status">
               <p className="font-medium">
-                {t(correct ? 'Верно!' : 'В этом задании изучаем другое слово.')}
+                {t(correct ? msg('Correct!') : msg('This exercise practises a different word.'))}
               </p>
-              {!correct && <p className="mt-2">{t('Ваш ответ: {{answer}}', { answer: text })}</p>}
-              <p className="mt-2">{t('Изучаемая форма: {{answer}}', { answer: payload.answer })}</p>
+              {!correct && <p className="mt-2">{t('Your answer: {{answer}}', { answer: text })}</p>}
+              <p className="mt-2">{t('Studied form: {{answer}}', { answer: payload.answer })}</p>
             </div>
           )}
           {(hinted || checked) && (
             <div className="mt-3">
-              <p className="text-xs text-muted-foreground">{t('AI-перевод примера')}</p>
+              <p className="text-xs text-muted-foreground">{t('AI translation of the example')}</p>
               <p dir="auto" className="mt-1">
                 {payload.translation}
               </p>
@@ -258,14 +258,14 @@ function FillCard({
               className="mt-5 min-h-11 w-full rounded-md bg-primary px-3 py-2 text-primary-foreground"
               onClick={onNext}
             >
-              {t('Дальше')}
+              {t('Next', { context: 'review' })}
             </button>
           )}
         </>
       )}
       {!checked && (
         <button type="button" className="mt-3 min-h-11 underline" onClick={onSkip}>
-          {t('Пропустить')}
+          {t('Skip')}
         </button>
       )}
     </div>

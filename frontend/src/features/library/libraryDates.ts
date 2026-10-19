@@ -1,4 +1,4 @@
-import type { Translator, UiLanguage } from '@/lib/i18n'
+import { intlLocale, type Translator, type UiLanguage } from '@/lib/i18n'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -30,13 +30,13 @@ export function formatDayHeading(
     month: 'long',
     ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
   }
-  const dateText = new Intl.DateTimeFormat(language, dateOptions).format(date)
+  const dateText = new Intl.DateTimeFormat(intlLocale(language), dateOptions).format(date)
   let name: string
-  if (ago === 0) name = t('Сегодня')
-  else if (ago === 1) name = t('Вчера')
+  if (ago === 0) name = t('Today')
+  else if (ago === 1) name = t('Yesterday')
   else {
-    const weekday = new Intl.DateTimeFormat(language, { weekday: 'long' }).format(date)
-    name = weekday.charAt(0).toLocaleUpperCase(language) + weekday.slice(1)
+    const weekday = new Intl.DateTimeFormat(intlLocale(language), { weekday: 'long' }).format(date)
+    name = weekday.charAt(0).toLocaleUpperCase(intlLocale(language)) + weekday.slice(1)
   }
   return `${name} · ${dateText}`
 }
@@ -51,9 +51,11 @@ export function formatLastActivity(
   const ago = daysAgo(date, today)
   const when =
     ago === 0
-      ? t('сегодня')
+      ? t('today')
       : ago === 1
-        ? t('вчера')
-        : new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }).format(date)
-  return t('Последнее занятие: {{when}}', { when })
+        ? t('yesterday')
+        : new Intl.DateTimeFormat(intlLocale(language), { day: 'numeric', month: 'short' }).format(
+            date,
+          )
+  return t('Last studied: {{when}}', { when })
 }

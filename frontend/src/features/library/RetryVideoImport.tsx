@@ -22,9 +22,7 @@ export function RetryVideoImport({ lessonId, lang }: { lessonId: string; lang: s
   return (
     <div className="space-y-2 px-3 pb-3 text-xs">
       <p role="alert">{t(videoImportError(detail.data?.import_error?.code))}</p>
-      {retry.isError && (
-        <p role="alert">{t('Не удалось связаться с YouTube. Попробуйте повторить импорт.')}</p>
-      )}
+      {retry.isError && <p role="alert">{t('Could not reach YouTube. Try importing again.')}</p>}
       {detail.data?.import_error?.retryable && (
         <Button
           size="sm"
@@ -32,7 +30,7 @@ export function RetryVideoImport({ lessonId, lang }: { lessonId: string; lang: s
           disabled={retry.isPending}
           onClick={() => retry.mutate()}
         >
-          {t('Повторить импорт')}
+          {t('Retry import')}
         </Button>
       )}
     </div>

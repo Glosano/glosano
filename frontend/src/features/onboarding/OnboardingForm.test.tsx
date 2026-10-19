@@ -13,8 +13,13 @@ vi.mock('@/api/me', () => ({ meApi: { onboarding: vi.fn(), get: vi.fn() } }))
 import { ApiError } from '@/api/client'
 import { meApi, type MeResponse } from '@/api/me'
 import { setUiLanguage } from '@/lib/i18n'
+import { UI_LANGUAGE_CODES, uiLanguageEndonym } from '@/lib/uiLanguages'
 import { useUserStore } from '@/stores/userStore'
 import { OnboardingForm } from './OnboardingForm'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
+const langEn = (code: string) => languageName(code, 'en')
 
 const newUser = {
   id: 'u',
@@ -85,8 +90,8 @@ describe('OnboardingForm localization', () => {
     await show({ ...newUser, ui_language_code: 'en' })
 
     expect(screen.getAllByRole('checkbox')).toHaveLength(10)
-    expect(screen.getByRole('checkbox', { name: 'Chinese (Simplified)' })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: 'Arabic' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: langEn('zh-Hans') })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: langEn('ar') })).toBeInTheDocument()
     expect(screen.getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByText('🇸🇦')).toHaveAttribute('aria-hidden', 'true')
   })
@@ -110,10 +115,10 @@ describe('OnboardingForm localization', () => {
     const selector = screen.getByRole('combobox', { name: 'Язык интерфейса' })
     selector.focus()
     await user.keyboard('{ArrowDown}')
-    await user.click(await screen.findByRole('option', { name: 'English' }))
+    await user.click(await screen.findByRole('option', { name: langEn('en') }))
     expect(screen.getByRole('heading', { name: 'Welcome to Glosano' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Interface language' })).toBeInTheDocument()
-    await user.click(screen.getByRole('checkbox', { name: 'Portuguese' }))
+    await user.click(screen.getByRole('checkbox', { name: langEn('pt') }))
     await user.click(screen.getByRole('button', { name: 'Done' }))
     await waitFor(() =>
       expect(meApi.onboarding).toHaveBeenCalledWith({
@@ -126,6 +131,44 @@ describe('OnboardingForm localization', () => {
       expect(navigate).toHaveBeenCalledWith({ to: '/learn/$lang/library', params: { lang: 'pt' } }),
     )
     expect(queryClient.getQueryData(['me'])).toEqual(me)
+  })
+
+  it('lists every enabled interface language under its own name', async () => {
+    const user = userEvent.setup()
+    await show()
+    screen.getByRole('combobox', { name: 'Язык интерфейса' }).focus()
+    await user.keyboard('{ArrowDown}')
+
+    const options = await screen.findAllByRole('option')
+    expect(options.slice(0, UI_LANGUAGE_CODES.length).map((option) => option.textContent)).toEqual(
+      UI_LANGUAGE_CODES.map((code) => uiLanguageEndonym(code)),
+    )
+  })
+
+  it("starts from the profile's interface language and defaults the native one to it", async () => {
+    await show({ ...newUser, ui_language_code: 'en' })
+
+    expect(screen.getByRole('combobox', { name: 'Interface language' })).toHaveTextContent(
+      langEn('en'),
+    )
+    expect(screen.getByRole('combobox', { name: 'Native language' })).toHaveTextContent(langEn('en'))
+    expect(screen.getByRole('checkbox', { name: langEn('en') })).toBeDisabled()
+  })
+
+  it('starts from a non-English, non-Russian profile interface language', async () => {
+    vi.mocked(meApi.get).mockResolvedValueOnce({ ...newUser, ui_language_code: 'de' })
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <OnboardingForm />
+      </QueryClientProvider>,
+    )
+    await screen.findByRole('button', { name: 'Fertig' })
+
+    expect(
+      screen.getByRole('combobox', { name: 'Sprache der Benutzeroberfläche' }),
+    ).toHaveTextContent('Deutsch')
+    expect(screen.getByRole('combobox', { name: 'Muttersprache' })).toHaveTextContent('Deutsch')
+    expect(screen.getByRole('checkbox', { name: 'Deutsch' })).toBeDisabled()
   })
 
   it('updates an existing validation error when the UI language changes', async () => {
@@ -165,9 +208,9 @@ describe('OnboardingForm native language', () => {
 
     const native = screen.getByRole('combobox', { name: 'Родной язык' })
     expect(native).toHaveAttribute('aria-required', 'true')
-    expect(native).toHaveTextContent('Русский')
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Португальский' })).toBeEnabled()
+    expect(native).toHaveTextContent(langRu('ru'))
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: langRu('pt') })).toBeEnabled()
   })
 
   it('offers all fifteen catalog languages as native', async () => {
@@ -177,41 +220,41 @@ describe('OnboardingForm native language', () => {
     await user.keyboard('{ArrowDown}')
 
     expect(await screen.findAllByRole('option')).toHaveLength(15)
-    expect(screen.getByRole('option', { name: 'Украинский' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: langRu('uk') })).toBeInTheDocument()
   })
 
   it('disables and unchecks the learning language chosen as native, with a note', async () => {
     const user = userEvent.setup()
     await show()
-    await user.click(screen.getByRole('checkbox', { name: 'Португальский' }))
-    expect(screen.getByRole('checkbox', { name: 'Португальский' })).toBeChecked()
+    await user.click(screen.getByRole('checkbox', { name: langRu('pt') }))
+    expect(screen.getByRole('checkbox', { name: langRu('pt') })).toBeChecked()
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
 
-    await chooseNative('Португальский')
+    await chooseNative(langRu('pt'))
 
-    const portuguese = screen.getByRole('checkbox', { name: 'Португальский' })
+    const portuguese = screen.getByRole('checkbox', { name: langRu('pt') })
     expect(portuguese).not.toBeChecked()
     expect(portuguese).toBeDisabled()
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).toBeEnabled()
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Португальский убран из изучаемых: родной язык нельзя изучать. Уроки и словарь сохранены.',
+      `${langRu('pt')} убран из изучаемых: родной язык нельзя изучать. Уроки и словарь сохранены.`,
     )
   })
 
   it('explains why the native language is disabled among learning languages', async () => {
     await show()
     const note = 'Это ваш родной язык — смените его выше'
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).toHaveAccessibleDescription(note)
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).toHaveAccessibleDescription(note)
     expect(
-      screen.getByRole('checkbox', { name: 'Португальский' }),
+      screen.getByRole('checkbox', { name: langRu('pt') }),
     ).not.toHaveAccessibleDescription()
 
-    await chooseNative('Португальский')
+    await chooseNative(langRu('pt'))
 
-    expect(screen.getByRole('checkbox', { name: 'Португальский' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('checkbox', { name: langRu('pt') })).toHaveAccessibleDescription(
       note,
     )
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).not.toHaveAccessibleDescription()
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).not.toHaveAccessibleDescription()
   })
 
   it('submits the chosen native language', async () => {
@@ -219,8 +262,8 @@ describe('OnboardingForm native language', () => {
     vi.mocked(meApi.onboarding).mockResolvedValue({ ok: true, redirect: '/learn/es/library' })
     await show()
     vi.mocked(meApi.get).mockResolvedValue({ ...migratedUser, needs_onboarding: false })
-    await chooseNative('Украинский')
-    await user.click(screen.getByRole('checkbox', { name: 'Испанский' }))
+    await chooseNative(langRu('uk'))
+    await user.click(screen.getByRole('checkbox', { name: langRu('es') }))
     await user.click(screen.getByRole('button', { name: 'Готово' }))
 
     await waitFor(() =>
@@ -244,13 +287,13 @@ describe('OnboardingForm native language', () => {
       needs_onboarding: false,
     })
 
-    for (const name of ['Русский', 'Португальский', 'Испанский']) {
+    for (const name of [langRu('ru'), langRu('pt'), langRu('es')]) {
       expect(screen.getByRole('checkbox', { name })).toBeChecked()
       expect(screen.getByRole('checkbox', { name })).toBeEnabled()
     }
     expect(screen.getByRole('combobox', { name: 'Родной язык' })).toHaveTextContent('Выберите язык')
 
-    await chooseNative('Украинский')
+    await chooseNative(langRu('uk'))
     await user.click(screen.getByRole('button', { name: 'Готово' }))
 
     await waitFor(() =>
@@ -273,12 +316,12 @@ describe('OnboardingForm native language', () => {
       needs_onboarding: false,
     })
 
-    const russian = screen.getByRole('checkbox', { name: 'Русский' })
-    const portuguese = screen.getByRole('checkbox', { name: 'Португальский' })
+    const russian = screen.getByRole('checkbox', { name: langRu('ru') })
+    const portuguese = screen.getByRole('checkbox', { name: langRu('pt') })
     expect(russian).toBeChecked()
     expect(portuguese).toBeChecked()
     expect(russian).toBeEnabled()
-    expect(screen.getByRole('combobox', { name: 'Родной язык' })).not.toHaveTextContent('Русский')
+    expect(screen.getByRole('combobox', { name: 'Родной язык' })).not.toHaveTextContent(langRu('ru'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Готово' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Выберите родной язык')
@@ -287,11 +330,11 @@ describe('OnboardingForm native language', () => {
     await user.click(portuguese)
     expect(portuguese).not.toBeChecked()
     await user.click(portuguese)
-    await chooseNative('Русский')
-    expect(screen.getByRole('checkbox', { name: 'Русский' })).not.toBeChecked()
+    await chooseNative(langRu('ru'))
+    expect(screen.getByRole('checkbox', { name: langRu('ru') })).not.toBeChecked()
     expect(
       screen.getByText(
-        'Русский убран из изучаемых: родной язык нельзя изучать. Уроки и словарь сохранены.',
+        `${langRu('ru')} убран из изучаемых: родной язык нельзя изучать. Уроки и словарь сохранены.`,
       ),
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Готово' }))
@@ -309,7 +352,7 @@ describe('OnboardingForm native language', () => {
     const user = userEvent.setup()
     vi.mocked(meApi.onboarding).mockRejectedValue(new ApiError(400, 'native_language_is_learning'))
     await show()
-    await user.click(screen.getByRole('checkbox', { name: 'Португальский' }))
+    await user.click(screen.getByRole('checkbox', { name: langRu('pt') }))
     await user.click(screen.getByRole('button', { name: 'Готово' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

@@ -1,6 +1,6 @@
 import { exerciseErrorKey } from './exerciseError'
 import { ignoreReviewKey } from './keyboard'
-import { useI18n } from '@/lib/i18n'
+import { useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -20,8 +20,8 @@ type QuizKind = 'cloze' | 'reverse'
 type QuizPayload = ClozeExercise | ReverseExercise
 
 const SUBTITLES: Record<QuizKind, string> = {
-  cloze: 'Квиз: пропуск',
-  reverse: 'Квиз: перевод',
+  cloze: msg('Quiz: fill the gap'),
+  reverse: msg('Quiz: translation'),
 }
 
 interface QuizSessionProps {
@@ -94,11 +94,11 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
   return (
     <SessionShell subtitle={subtitle} idx={s.idx} total={s.total} session={s}>
       <div className="min-h-56 w-full rounded-lg border border-border bg-card p-5 shadow-sm sm:p-6">
-        <p className="mb-3 text-xs text-muted-foreground">{t('AI-пример')}</p>
+        <p className="mb-3 text-xs text-muted-foreground">{t('AI-generated example')}</p>
         {kind === 'reverse' && <p className="text-center text-2xl font-medium">{item.text}</p>}
         {exercise.isPending && (
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            {t('Готовим упражнение…')}
+            {t('Preparing an exercise…')}
           </p>
         )}
         {exercise.isError && (
@@ -106,10 +106,10 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
             <p className="text-sm text-destructive">{t(exerciseErrorKey(exercise.error))}</p>
             <div className="mt-2 flex justify-center gap-3">
               <button type="button" className="underline" onClick={() => void exercise.refetch()}>
-                {t('Повторить')}
+                {t('Retry')}
               </button>
               <button type="button" className="underline" onClick={s.skip}>
-                {t('Пропустить')}
+                {t('Skip')}
               </button>
             </div>
           </div>
@@ -151,8 +151,8 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
               <>
                 <p className="mt-4 text-center text-base">
                   {isCorrect
-                    ? t('✅ Верно!')
-                    : t('❌ Правильный ответ: {{value0}}', {
+                    ? t('✅ Correct!')
+                    : t('❌ Correct answer: {{value0}}', {
                         value0: options[correctIdx]?.text ?? '—',
                       })}
                 </p>
@@ -160,7 +160,7 @@ function QuizSessionContent({ lang, kind, lessonId, itemKind }: QuizSessionProps
                   <p className="mt-2 text-center text-sm text-destructive">{s.answerError}</p>
                 )}
                 <p className="mt-3 text-sm text-muted-foreground">
-                  {t('Выбор проверен. Теперь оцените, насколько легко вы вспомнили слово.')}
+                  {t('Your choice has been checked. Now rate how easily you recalled the word.')}
                 </p>
                 <GradeBar onGrade={s.grade} disabled={s.answering} />
               </>

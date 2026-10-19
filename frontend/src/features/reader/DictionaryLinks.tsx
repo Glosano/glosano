@@ -23,13 +23,13 @@ export function DictionaryLinks({ lang, target, text, onConfigure }: Props) {
   return (
     <div data-testid="word-card-dictionaries" className="mt-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">{tr('Словари')}</p>
+        <p className="text-sm font-medium">{tr('Dictionaries')}</p>
         <button
           type="button"
           onClick={onConfigure}
           className="flex items-center gap-0.5 rounded-md px-1 text-sm text-muted-foreground hover:bg-accent"
         >
-          {tr('Настроить')}
+          {tr('Customize')}
           <ChevronRight aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>

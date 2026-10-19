@@ -43,7 +43,7 @@ export function AvatarMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={t('Меню аккаунта')}
+        aria-label={t('Account menu')}
         className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold"
       >
         {initials}
@@ -59,14 +59,14 @@ export function AvatarMenu() {
             void navigate({ to: '/settings/profile' })
           }}
         >
-          {t('Настройки')}
+          {t('Settings')}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {
             void logout()
           }}
         >
-          {t('Выйти')}
+          {t('Sign out')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -9,7 +9,7 @@ export function ContinueSection({ items }: { items: LessonSummary[] }) {
   return (
     <section aria-labelledby="library-continue" className="py-4">
       <h2 id="library-continue" className="text-lg font-semibold">
-        {t('Продолжить изучение')}
+        {t('Continue learning')}
       </h2>
       <LessonCarousel items={items} variant="continue" />
     </section>

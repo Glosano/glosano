@@ -1,4 +1,4 @@
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { ForeignLanguageFlag } from '@/components/ForeignLanguageFlag'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useQuery } from '@tanstack/react-query'
@@ -20,7 +20,7 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
       <p className="text-center text-2xl font-medium">{item.text}</p>
       {item.context_sentence && (
         <div className="mt-4 text-left">
-          <p className="text-xs text-muted-foreground">{t('Пример из материала')}</p>
+          <p className="text-xs text-muted-foreground">{t('Example from the material')}</p>
           <p dir="auto" className="mt-1 text-base">
             {item.context_sentence}
           </p>
@@ -32,17 +32,17 @@ export function ReviewCard({ item, flipped, error, onFlip }: Props) {
           onClick={onFlip}
           className="mt-6 w-full rounded-md border border-border py-3 text-sm hover:bg-accent"
         >
-          {t('Показать перевод')}
+          {t('Show translation')}
         </button>
       ) : (
         <>
           <hr className="my-4 border-border" />
-          <p className="text-xs text-muted-foreground">{t('Ваш перевод')}</p>
+          <p className="text-xs text-muted-foreground">{t('Your translation')}</p>
           <p dir="auto" className="mt-1 text-center text-xl">
             {item.translation !== null && (
               <ForeignLanguageFlag code={item.translation_language_code} className="mr-2" />
             )}
-            {item.translation ?? t('Перевод не сохранён')}
+            {item.translation ?? t('No saved translation')}
           </p>
           {item.context_sentence && item.context_lesson_id && item.context_segment_id && (
             <ContextTranslation
@@ -72,10 +72,10 @@ function ContextTranslation({ lessonId, segmentId }: { lessonId: string; segment
   })
   return (
     <div className="mt-4 text-left text-sm">
-      <p className="text-xs text-muted-foreground">{t('AI-перевод примера')}</p>
+      <p className="text-xs text-muted-foreground">{t('AI translation of the example')}</p>
       {query.isPending && (
         <p role="status" className="mt-1 text-muted-foreground">
-          {t('Переводим пример…')}
+          {t('Translating the example…')}
         </p>
       )}
       {query.data && (
@@ -88,12 +88,12 @@ function ContextTranslation({ lessonId, segmentId }: { lessonId: string; segment
           <p>
             {t(
               query.error instanceof ApiError && query.error.detail === 'ai_disabled'
-                ? 'AI отключён'
-                : 'Перевод примера недоступен. Можно продолжить повторение.',
+                ? msg('AI is disabled')
+                : msg('The example translation is unavailable. You can continue reviewing.'),
             )}
           </p>
           <button type="button" className="min-h-11 underline" onClick={() => void query.refetch()}>
-            {t('Повторить')}
+            {t('Retry')}
           </button>
         </div>
       )}

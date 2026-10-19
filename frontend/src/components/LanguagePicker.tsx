@@ -44,7 +44,7 @@ export function LanguagePicker() {
     await navigate({ to: '/learn/$lang/library', params: { lang } })
   }
 
-  const triggerLabel = `${t('Язык материала')}: ${learningLanguageLabel(currentLang, language)}`
+  const triggerLabel = `${t('Material language')}: ${learningLanguageLabel(currentLang, language)}`
 
   return (
     <>
@@ -78,7 +78,7 @@ export function LanguagePicker() {
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => setAddOpen(true)} className="gap-2">
             <Plus aria-hidden="true" />
-            <span>{t('Добавить язык')}</span>
+            <span>{t('Add language')}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

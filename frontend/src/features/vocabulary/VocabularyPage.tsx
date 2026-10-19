@@ -1,4 +1,4 @@
-import { useI18n } from '@/lib/i18n'
+import { intlLocale, useI18n, msg } from '@/lib/i18n'
 import { useTranslationLanguage } from '@/lib/useTranslationLanguage'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -30,9 +30,9 @@ interface Props {
 }
 
 const LINK_TABS = [
-  { id: 'all', label: 'Все' },
-  { id: 'words', label: 'Слова' },
-  { id: 'phrases', label: 'Фразы' },
+  { id: 'all', label: msg('All') },
+  { id: 'words', label: msg('Words') },
+  { id: 'phrases', label: msg('Phrases') },
 ] as const
 
 /** Вид лексики вкладки: фильтрует список и скоуп кнопки повтора (FLQ-34). */
@@ -46,10 +46,10 @@ const PAGE_SIZES = [25, 50, 100] as const
 type SortOption = 'created_at:desc' | 'created_at:asc' | 'text:asc' | 'text:desc'
 
 const SORT_OPTIONS: { id: SortOption; label: string }[] = [
-  { id: 'created_at:desc', label: 'Сначала новые' },
-  { id: 'created_at:asc', label: 'Сначала старые' },
-  { id: 'text:asc', label: 'А–Я' },
-  { id: 'text:desc', label: 'Я–А' },
+  { id: 'created_at:desc', label: msg('Newest first') },
+  { id: 'created_at:asc', label: msg('Oldest first') },
+  { id: 'text:asc', label: msg('A–Z') },
+  { id: 'text:desc', label: msg('Z–A') },
 ]
 
 const DAY_MS = 86400 * 1000
@@ -167,7 +167,7 @@ export function VocabularyPage({ lang, tab }: Props) {
   return (
     <div className="bg-[var(--vocab-page-bg)] [font-family:'Inter',system-ui,sans-serif]">
       <div className="mx-auto max-w-screen-2xl px-6">
-      <h1 className="py-6 text-2xl font-bold tracking-tight">{tr('Словарь')}</h1>
+      <h1 className="py-6 text-2xl font-bold tracking-tight">{tr('Vocabulary')}</h1>
       <div className="flex flex-wrap items-center gap-3 pb-5">
         {/* Below 640px the three tabs share the full width; long labels wrap (FLQ-32.3). */}
         <div className="grid w-full grid-cols-3 rounded-lg bg-[var(--vocab-subtabs-track)] p-0.5 sm:inline-flex sm:w-auto">
@@ -205,7 +205,7 @@ export function VocabularyPage({ lang, tab }: Props) {
               setSort(nextSort, nextSortDir)
             }}
           >
-            <SelectTrigger size="sm" aria-label={tr('Сортировка')}>
+            <SelectTrigger size="sm" aria-label={tr('Sort order')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -228,12 +228,12 @@ export function VocabularyPage({ lang, tab }: Props) {
                 ...(reviewKind ? { search: { kind: reviewKind } } : {}),
               })
             }}
-            aria-label={`${tr('⟳ Повтор лексики')}${dueCount > 0 ? ` (${dueCount})` : ''}`}
+            aria-label={`${tr('⟳ Review vocabulary')}${dueCount > 0 ? ` (${dueCount})` : ''}`}
           >
             {/* Short label on phones so the counter fits beside «Ещё действия» (FLQ-32.11). */}
             <span>
-              <span className="sm:hidden">{tr('⟳ Повтор')}</span>
-              <span className="hidden sm:inline">{tr('⟳ Повтор лексики')}</span>
+              <span className="sm:hidden">{tr('⟳ Review')}</span>
+              <span className="hidden sm:inline">{tr('⟳ Review vocabulary')}</span>
               {dueCount > 0 && ` (${dueCount})`}
             </span>
           </Button>
@@ -253,30 +253,30 @@ export function VocabularyPage({ lang, tab }: Props) {
             role="alert"
             className="mb-4 flex items-center justify-between rounded-md border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            <span>{tr('Не удалось загрузить словарь')}</span>
+            <span>{tr('Could not load vocabulary')}</span>
             <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
-              {tr('Повторить')}
+              {tr('Retry')}
             </Button>
           </div>
         )}
         {!showSkeleton && !isError && total === 0 && filtersAreDefault && (
           <div data-testid="vocab-empty-default" className="flex flex-col items-center justify-center py-20 text-center">
-            <h2 className="text-xl font-semibold">{tr('В словаре пока пусто')}</h2>
+            <h2 className="text-xl font-semibold">{tr('Your vocabulary is empty')}</h2>
             <p className="mt-2 text-muted-foreground">
-              {tr('Начните с импорта урока — нажимайте на слова в reader, и они появятся здесь')}
+              {tr('Import a lesson and select words in the reader to add them here')}
             </p>
             <Button asChild className="mt-6">
               <Link to="/learn/$lang/library" params={{ lang }}>
-                {tr('Перейти в библиотеку')}
+                {tr('Go to library')}
               </Link>
             </Button>
           </div>
         )}
         {!showSkeleton && !isError && total === 0 && !filtersAreDefault && (
           <div data-testid="vocab-empty-filtered" className="flex flex-col items-center justify-center py-20 text-center">
-            <h2 className="text-xl font-semibold">{tr('Ничего не найдено по текущим фильтрам')}</h2>
+            <h2 className="text-xl font-semibold">{tr('No results for these filters')}</h2>
             <Button type="button" variant="outline" className="mt-6" onClick={resetFilters}>
-              {tr('Сбросить фильтры')}
+              {tr('Reset filters')}
             </Button>
           </div>
         )}
@@ -285,12 +285,12 @@ export function VocabularyPage({ lang, tab }: Props) {
             {/* Below 1024px: total left, page size right, pagination centred below. */}
             <div className="grid grid-cols-2 items-center gap-x-4 gap-y-3 pb-5 lg:flex lg:justify-end">
               <div className="order-2 flex items-center gap-2 justify-self-end lg:order-1">
-                <span className="text-sm text-muted-foreground">{tr('Показать:')}</span>
+                <span className="text-sm text-muted-foreground">{tr('Show:')}</span>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(v) => { setPageSize(Number(v) as 25 | 50 | 100) }}
                 >
-                  <SelectTrigger size="sm" aria-label={tr('Размер страницы')}>
+                  <SelectTrigger size="sm" aria-label={tr('Page size')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -303,7 +303,7 @@ export function VocabularyPage({ lang, tab }: Props) {
                 </Select>
               </div>
               <span className="order-1 text-sm text-muted-foreground lg:order-2">
-                {tr('Всего:')} {total.toLocaleString(uiLanguage)}
+                {tr('Total:')} {total.toLocaleString(intlLocale(uiLanguage))}
               </span>
               <div className="order-3 col-span-2 justify-self-center">
                 <PaginationNumbers page={page} totalPages={totalPages} onPage={setPage} />
@@ -366,7 +366,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-border bg-card px-4 py-2 text-sm shadow-lg">
-            {tr('Удалено {{value0}}', { value0: deletedToast.toLocaleString(uiLanguage) })}
+            {tr('Deleted {{value0}}', { value0: deletedToast.toLocaleString(intlLocale(uiLanguage)) })}
           </div>
         </div>
       )}
@@ -377,7 +377,7 @@ export function VocabularyPage({ lang, tab }: Props) {
           className="fixed inset-x-0 bottom-6 z-[var(--z-toast)] flex justify-center"
         >
           <div className="rounded-full border border-destructive bg-card px-4 py-2 text-sm text-destructive shadow-lg">
-            {tr('Не удалось выполнить действие')}
+            {tr('Could not complete the action')}
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useI18n, setUiLanguage, type UiLanguage } from '@/lib/i18n'
+import { useI18n, setUiLanguageSafely, type UiLanguage, msg } from '@/lib/i18n'
 import { useEffect, useId, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, getApiErrorKey } from '@/api/client'
 import { meApi, type MeResponse } from '@/api/me'
 import { useUserStore } from '@/stores/userStore'
+import { UI_LANGUAGE_CODES, isUiLanguage, uiLanguageEndonym } from '@/lib/uiLanguages'
 import {
   LEARNING_LANGUAGES,
   TRANSLATION_LANGUAGES,
@@ -25,15 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-
-interface UiLang {
-  code: UiLanguage
-  name: string
-}
-const UI_LANGS: UiLang[] = [
-  { code: 'en', name: 'English' },
-  { code: 'ru', name: 'Русский' },
-]
 
 /**
  * Loads the profile before showing the form: the route has no ProtectedRoute, and a
@@ -68,14 +60,14 @@ export function OnboardingForm() {
   if (isError && !unauthenticated) {
     return (
       <div className="flex flex-col items-center gap-3">
-        <p role="alert">{t('Не удалось загрузить профиль.')}</p>
+        <p role="alert">{t('Could not load your profile.')}</p>
         <Button variant="outline" onClick={() => void refetch()}>
-          {t('Повторить')}
+          {t('Retry')}
         </Button>
       </div>
     )
   }
-  return <p className="text-muted-foreground">{t('Загрузка…')}</p>
+  return <p className="text-muted-foreground">{t('Loading…')}</p>
 }
 
 function OnboardingFields({ profile }: { profile: MeResponse }) {
@@ -83,7 +75,9 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const setUser = useUserStore((s) => s.setUser)
-  const profileUiLang: UiLanguage = profile.ui_language_code === 'en' ? 'en' : 'ru'
+  const profileUiLang: UiLanguage = isUiLanguage(profile.ui_language_code)
+    ? profile.ui_language_code
+    : uiLang
   // A migrated user whose interface language is also a learning language comes back
   // here with native unset: keep their languages so they can drop the one they speak.
   const [learning, setLearning] = useState<Set<LearningLanguageCode>>(
@@ -99,7 +93,7 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
   const nativeNoteId = useId()
 
   function changeUiLanguage(value: UiLanguage) {
-    setUiLanguage(value)
+    setUiLanguageSafely(value)
     // Until the learner picks a native language, it follows the interface language.
     if (!nativeChosen && !learning.has(value)) setNative(value)
   }
@@ -131,11 +125,11 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!native) {
-      setError('Выберите родной язык')
+      setError(msg('Choose your native language'))
       return
     }
     if (learning.size === 0) {
-      setError('Выберите хотя бы один язык')
+      setError(msg('Select at least one language'))
       return
     }
     setSubmitting(true)
@@ -165,18 +159,18 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
 
   return (
     <form noValidate onSubmit={onSubmit} className="w-full max-w-md space-y-6">
-      <h1 className="text-2xl font-semibold text-center">{t('Добро пожаловать в Glosano')}</h1>
+      <h1 className="text-2xl font-semibold text-center">{t('Welcome to Glosano')}</h1>
 
       <div className="space-y-2">
-        <Label htmlFor="onboarding-ui-language">{t('Язык интерфейса')}</Label>
+        <Label htmlFor="onboarding-ui-language">{t('Interface language')}</Label>
         <Select value={uiLang} onValueChange={(value) => changeUiLanguage(value as UiLanguage)}>
           <SelectTrigger id="onboarding-ui-language">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {UI_LANGS.map((l) => (
-              <SelectItem key={l.code} value={l.code}>
-                {l.name}
+            {UI_LANGUAGE_CODES.map((code) => (
+              <SelectItem key={code} value={code}>
+                {uiLanguageEndonym(code)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -184,14 +178,14 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="onboarding-native-language">{t('Родной язык')}</Label>
+        <Label htmlFor="onboarding-native-language">{t('Native language')}</Label>
         <Select
           required
           value={native ?? ''}
           onValueChange={(value) => chooseNative(value as TranslationLanguageCode)}
         >
           <SelectTrigger id="onboarding-native-language" aria-required="true">
-            <SelectValue placeholder={t('Выберите язык')} />
+            <SelectValue placeholder={t('Choose a language')} />
           </SelectTrigger>
           <SelectContent>
             {TRANSLATION_LANGUAGES.map((item) => (
@@ -203,20 +197,20 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          {t('Новые переводы делаются на этот язык. Сохранённые переводы не меняются.')}
+          {t('New translations are made into this language. Saved translations stay unchanged.')}
         </p>
         {/* Always mounted so screen readers announce the note when it appears. */}
         <p role="status" className="text-xs text-muted-foreground empty:hidden">
           {removedLanguage &&
             t(
-              '{{language}} убран из изучаемых: родной язык нельзя изучать. Уроки и словарь сохранены.',
+              '{{language}} was removed from your learning languages: you cannot study your native language. Your lessons and vocabulary are kept.',
               { language: learningLanguageLabel(removedLanguage, uiLang) },
             )}
         </p>
       </div>
 
       <div className="space-y-2">
-        <Label>{t('Я хочу изучать')}</Label>
+        <Label>{t('I want to learn')}</Label>
         <div className="space-y-2 rounded-md border p-3">
           {LEARNING_LANGUAGES.map((item) => {
             const isNative = item.code === native
@@ -236,14 +230,14 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
                 </label>
                 {isNative && (
                   <span id={nativeNoteId} className="text-xs text-muted-foreground">
-                    {t('Это ваш родной язык — смените его выше')}
+                    {t('This is your native language — change it above')}
                   </span>
                 )}
               </div>
             )
           })}
         </div>
-        <p className="text-xs text-muted-foreground">{t('Можно выбрать несколько')}</p>
+        <p className="text-xs text-muted-foreground">{t('You can select more than one')}</p>
       </div>
 
       {error && (
@@ -253,7 +247,7 @@ function OnboardingFields({ profile }: { profile: MeResponse }) {
       )}
 
       <Button type="submit" className="w-full" disabled={submitting}>
-        {t('Готово')}
+        {t('Done')}
       </Button>
     </form>
   )

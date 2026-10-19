@@ -10,17 +10,21 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from glosano.core.languages import (
     SUPPORTED_LEARNING_LANGUAGES,
+    UI_LANGUAGE_CODES,
     LearningLanguageCode,
     TranslationLanguageCode,
+    UiLanguageCode,
 )
 
-SUPPORTED_UI_LANGUAGES = frozenset({"en", "ru"})
+SUPPORTED_UI_LANGUAGES = frozenset(UI_LANGUAGE_CODES)
 
 
 class RegisterRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=80)
     email: EmailStr
     password: str = Field(min_length=10, max_length=128)
+    # Language chosen on the login screen before registering; None means English.
+    ui_language: UiLanguageCode | None = None
 
 
 class LoginRequest(BaseModel):
@@ -99,7 +103,7 @@ class UpdateProfileRequest(BaseModel):
 
 
 class UpdatePreferencesRequest(BaseModel):
-    ui_language: Literal["en", "ru"]
+    ui_language: UiLanguageCode
     learning_languages: list[LearningLanguageCode] = Field(min_length=1)
     # None keeps the current native language.
     native_language: TranslationLanguageCode | None = None

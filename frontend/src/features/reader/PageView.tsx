@@ -133,7 +133,7 @@ export function PageView({
                           type="button"
                           disabled={playbackDisabled}
                           onClick={() => onSeek(entry.sentence)}
-                          aria-label={t('Воспроизвести с {{time}}', {
+                          aria-label={t('Play from {{time}}', {
                             time: mediaTime(entry.sentence.media_start_ms),
                           })}
                           className="me-2 inline-flex min-h-7 items-center gap-1 rounded-s-sm rounded-e-md bg-primary px-2 py-1 align-middle text-xs leading-none font-semibold text-white tabular-nums shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"

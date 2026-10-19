@@ -44,7 +44,7 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
         type="button"
         variant="outline"
         size="icon"
-        aria-label={tr('Предыдущая страница')}
+        aria-label={tr('Previous page')}
         disabled={page <= 1}
         onClick={() => onPage(page - 1)}
       >
@@ -61,7 +61,7 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
             <button
               key={p}
               type="button"
-              aria-label={tr('Страница {{value0}}', { value0: p })}
+              aria-label={tr('Page {{value0}}', { value0: p })}
               onClick={() => onPage(p)}
               className={
                 // Coarse pointers get a 40px hit area; mouse users keep the compact look.
@@ -78,7 +78,7 @@ export function PaginationNumbers({ page, totalPages, onPage }: Props): JSX.Elem
         type="button"
         variant="outline"
         size="icon"
-        aria-label={tr('Следующая страница')}
+        aria-label={tr('Next page')}
         disabled={page >= totalPages}
         onClick={() => onPage(page + 1)}
       >

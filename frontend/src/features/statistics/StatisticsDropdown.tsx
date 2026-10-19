@@ -1,4 +1,4 @@
-import { useI18n } from '@/lib/i18n'
+import { intlLocale, useI18n } from '@/lib/i18n'
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -63,7 +63,7 @@ function StatsRing() {
 
 function MetricRow({ label, value }: { label: string; value: number }) {
   const { language } = useI18n()
-  const formatNumber = new Intl.NumberFormat(language)
+  const formatNumber = new Intl.NumberFormat(intlLocale(language))
   return (
     <div className="flex items-baseline gap-2 border-b border-border py-3">
       <dd className="order-first min-w-5 text-[17px] leading-6 font-bold tabular-nums">
@@ -76,21 +76,19 @@ function MetricRow({ label, value }: { label: string; value: number }) {
 
 function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: () => void }) {
   const { language, t } = useI18n()
-  const formatNumber = new Intl.NumberFormat(language)
+  const formatNumber = new Intl.NumberFormat(intlLocale(language))
   return (
     <>
       <div className="py-6 text-center">
         <p
-          aria-label={t('Новые слова сегодня')}
+          aria-label={t('New words today')}
           className="text-[40px] leading-tight font-bold tracking-tight tabular-nums"
         >
           {formatNumber.format(data.new_items_today)}
         </p>
-        <p className="mt-1 text-[15px] font-medium">{t('Новые слова')}</p>
+        <p className="mt-1 text-[15px] font-medium">{t('New words')}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {data.new_items_today === 0
-            ? t('Добавьте первое слово сегодня')
-            : t('Добавлено в изучение сегодня')}
+          {data.new_items_today === 0 ? t('Add your first word today') : t('Added to study today')}
         </p>
       </div>
 
@@ -98,26 +96,26 @@ function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: (
         <div className="flex items-baseline gap-1.5">
           <span aria-hidden="true">{learningLanguageFlag(data.language_code)}</span>
           <h3 className="text-sm font-semibold">
-            {t('Сегодня ·')} {learningLanguageLabel(data.language_code, language)}
+            {t('Today ·')} {learningLanguageLabel(data.language_code, language)}
           </h3>
         </div>
-        <span className="text-xs text-muted-foreground">{t('Сутки по UTC')}</span>
+        <span className="text-xs text-muted-foreground">{t('Day in UTC')}</span>
       </div>
       <dl className="mt-1">
-        <MetricRow label={t('Прочитано слов')} value={data.tokens_read_today} />
-        <MetricRow label={t('Новые слова')} value={data.new_items_today} />
-        <MetricRow label={t('Выучено на повторении')} value={data.learned_items_today} />
+        <MetricRow label={t('Words read')} value={data.tokens_read_today} />
+        <MetricRow label={t('New words')} value={data.new_items_today} />
+        <MetricRow label={t('Learned through review')} value={data.learned_items_today} />
       </dl>
 
-      <h3 className="mt-5 text-sm font-semibold">{t('Всего')}</h3>
+      <h3 className="mt-5 text-sm font-semibold">{t('Total')}</h3>
       <dl className="mt-1">
-        <MetricRow label={t('В изучении')} value={data.tracked_items_count} />
-        <MetricRow label={t('Известные слова')} value={data.known_items_count} />
+        <MetricRow label={t('Studying')} value={data.tracked_items_count} />
+        <MetricRow label={t('Known words')} value={data.known_items_count} />
       </dl>
 
       <div className="mt-4 rounded-lg bg-muted px-3 py-3">
         <div className="flex items-center justify-between gap-3 text-sm">
-          <span>{t('Доступно к повторению')}</span>
+          <span>{t('Due for review')}</span>
           <strong className="tabular-nums">{formatNumber.format(data.due_reviews)}</strong>
         </div>
         {data.due_reviews > 0 ? (
@@ -128,26 +126,24 @@ function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: (
             onClick={onNavigate}
             className="mt-2 flex items-center gap-1 rounded-sm text-sm text-[var(--vocab-translation-fg)] outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {t('Перейти к повторению')} <ChevronRight className="size-4" aria-hidden="true" />
+            {t('Start reviewing')} <ChevronRight className="size-4" aria-hidden="true" />
           </Link>
         ) : (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('Пока нет карточек для повторения')}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('No cards due for review yet')}</p>
         )}
       </div>
       <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        {t('В словарных показателях учитываются слова и фразы.')}
+        {t('Vocabulary metrics include words and phrases.')}
       </p>
       <details className="mt-2 text-xs leading-relaxed text-muted-foreground">
         <summary className="w-fit cursor-pointer rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-          {t('Как считается чтение')}
+          {t('How reading is counted')}
         </summary>
         <p className="mt-1">
           {t(
-            'Чтение учитывается при переходе к следующей странице или предложению. Одно вхождение слова считается один раз в сутки. Учёт ведётся с',
+            'Reading is recorded when you move to the next page or sentence. Each word occurrence counts once per day. Tracking started on',
           )}{' '}
-          {new Intl.DateTimeFormat(language, {
+          {new Intl.DateTimeFormat(intlLocale(language), {
             day: 'numeric',
             month: 'long',
             timeZone: 'UTC',
@@ -161,7 +157,7 @@ function StatsContent({ data, onNavigate }: { data: StatsOverview; onNavigate: (
 
 export function StatisticsDropdown({ lang }: { lang: string }) {
   const { language, t } = useI18n()
-  const formatNumber = new Intl.NumberFormat(language)
+  const formatNumber = new Intl.NumberFormat(intlLocale(language))
   const [open, setOpen] = useState(false)
   const day = useUtcDay()
   const query = useQuery({
@@ -181,7 +177,7 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
       <Popover.Trigger asChild>
         <button
           type="button"
-          aria-label={t('Открыть статистику')}
+          aria-label={t('Open statistics')}
           className="flex shrink-0 items-center gap-2 rounded-lg p-1.5 text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring sm:px-2"
         >
           <StatsRing />
@@ -199,7 +195,7 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
           align="end"
           sideOffset={10}
           collisionPadding={16}
-          aria-label={t('Статистика')}
+          aria-label={t('Statistics')}
           className="z-[var(--z-popover)] max-h-[var(--radix-popover-content-available-height)] w-[400px] max-w-[calc(100vw-32px)] overflow-y-auto overscroll-contain rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-[0_8px_24px_rgba(0,0,0,0.1)] outline-none"
         >
           <div className="flex items-center gap-2">
@@ -207,11 +203,11 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
             <span className="text-base font-semibold tabular-nums">
               {data ? formatNumber.format(data.known_items_count) : '—'}
             </span>
-            <span className="text-[15px]">{t('Известные слова')}</span>
+            <span className="text-[15px]">{t('Known words')}</span>
             <Popover.Close asChild>
               <button
                 type="button"
-                aria-label={t('Закрыть статистику')}
+                aria-label={t('Close statistics')}
                 className="-mr-1 ml-auto rounded-md p-1.5 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="size-[18px]" aria-hidden="true" />
@@ -220,7 +216,7 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
           </div>
           {query.isError ? (
             <div role="alert" className="py-8 text-center">
-              <p className="text-sm">{t('Не удалось загрузить статистику')}</p>
+              <p className="text-sm">{t('Could not load statistics')}</p>
               <Button
                 variant="outline"
                 className="mt-3"
@@ -228,14 +224,14 @@ export function StatisticsDropdown({ lang }: { lang: string }) {
                   void query.refetch()
                 }}
               >
-                {t('Попробовать снова')}
+                {t('Try again')}
               </Button>
             </div>
           ) : data ? (
             <StatsContent data={data} onNavigate={() => setOpen(false)} />
           ) : (
             <div role="status" className="space-y-4 py-8">
-              <span className="sr-only">{t('Загрузка статистики')}</span>
+              <span className="sr-only">{t('Loading statistics')}</span>
               <div className="mx-auto h-14 w-20 animate-pulse rounded-lg bg-muted" />
               {[0, 1, 2, 3].map((row) => (
                 <div key={row} className="h-10 animate-pulse rounded-md bg-muted" />

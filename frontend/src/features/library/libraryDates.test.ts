@@ -43,4 +43,16 @@ describe('formatLastActivity', () => {
       'Last studied: Sep 24',
     )
   })
+
+  it('formats the short date with European Portuguese for pt', () => {
+    const date = new Date(2026, 8, 24, 9)
+    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+    const european = new Intl.DateTimeFormat('pt-PT', options).format(date)
+    const brazilian = new Intl.DateTimeFormat('pt', options).format(date)
+    const pt = (key: string, params?: Record<string, string | number>) =>
+      translate(key, params, 'pt')
+    expect(european).not.toBe(brazilian)
+    expect(formatLastActivity(date.toISOString(), today, 'pt', pt)).toContain(european)
+    expect(formatLastActivity(date.toISOString(), today, 'pt', pt)).not.toContain(brazilian)
+  })
 })

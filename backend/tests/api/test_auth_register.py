@@ -111,3 +111,52 @@ async def test_register_admin_role_when_email_matches_env(monkeypatch: pytest.Mo
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
+
+
+async def test_register_stores_ui_language() -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r = await c.post(
+            "/auth/register",
+            json={
+                "display_name": "Hana",
+                "email": "ui-lang-ja@example.com",
+                "password": "abcdefghij",
+                "ui_language": "ja",
+            },
+        )
+        assert r.status_code == 201
+        me = (await c.get("/me")).json()
+        assert me["ui_language_code"] == "ja"
+
+
+async def test_register_without_ui_language_defaults_to_en() -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r = await c.post(
+            "/auth/register",
+            json={
+                "display_name": "Default",
+                "email": "ui-lang-default@example.com",
+                "password": "abcdefghij",
+            },
+        )
+        assert r.status_code == 201
+        me = (await c.get("/me")).json()
+        assert me["ui_language_code"] == "en"
+
+
+@pytest.mark.parametrize("code", ["ar", "xx"])
+async def test_register_rejects_arabic_ui_language(code: str) -> None:
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        r = await c.post(
+            "/auth/register",
+            json={
+                "display_name": "Bad",
+                "email": f"ui-lang-bad-{code}@example.com",
+                "password": "abcdefghij",
+                "ui_language": code,
+            },
+        )
+        assert r.status_code == 422

@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { chatsApi, type Exercise, type Attempt } from '@/api/chats'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { intlLocale, useI18n, msg } from '@/lib/i18n'
 import { chatDrafts, useChatStore, MAX_UNFINISHED_ANSWERS } from './chatStore'
 import { ChatCitation } from './ChatCitation'
 import { useDraft } from './useChat'
@@ -16,7 +16,7 @@ export function ExerciseCard({
   aiEnabled: boolean
   busy: boolean
 }) {
-  const t = useTranslation(),
+  const { language, t } = useI18n(),
     uid = useChatStore((s) => s.userId),
     client = useQueryClient(),
     formId = useId()
@@ -108,11 +108,11 @@ export function ExerciseCard({
   }
   return (
     <section
-      aria-label={t('Упражнение {{id}}', { id: exercise.id })}
+      aria-label={t('Exercise {{id}}', { id: exercise.id })}
       className="my-3 space-y-3 rounded-xl border border-primary/30 bg-background p-4"
     >
       <div className="text-xs font-medium text-muted-foreground">
-        {t('Упражнение · создано AI')}
+        {t('Exercise · AI-generated')}
       </div>
       <p className="whitespace-pre-wrap font-medium">
         {exercise.kind === 'gap' ? exercise.prompt.replace('{{gap}}', '_____') : exercise.prompt}
@@ -127,7 +127,7 @@ export function ExerciseCard({
       >
         {exercise.kind === 'single_choice' ? (
           <fieldset disabled={!entry.loaded || submitting || atAnswerLimit} className="space-y-2">
-            <legend className="sr-only">{t('Выберите ответ')}</legend>
+            <legend className="sr-only">{t('Choose an answer')}</legend>
             {exercise.options?.map((option) => (
               <label
                 className="flex cursor-pointer items-start gap-2 rounded border p-3"
@@ -147,7 +147,7 @@ export function ExerciseCard({
           </fieldset>
         ) : (
           <label className="block text-sm">
-            {t('Ответ')}
+            {t('Answer')}
             {exercise.kind === 'gap' ? (
               <input
                 maxLength={4000}
@@ -177,28 +177,28 @@ export function ExerciseCard({
             (exercise.kind === 'free_response' && (!aiEnabled || busy))
           }
         >
-          {t(pending ? 'Повторить отправку ответа' : 'Проверить ответ')}
+          {t(pending ? msg('Retry answer submission') : msg('Check answer'))}
         </Button>
         {answer !== '' && (
           <Button type="button" variant="outline" onClick={() => edit('')}>
-            {t('Очистить черновик ответа')}
+            {t('Clear answer draft')}
           </Button>
         )}
       </form>
       {atAnswerLimit && (
         <p role="status" className="text-sm text-muted-foreground">
           {t(
-            'У вас 30 незавершённых ответов. Отправьте или очистите прежний ответ, чтобы начать новый.',
+            'You have 30 unfinished answers. Submit or clear an existing answer to start another.',
           )}
         </p>
       )}
       {exercise.kind === 'free_response' && !aiEnabled && (
         <p className="text-sm text-muted-foreground">
-          {t('AI-проверка недоступна. Ваш ответ сохранён как черновик.')}
+          {t('AI evaluation is unavailable. Your answer is saved as a draft.')}
         </p>
       )}
       {error && (
-        <p role="alert">{t('Не удалось отправить ответ. Повторите; ваша попытка не потеряна.')}</p>
+        <p role="alert">{t('Could not submit your answer. Retry; your attempt is preserved.')}</p>
       )}
       <div className="flex flex-wrap gap-3 text-sm">
         <button
@@ -214,43 +214,43 @@ export function ExerciseCard({
           className="underline disabled:opacity-50"
           onClick={() => void similar()}
         >
-          {t('Похожее упражнение')}
+          {t('Similar exercise')}
         </button>
         <button className="underline" onClick={() => reference(null)}>
-          {t('Обсудить упражнение')}
+          {t('Discuss exercise')}
         </button>
       </div>
       {confirmSimilar && (
         <div className="space-y-2 rounded border border-amber-500 p-3 text-sm" role="alert">
-          <p>{t('Текущий черновик будет отправлен вместе с запросом похожего упражнения.')}</p>
+          <p>{t('Your current draft will be sent with the similar exercise request.')}</p>
           <p className="whitespace-pre-wrap break-words">{entry.draft.text}</p>
           {entry.draft.citation_ids.map((id) => (
             <ChatCitation key={id} id={id} />
           ))}
           <p>
-            {t('Упражнение для нового запроса')}: {exercise.prompt.replace('{{gap}}', '_____')}
+            {t('Exercise for the new request')}: {exercise.prompt.replace('{{gap}}', '_____')}
           </p>
           {(entry.draft.exercise_id || entry.draft.attempt_id) && (
-            <p>{t('Прежняя ссылка на упражнение или попытку будет заменена.')}</p>
+            <p>{t('The previous exercise or attempt reference will be replaced.')}</p>
           )}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setConfirmSimilar(false)}>
-              {t('Отмена')}
+              {t('Cancel')}
             </Button>
             <Button
               disabled={!aiEnabled || busy || entry.sending || !!entry.pending || !!entry.conflict}
               onClick={() => void queueSimilar()}
             >
-              {t('Отправить черновик и создать похожее')}
+              {t('Send draft and create similar')}
             </Button>
           </div>
         </div>
       )}
-      {history.length > 0 && <h4 className="text-sm font-semibold">{t('Предыдущие попытки')}</h4>}
+      {history.length > 0 && <h4 className="text-sm font-semibold">{t('Previous attempts')}</h4>}
       {history.map((attempt) => (
         <article className="space-y-2 rounded border p-3 text-sm" key={attempt.id}>
           <time className="text-xs text-muted-foreground" dateTime={attempt.created_at}>
-            {new Date(attempt.created_at).toLocaleString()}
+            {new Date(attempt.created_at).toLocaleString(intlLocale(language))}
           </time>
           <p className="whitespace-pre-wrap break-words">
             {exercise.options?.find((o) => o.id === attempt.answer)?.text ?? attempt.answer}
@@ -258,23 +258,23 @@ export function ExerciseCard({
           <p className="font-medium">
             {t(
               attempt.status === 'pending'
-                ? 'Ожидает проверки'
+                ? msg('Awaiting evaluation')
                 : attempt.status === 'failed'
-                  ? 'Не оценено — проверка не удалась'
+                  ? msg('Not graded — evaluation failed')
                   : attempt.correct
-                    ? 'Верно'
-                    : 'Неверно',
+                    ? msg('Correct')
+                    : msg('Incorrect'),
             )}
           </p>
           {attempt.feedback && <p className="whitespace-pre-wrap">{attempt.feedback}</p>}
           <button className="underline" onClick={() => reference(attempt.id)}>
-            {t('Обсудить эту попытку')}
+            {t('Discuss this attempt')}
           </button>
         </article>
       ))}
       {attempts.isError && (
         <button className="underline" onClick={() => void attempts.refetch()}>
-          {t('Повторить загрузку попыток')}
+          {t('Retry loading attempts')}
         </button>
       )}
       {attempts.hasNextPage && (
@@ -283,7 +283,7 @@ export function ExerciseCard({
           disabled={attempts.isFetchingNextPage}
           onClick={() => void attempts.fetchNextPage()}
         >
-          {t('Ещё попытки')}
+          {t('More attempts')}
         </Button>
       )}
     </section>

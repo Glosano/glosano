@@ -22,8 +22,8 @@ export function ConfidencePicker({ status, confidence, onSelect, size = 'md' }: 
     <div className="flex items-center justify-between gap-2">
       <button
         type="button"
-        aria-label={t('Игнорировать')}
-        title={t('Игнорировать')}
+        aria-label={t('Ignore')}
+        title={t('Ignore')}
         onClick={() => onSelect('ignored', null)}
         className={`rounded-full border ${iconBtn} hover:bg-accent ${status === 'ignored' ? 'border-foreground' : 'border-border'}`}
       >
@@ -34,8 +34,8 @@ export function ConfidencePicker({ status, confidence, onSelect, size = 'md' }: 
           <button
             key={n}
             type="button"
-            aria-label={t('Уровень {{value0}}', { value0: n })}
-            title={t('Уверенность {{value0}}/4', { value0: n })}
+            aria-label={t('Level {{value0}}', { value0: n })}
+            title={t('Confidence {{value0}}/4', { value0: n })}
             onClick={() => onSelect('tracked', n)}
             className={`flex ${pill} items-center justify-center rounded-full border ${
               status === 'tracked' && confidence === n
@@ -49,8 +49,8 @@ export function ConfidencePicker({ status, confidence, onSelect, size = 'md' }: 
       </div>
       <button
         type="button"
-        aria-label={t('Изучено')}
-        title={t('Изучено')}
+        aria-label={t('Known')}
+        title={t('Known')}
         onClick={() => onSelect('known', null)}
         className={`rounded-full border ${iconBtn} ${
           status === 'known'

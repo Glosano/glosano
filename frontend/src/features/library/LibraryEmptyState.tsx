@@ -9,15 +9,15 @@ export function LibraryEmptyState() {
   const [open, setOpen] = useState(false)
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <h2 className="text-xl font-semibold">{t('У вас пока нет уроков')}</h2>
-      <p className="mt-2 text-muted-foreground">{t('Импортируйте свой первый текст')}</p>
+      <h2 className="text-xl font-semibold">{t('You have no lessons yet')}</h2>
+      <p className="mt-2 text-muted-foreground">{t('Import your first text')}</p>
       <Button
         className="mt-6"
         onClick={() => {
           setOpen(true)
         }}
       >
-        {t('+ Импортировать урок')}
+        {t('+ Import lesson')}
       </Button>
       <ImportLessonDialog open={open} onOpenChange={setOpen} />
     </div>

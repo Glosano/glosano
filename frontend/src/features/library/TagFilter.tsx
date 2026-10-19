@@ -22,7 +22,7 @@ export function TagFilter({ lang }: { lang: string }) {
   return (
     <div
       role="group"
-      aria-label={t('Фильтр по тегам')}
+      aria-label={t('Filter by tags')}
       className="-mt-2 flex items-center gap-2 overflow-x-auto pb-4"
     >
       {names.map((name) => {
@@ -46,7 +46,7 @@ export function TagFilter({ lang }: { lang: string }) {
       })}
       {selectedTags.length > 0 && (
         <Button variant="ghost" size="sm" className="shrink-0" onClick={clearTags}>
-          {t('Сбросить теги')}
+          {t('Clear tags')}
         </Button>
       )}
     </div>

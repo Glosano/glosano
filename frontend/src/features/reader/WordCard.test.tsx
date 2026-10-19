@@ -30,6 +30,9 @@ import { ApiError } from '@/api/client'
 import { useReaderStore } from './readerStore'
 import { WordCard } from './WordCard'
 import { setUiLanguage, useI18n } from '@/lib/i18n'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
 
 afterEach(() => { setUiLanguage('ru') })
 
@@ -116,8 +119,8 @@ describe('WordCard core', () => {
       note: null, tags: [],
     })
     renderCard(null, 'L1', null, 'uk')
-    expect(await screen.findByRole('textbox', { name: 'Перевод: Русский' })).toHaveValue('каждый')
-    expect(screen.getByRole('textbox', { name: 'Перевод: Украинский' })).toHaveValue('кожен')
+    expect(await screen.findByRole('textbox', { name: `Перевод: ${langRu('ru')}` })).toHaveValue('каждый')
+    expect(screen.getByRole('textbox', { name: `Перевод: ${langRu('uk')}` })).toHaveValue('кожен')
     const fields = screen.getByTestId('translation-fields')
     expect(fields).toHaveTextContent('🇷🇺')
     expect(fields).not.toHaveTextContent('🇺🇦')
@@ -140,7 +143,7 @@ describe('WordCard core', () => {
     })
     renderCard(null, 'L1', null, 'uk')
     expect(await screen.findByDisplayValue('каждый')).toBeInTheDocument()
-    const input = screen.getByRole('textbox', { name: 'Новый перевод: Украинский' })
+    const input = screen.getByRole('textbox', { name: `Новый перевод: ${langRu('uk')}` })
     fireEvent.change(input, { target: { value: 'кожен' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(vocabularyApi.addTranslation).toHaveBeenCalledWith('token', 'I1', {
@@ -163,7 +166,7 @@ describe('WordCard core', () => {
       id: 'T-ru', text: 'всякий', target_language_code: 'ru', is_primary: true, source_type: 'user',
     })
     renderCard(null, 'L1', null, 'uk')
-    const ru = await screen.findByRole('textbox', { name: 'Перевод: Русский' })
+    const ru = await screen.findByRole('textbox', { name: `Перевод: ${langRu('ru')}` })
     fireEvent.change(ru, { target: { value: 'всякий' } })
     fireEvent.keyDown(ru, { key: 'Enter' })
     await waitFor(() =>

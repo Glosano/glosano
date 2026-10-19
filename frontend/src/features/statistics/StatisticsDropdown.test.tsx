@@ -13,6 +13,10 @@ vi.mock('@tanstack/react-router', () => ({
 import { setUiLanguage } from '@/lib/i18n'
 
 import { StatisticsDropdown } from './StatisticsDropdown'
+import { languageName } from '@/lib/languages'
+
+const langRu = (code: string) => languageName(code, 'ru')
+const langEn = (code: string) => languageName(code, 'en')
 
 const TODAY = new Date().toISOString().slice(0, 10)
 const DATA = {
@@ -64,13 +68,13 @@ describe('StatisticsDropdown', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open statistics' }))
     const panel = await screen.findByRole('dialog', { name: 'Statistics' })
     expect(await within(panel).findByText('1,430')).toBeInTheDocument()
-    expect(within(panel).getByText('Today · Portuguese')).toBeInTheDocument()
+    expect(within(panel).getByText(`Today · ${langEn('pt')}`)).toBeInTheDocument()
     expect(within(panel).getByText(/September 10/)).toBeInTheDocument()
     expect(within(panel).getByRole('link', { name: 'Start reviewing' })).toHaveAttribute('href', '/learn/pt/review')
     act(() => setUiLanguage('ru'))
     expect(screen.getByRole('dialog', { name: 'Статистика' })).toBeInTheDocument()
     expect(within(panel).getByText(/1\s430/)).toBeInTheDocument()
-    expect(within(panel).getByText('Сегодня · Португальский')).toBeInTheDocument()
+    expect(within(panel).getByText(`Сегодня · ${langRu('pt')}`)).toBeInTheDocument()
     expect(within(panel).getByText(/10 сентября/)).toBeInTheDocument()
   })
 
@@ -103,7 +107,7 @@ describe('StatisticsDropdown', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open statistics' }))
 
     const panel = await screen.findByRole('dialog', { name: 'Statistics' })
-    expect(await within(panel).findByText('Today · Chinese (Simplified)')).toBeInTheDocument()
+    expect(await within(panel).findByText(`Today · ${langEn('zh-Hans')}`)).toBeInTheDocument()
     expect(within(panel).getByText('🇨🇳')).toHaveAttribute('aria-hidden', 'true')
   })
 

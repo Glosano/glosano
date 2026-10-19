@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { translate } from './i18n'
 import { parseTagInput, tagInputError } from './tags'
 
 describe('parseTagInput', () => {
@@ -21,9 +22,16 @@ describe('parseTagInput', () => {
 describe('tagInputError', () => {
   it('accepts the limits and reports the first broken rule', () => {
     expect(tagInputError(['x'.repeat(40)])).toBeNull()
-    expect(tagInputError(['x'.repeat(41)])).toBe('Тег должен быть не длиннее 40 символов.')
+    expect(tagInputError(['x'.repeat(41)])).toBe('A tag must be at most 40 characters.')
     expect(tagInputError(Array.from({ length: 21 }, (_, i) => `t${i}`))).toBe(
-      'Не больше 20 тегов на материал.',
+      'No more than 20 tags per material.',
     )
+  })
+
+  it('has Russian text for both limit messages', () => {
+    const tooLong = tagInputError(['x'.repeat(41)])!
+    const tooMany = tagInputError(Array.from({ length: 21 }, (_, i) => `t${i}`))!
+    expect(translate(tooLong, undefined, 'ru')).toBe('Тег должен быть не длиннее 40 символов.')
+    expect(translate(tooMany, undefined, 'ru')).toBe('Не больше 20 тегов на материал.')
   })
 })

@@ -119,6 +119,7 @@ async def register_user(
     display_name: str,
     email: str,
     password: str,
+    ui_language: str | None = None,
     user_repo: UserRepo,
     session_repo: SessionRepo,
 ) -> User:
@@ -138,6 +139,7 @@ async def register_user(
             password_hash=hash_password(password),
             display_name=display_name,
             role=role,
+            ui_language_code=ui_language or "en",
         )
     except IntegrityError as e:
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already in use") from e

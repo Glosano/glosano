@@ -1,3 +1,5 @@
+import { msg } from '@/lib/i18n'
+
 export const MAX_TAG_LENGTH = 40
 export const MAX_TAGS = 20
 
@@ -16,7 +18,7 @@ export function parseTagInput(value: string): string[] {
 /** The i18n key of the first limit the tags break, or null. The server checks again. */
 export function tagInputError(tags: string[]): string | null {
   if (tags.some((tag) => [...tag].length > MAX_TAG_LENGTH))
-    return 'Тег должен быть не длиннее 40 символов.'
-  if (tags.length > MAX_TAGS) return 'Не больше 20 тегов на материал.'
+    return msg('A tag must be at most 40 characters.')
+  if (tags.length > MAX_TAGS) return msg('No more than 20 tags per material.')
   return null
 }

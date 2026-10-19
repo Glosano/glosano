@@ -44,21 +44,21 @@ export function VocabularyTable({
       <div className={`grid ${GRID_COLS} items-center px-4 py-2`}>
         <input
           type="checkbox"
-          aria-label={tr('Выбрать все на странице')}
+          aria-label={tr('Select all on this page')}
           checked={allSelected}
           onChange={() => (allSelected ? onClearSelection() : onSelectPage(pageIds))}
         />
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          {tr('ТЕРМИН')}
+          {tr('TERM')}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          {tr('ПЕРЕВОД')}
+          {tr('TRANSLATION')}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          {tr('ИСХОДНЫЙ ТЕКСТ')}
+          {tr('SOURCE TEXT')}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--vocab-header-fg)]">
-          {tr('СТАТУС')}
+          {tr('STATUS')}
         </span>
       </div>
       <div className="flex flex-col gap-2">
@@ -69,7 +69,7 @@ export function VocabularyTable({
           >
             <input
               type="checkbox"
-              aria-label={tr('Выбрать {{value0}}', { value0: item.text })}
+              aria-label={tr('Select {{value0}}', { value0: item.text })}
               checked={selection.includes(item.item_id)}
               onChange={() => onToggleSelected(item.item_id)}
             />
@@ -97,7 +97,7 @@ export function VocabularyTable({
                       {item.ai_tags?.includes(tag) && (
                         <span
                           className="ml-1 text-[10px] text-muted-foreground"
-                          aria-label={tr('Создано AI')}
+                          aria-label={tr('AI-generated')}
                         >
                           AI
                         </span>

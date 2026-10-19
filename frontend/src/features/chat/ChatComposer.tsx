@@ -4,7 +4,7 @@ import { ArrowUp, RotateCw, Square } from 'lucide-react'
 import { ApiError } from '@/api/client'
 import type { Capabilities } from '@/api/chats'
 import { Button } from '@/components/ui/button'
-import { useTranslation } from '@/lib/i18n'
+import { useTranslation, msg } from '@/lib/i18n'
 import { COARSE_POINTER_QUERY, useMediaQuery } from '@/lib/useMediaQuery'
 import { chatDrafts, useChatStore } from './chatStore'
 import { useDraft } from './useChat'
@@ -90,9 +90,9 @@ export function ChatComposer({
   const nearContextLimit =
     contextBudget !== undefined && content.text.length > contextBudget * CONTEXT_WARNING_SHARE
   const draftStatus = entry.sending
-    ? 'Отправка…'
+    ? msg('Sending…')
     : entry.error || entry.conversionError
-      ? 'Не сохранено на сервере'
+      ? msg('Not saved to server')
       : null
   return (
     <form
@@ -105,24 +105,24 @@ export function ChatComposer({
     >
       {preparation && (
         <div role="status" className="flex items-center gap-2 text-sm">
-          {t('Загрузка…')}
+          {t('Loading…')}
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => chatDrafts.cancelCitation(id, preparation.token)}
           >
-            {t('Отменить добавление цитаты')}
+            {t('Cancel adding quote')}
           </Button>
         </div>
       )}
       {entry.conflict && (
         <div role="alert" className="space-y-2 rounded border border-amber-500 p-2 text-sm">
-          <p>{t('Черновик изменён в другом окне. Ваша копия сохранена локально.')}</p>
+          <p>{t('The draft changed in another window. Your copy is saved locally.')}</p>
           <details>
-            <summary>{t('Серверная версия')}</summary>
+            <summary>{t('Server version')}</summary>
             <p className="whitespace-pre-wrap">{entry.conflict.text}</p>
-            <p>{t('Цитат: {{count}}', { count: entry.conflict.citation_ids.length })}</p>
+            <p>{t('Citations: {{count}}', { count: entry.conflict.citation_ids.length })}</p>
           </details>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -130,10 +130,10 @@ export function ChatComposer({
               variant="outline"
               onClick={() => chatDrafts.resolve(id, 'server')}
             >
-              {t('Загрузить серверную версию')}
+              {t('Load server version')}
             </Button>
             <Button type="button" variant="outline" onClick={() => chatDrafts.resolve(id, 'local')}>
-              {t('Сохранить мою версию')}
+              {t('Save my version')}
             </Button>
           </div>
         </div>
@@ -146,8 +146,8 @@ export function ChatComposer({
           ref={input}
           rows={1}
           className="max-h-36 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-sm leading-6 outline-none"
-          aria-label={t('Сообщение')}
-          placeholder={t('Сообщение…')}
+          aria-label={t('Message')}
+          placeholder={t('Message…')}
           disabled={!entry.loaded && !entry.conversionError && !entry.error}
           maxLength={capabilities?.draft_text_char_limit ?? 16000}
           value={content.text}
@@ -166,8 +166,8 @@ export function ChatComposer({
             type="button"
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            aria-label={t('Остановить ответ')}
-            title={t('Остановить ответ')}
+            aria-label={t('Stop response')}
+            title={t('Stop response')}
             disabled={stopping}
             onClick={onStop}
           >
@@ -178,8 +178,8 @@ export function ChatComposer({
             type="submit"
             size="icon"
             className="size-9 shrink-0 rounded-full"
-            aria-label={t(entry.pending ? 'Повторить отправку' : 'Отправить')}
-            title={t(entry.pending ? 'Повторить отправку' : 'Отправить')}
+            aria-label={t(entry.pending ? msg('Retry sending') : msg('Send'))}
+            title={t(entry.pending ? msg('Retry sending') : msg('Send'))}
             disabled={blocked}
           >
             {entry.pending ? (
@@ -192,7 +192,7 @@ export function ChatComposer({
       </div>
       {!aiEnabled && (
         <p className="text-sm text-muted-foreground">
-          {t('AI отключён. История и черновики доступны; новые ответы недоступны.')}
+          {t('AI is disabled. History and drafts remain available; new replies are unavailable.')}
         </p>
       )}
       {/* Routine autosave states stay silent; only sending and failures surface. */}
@@ -203,7 +203,7 @@ export function ChatComposer({
         <div role="alert" className="space-y-2 text-sm">
           <p>
             {t(
-              'Не удалось перенести старые цитаты в сообщение. Повторите перенос или уберите старые цитаты; текст вопроса сохранится.',
+              'Old quotes could not be added to the message. Retry or remove the old quotes; your question text will be kept.',
             )}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -213,7 +213,7 @@ export function ChatComposer({
               disabled={entry.convertingCitations}
               onClick={() => void chatDrafts.load(id).catch(() => {})}
             >
-              {t('Повторить перенос цитат')}
+              {t('Retry adding quotes')}
             </Button>
             <Button
               type="button"
@@ -221,7 +221,7 @@ export function ChatComposer({
               disabled={entry.convertingCitations}
               onClick={() => chatDrafts.removeLegacyCitations(id)}
             >
-              {t('Убрать старые цитаты')}
+              {t('Remove old quotes')}
             </Button>
           </div>
         </div>
@@ -231,15 +231,17 @@ export function ChatComposer({
           <p>
             {t(
               errorKey === 'source_changed' || errorKey === 'source_unavailable'
-                ? 'Источник изменился или недоступен. Уберите цитату и приложите её заново.'
+                ? msg(
+                    'The source changed or is unavailable. Remove the citation and attach it again.',
+                  )
                 : errorKey === 'inline_quote_too_large'
-                  ? 'Цитата не помещается в сообщение. Сократите текст и попробуйте ещё раз.'
+                  ? msg('The quote does not fit in the message. Shorten the text and try again.')
                   : errorKey === 'citation_too_large' ||
                       errorKey === 'attachment_count_limit' ||
                       errorKey === 'attachment_size_limit' ||
                       errorKey === 'context_limit'
-                    ? 'Контекст слишком большой. Сократите сообщение или уберите цитаты.'
-                    : 'Не удалось выполнить запрос. Попробуйте ещё раз.',
+                    ? msg('The context is too large. Shorten the message or remove citations.')
+                    : msg('The request failed. Please try again.'),
             )}
           </p>
           {!entry.pending && (
@@ -250,14 +252,14 @@ export function ChatComposer({
                 void (entry.loaded ? chatDrafts.flush(id) : chatDrafts.load(id)).catch(() => {})
               }
             >
-              {t('Повторить сохранение')}
+              {t('Retry saving')}
             </button>
           )}
         </div>
       )}
       {nearContextLimit && (
         <p className="px-4 text-xs text-muted-foreground">
-          {t('Лимит контекста: {{budget}} символов.', { budget: contextBudget })}
+          {t('Context limit: {{budget}} characters.', { budget: contextBudget })}
         </p>
       )}
     </form>
