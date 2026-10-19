@@ -1,5 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router'
 
+import glosanoMark from '@/assets/glosano-mark.png'
 import { StatisticsDropdown } from '@/features/statistics/StatisticsDropdown'
 import { useTranslation } from '@/lib/i18n'
 import { useUserStore } from '@/stores/userStore'
@@ -20,8 +21,9 @@ export function AppTopBar() {
         <Link
           to="/learn/$lang/library"
           params={{ lang }}
-          className="text-xl font-bold md:text-2xl tracking-tight"
+          className="flex items-center gap-2 text-xl font-bold md:text-2xl tracking-tight"
         >
+          <img src={glosanoMark} alt="" className="size-8 md:size-9" />
           Glosano
         </Link>
         <LanguagePicker />
