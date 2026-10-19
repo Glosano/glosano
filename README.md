@@ -17,6 +17,10 @@
 
 Glosano is a self-hosted, LingQ-style platform for content-driven language learning. Import an article, a book chapter or a YouTube video, read it in an interactive reader, save the words and phrases you don't know, and review them with spaced repetition. Everything — your library, vocabulary and progress — stays on a server you own.
 
+<p align="center">
+  <img src="docs/assets/glosano-demo-compact.gif" alt="Glosano demo: importing a Spanish text and a YouTube video, translating words in context, saving them for review" width="800">
+</p>
+
 ## Features
 
 - **Import anything readable.** `.txt` and `.md` files, YouTube videos with captions in the language you learn, and whole web pages through the Chrome/Firefox importer extension. Keep lessons private or share them with everyone on your instance.
