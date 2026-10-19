@@ -13,7 +13,6 @@ import {
   initI18n,
   loadCatalog,
   msg,
-  persistUiLanguage,
   registerCatalog,
   setUiLanguage,
   translate,
@@ -53,8 +52,8 @@ describe('shared localization', () => {
   })
 
   it('retains the profile locale when the user signs out', () => {
+    // Applying the profile language is an explicit choice, so this device remembers it.
     useUserStore.setState({ user: { ui_language_code: 'en' } as MeResponse })
-    persistUiLanguage(getUiLanguage())
     useUserStore.getState().reset()
     expect(getUiLanguage()).toBe('en')
     expect(localStorage.getItem('glosano.ui-language')).toBe('en')

@@ -7,6 +7,7 @@ import { ApiError, getApiErrorKey } from '@/api/client'
 import { meApi, type MeResponse } from '@/api/me'
 import { useUserStore } from '@/stores/userStore'
 import { UI_LANGUAGE_CODES, isUiLanguage, uiLanguageEndonym } from '@/lib/uiLanguages'
+import { useHydratedProfile } from '@/lib/useHydratedProfile'
 import {
   LEARNING_LANGUAGES,
   TRANSLATION_LANGUAGES,
@@ -34,29 +35,21 @@ import {
 export function OnboardingForm() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const setUser = useUserStore((s) => s.setUser)
   const { data, isError, error, refetch } = useQuery({
     queryKey: ['me'],
     queryFn: meApi.get,
     retry: false,
   })
-  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null)
+  const hydrated = useHydratedProfile(data)
   const unauthenticated = error instanceof ApiError && error.status === 401
-
-  useEffect(() => {
-    if (data) {
-      setUser(data)
-      setHydratedUserId(data.id)
-    }
-  }, [data, setUser])
 
   useEffect(() => {
     if (unauthenticated) void navigate({ to: '/login' })
   }, [unauthenticated, navigate])
 
-  // Like ProtectedRoute: render once the store holds this profile, so the form
-  // starts in the profile's interface language.
-  if (data && hydratedUserId === data.id) return <OnboardingFields key={data.id} profile={data} />
+  // Like ProtectedRoute: render once the store holds this profile and its interface language
+  // is in, so the form starts in that language.
+  if (data && hydrated) return <OnboardingFields key={data.id} profile={data} />
   if (isError && !unauthenticated) {
     return (
       <div className="flex flex-col items-center gap-3">

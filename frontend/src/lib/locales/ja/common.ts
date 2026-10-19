@@ -89,4 +89,8 @@ export const commonMessages: Catalog = {
   'Save preferences': '環境設定を保存',
   'Save profile': 'プロフィールを保存',
   'You do not have permission for this action.': 'この操作を行う権限がありません。',
+  'Your preferences were saved, but the interface language could not be loaded. Reload the page to try again.':
+    '環境設定は保存しましたが、表示言語を読み込めませんでした。ページを再読み込みしてもう一度お試しください。',
+  'Could not load this language. Check your connection and try again.':
+    'この言語を読み込めませんでした。接続を確認して、もう一度お試しください。',
 }

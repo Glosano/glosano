@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { meApi, type MeResponse } from '@/api/me'
 import { ApiError } from '@/api/client'
-import { setUiLanguage } from '@/lib/i18n'
+import {
+  __resetCatalogsForTests,
+  __setCatalogLoaderForTests,
+  getUiLanguage,
+  loadCatalog,
+  setUiLanguage,
+} from '@/lib/i18n'
 import { UI_LANGUAGE_CODES, uiLanguageEndonym } from '@/lib/uiLanguages'
 import { useUserStore } from '@/stores/userStore'
 
@@ -202,6 +208,32 @@ describe('settings', () => {
     })
     expect(screen.getByLabelText('Native language')).toHaveValue('ru')
     expect(useUserStore.getState().user?.native_language_code).toBe('ru')
+  })
+
+  it('reports a new interface language whose catalog failed to load instead of "Saved"', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    // Every catalog is preloaded for tests; forget them so the German one has to load, and fail.
+    __resetCatalogsForTests()
+    await Promise.all([loadCatalog('en'), loadCatalog('ru')])
+    __setCatalogLoaderForTests(() => Promise.reject(new Error('chunk gone')))
+    try {
+      vi.mocked(meApi.updatePreferences).mockResolvedValue({ ...user, ui_language_code: 'de' })
+      show(<PreferencesSettings />)
+      fireEvent.change(screen.getByLabelText('Язык интерфейса'), { target: { value: 'de' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить предпочтения' }))
+
+      await waitFor(() =>
+        expect(screen.getByRole('alert')).toHaveTextContent(
+          'Предпочтения сохранены, но язык интерфейса не загрузился. Обновите страницу, чтобы попробовать снова.',
+        ),
+      )
+      expect(screen.queryByText('Сохранено')).not.toBeInTheDocument()
+      expect(getUiLanguage()).toBe('ru')
+    } finally {
+      logged.mockRestore()
+      __resetCatalogsForTests()
+      await Promise.all(UI_LANGUAGE_CODES.map(loadCatalog))
+    }
   })
 
   it('shows the native language with a hint and offers the fifteen-language catalog', () => {

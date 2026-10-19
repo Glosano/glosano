@@ -87,4 +87,8 @@ export const commonMessages: Catalog = {
   'Save preferences': 'Сохранить предпочтения',
   'Save profile': 'Сохранить профиль',
   'You do not have permission for this action.': 'Недостаточно прав для этого действия.',
+  'Your preferences were saved, but the interface language could not be loaded. Reload the page to try again.':
+    'Предпочтения сохранены, но язык интерфейса не загрузился. Обновите страницу, чтобы попробовать снова.',
+  'Could not load this language. Check your connection and try again.':
+    'Не удалось загрузить этот язык. Проверьте подключение и попробуйте снова.',
 }

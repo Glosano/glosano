@@ -62,7 +62,7 @@ describe('useApplyProfile', () => {
       ),
     })
 
-    let applied!: Promise<void>
+    let applied!: Promise<boolean>
     act(() => {
       applied = result.current({ ...profile, ui_language_code: 'ru' })
     })
@@ -75,14 +75,14 @@ describe('useApplyProfile', () => {
 
     await act(async () => {
       finishLoading({ Settings: 'Настройки' })
-      await applied
+      await expect(applied).resolves.toBe(true)
     })
     expect(loader).toHaveBeenCalledTimes(1)
     expect(getUiLanguage()).toBe('ru')
     expect(cache.getQueryData(['vocabulary'])).toBeUndefined()
   })
 
-  it('still refreshes the caches when the new language fails to load', async () => {
+  it('still refreshes the caches and reports false when the new language fails to load', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     await setUiLanguage('en')
     __resetCatalogsForTests()
@@ -98,9 +98,12 @@ describe('useApplyProfile', () => {
       ),
     })
 
+    let applied: boolean | undefined
     await act(async () => {
-      await result.current({ ...profile, ui_language_code: 'ru' })
+      applied = await result.current({ ...profile, ui_language_code: 'ru' })
     })
+    // The profile is saved, but the interface could not follow: the caller must say so.
+    expect(applied).toBe(false)
     expect(getUiLanguage()).toBe('en')
     expect(cache.getQueryData(['me'])).toEqual({ ...profile, ui_language_code: 'ru' })
     expect(error).toHaveBeenCalled()

@@ -90,4 +90,8 @@ export const commonMessages: Catalog = {
   'Save preferences': 'प्राथमिकताएँ सहेजें',
   'Save profile': 'प्रोफ़ाइल सहेजें',
   'You do not have permission for this action.': 'इस कार्रवाई के लिए आपके पास अनुमति नहीं है।',
+  'Your preferences were saved, but the interface language could not be loaded. Reload the page to try again.':
+    'आपकी प्राथमिकताएँ सहेज ली गईं, लेकिन इंटरफ़ेस की भाषा लोड नहीं हो सकी। फिर से कोशिश करने के लिए पेज रीलोड करें।',
+  'Could not load this language. Check your connection and try again.':
+    'यह भाषा लोड नहीं हो सकी। अपना कनेक्शन जाँचें और फिर से कोशिश करें।',
 }

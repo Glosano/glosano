@@ -49,7 +49,7 @@ export function PreferencesSettings() {
     }
     setPending(true)
     try {
-      await applyProfile(
+      const languageLoaded = await applyProfile(
         await meApi.updatePreferences({
           ui_language: locale,
           learning_languages: languages,
@@ -58,7 +58,13 @@ export function PreferencesSettings() {
           daily_goal_reviews: r,
         }),
       )
-      setSaved(true)
+      if (languageLoaded) setSaved(true)
+      else
+        setError(
+          msg(
+            'Your preferences were saved, but the interface language could not be loaded. Reload the page to try again.',
+          ),
+        )
     } catch (reason) {
       setError(getApiErrorKey(reason))
     } finally {

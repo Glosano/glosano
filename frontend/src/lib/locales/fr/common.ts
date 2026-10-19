@@ -93,4 +93,8 @@ export const commonMessages: Catalog = {
   'Save profile': 'Enregistrer le profil',
   'You do not have permission for this action.':
     'Vous n’avez pas l’autorisation d’effectuer cette action.',
+  'Your preferences were saved, but the interface language could not be loaded. Reload the page to try again.':
+    'Vos préférences ont été enregistrées, mais la langue de l’interface n’a pas pu être chargée. Rechargez la page pour réessayer.',
+  'Could not load this language. Check your connection and try again.':
+    'Impossible de charger cette langue. Vérifiez votre connexion et réessayez.',
 }

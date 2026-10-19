@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 
 import { ApiError } from '@/api/client'
 import { meApi } from '@/api/me'
-import { useUserStore } from '@/stores/userStore'
 import { useTranslation } from '@/lib/i18n'
+import { useHydratedProfile } from '@/lib/useHydratedProfile'
 
 interface Props {
   children: React.ReactNode
@@ -14,24 +14,17 @@ interface Props {
 export function ProtectedRoute({ children }: Props) {
   const t = useTranslation()
   const navigate = useNavigate()
-  const setUser = useUserStore((s) => s.setUser)
-  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null)
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['me'],
     queryFn: meApi.get,
     retry: false,
     staleTime: 30_000,
   })
+  const hydrated = useHydratedProfile(data)
 
   useEffect(() => {
-    if (data) {
-      setUser(data)
-      setHydratedUserId(data.id)
-      if (data.needs_onboarding) {
-        void navigate({ to: '/onboarding' })
-      }
-    }
-  }, [data, setUser, navigate])
+    if (data?.needs_onboarding) void navigate({ to: '/onboarding' })
+  }, [data, navigate])
 
   useEffect(() => {
     if (isError) {
@@ -42,7 +35,8 @@ export function ProtectedRoute({ children }: Props) {
     }
   }, [isError, error, navigate])
 
-  if (isLoading) {
+  // Until the profile and its interface language are in place, the page waits behind this.
+  if (isLoading || (data && !data.needs_onboarding && !hydrated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">{t('Loading…')}</p>
@@ -59,6 +53,6 @@ export function ProtectedRoute({ children }: Props) {
       </div>
     )
   }
-  if (!data || data.needs_onboarding || hydratedUserId !== data.id) return null
+  if (!data || data.needs_onboarding || !hydrated) return null
   return <>{children}</>
 }

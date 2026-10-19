@@ -83,4 +83,8 @@ export const commonMessages: Catalog = {
   'Save preferences': '保存偏好设置',
   'Save profile': '保存个人资料',
   'You do not have permission for this action.': '你没有执行此操作的权限。',
+  'Your preferences were saved, but the interface language could not be loaded. Reload the page to try again.':
+    '偏好设置已保存，但无法加载界面语言。请刷新页面重试。',
+  'Could not load this language. Check your connection and try again.':
+    '无法加载此语言。请检查网络连接后重试。',
 }

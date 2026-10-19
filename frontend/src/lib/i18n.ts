@@ -110,7 +110,7 @@ export function getUiLanguage(): UiLanguage {
   return useLocaleStore.getState().language
 }
 
-export function persistUiLanguage(language: UiLanguage): void {
+function persistUiLanguage(language: UiLanguage): void {
   if (useLocaleStore.getState().language !== language) useLocaleStore.setState({ language })
   try {
     localStorage.setItem(STORAGE_KEY, language)
@@ -167,6 +167,21 @@ export function initI18n(): Promise<void> {
     useLocaleStore.setState({ language: 'en' })
     throw error
   })
+}
+
+/**
+ * Waits for the interface to be in `language` once a switch to it has started (here, by the user
+ * store's subscriber below): `true` when it is active, `false` when its catalog failed to load
+ * and the previous language stays. A code without an interface resolves `true` right away.
+ */
+export function whenUiLanguageLoaded(language: string): Promise<boolean> {
+  if (!isUiLanguage(language)) return Promise.resolve(true)
+  // The subscriber's switch chained onto this same pending load first, so it has applied the
+  // language by the time this resolves.
+  return loadCatalog(language).then(
+    () => true,
+    () => false,
+  )
 }
 
 useUserStore.subscribe((state) => {
