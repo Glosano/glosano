@@ -26,6 +26,7 @@ from glosano.modules.lesson_library.models import (
     LessonTag,
     LessonTokenOccurrence,
 )
+from glosano.modules.lingq_import.models import VocabularyImportJob
 from glosano.modules.reader_state.models import BulkAction, LessonSegmentTranslation, ReaderPosition
 from glosano.modules.review.models import ReviewEvent, ReviewItem
 from glosano.modules.statistics.models import (
@@ -94,6 +95,7 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
             status="tracked",
             confidence=1,
             created_from_lesson_id=own.id,
+            import_source="lingq",
         )
         phrase = PhraseItem(
             user_id=user_id,
@@ -120,6 +122,14 @@ async def seed_data(user_id: uuid.UUID) -> dict[str, str]:
         s.add_all(
             [
                 LessonSource(lesson_id=own.id, content_hash="a" * 64, original_filename="my.txt"),
+                VocabularyImportJob(
+                    user_id=user_id,
+                    language_code="pt",
+                    source="lingq",
+                    conflict_mode="keep",
+                    status="done",
+                    issues_json=[{"code": "translation_too_long", "term": "cada"}],
+                ),
                 LessonImportJob(
                     lesson_id=own.id,
                     requested_by_user_id=user_id,
@@ -242,6 +252,7 @@ async def test_export_is_complete_and_isolated(client: AsyncClient):
     assert datetime.fromisoformat(exported_activity) == LAST_ACTIVITY_AT
     assert records["personal_translations"][0]["translation_text"] == "Saved translation"
     assert records["daily_user_stats"][0]["tokens_read"] == 2
+    assert records["vocabulary_import_jobs"][0]["issues_dropped"] == 0
     assert [(row["lesson_id"], row["tag"]) for row in records["lesson_tags"]] == [
         (ids["foreign"], "news")
     ]

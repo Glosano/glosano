@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
@@ -23,6 +24,9 @@ vi.mock('@/api/vocabulary', () => ({
 vi.mock('@/api/dictionary', () => ({ dictionaryApi: { lookup: vi.fn() } }))
 vi.mock('@/api/review', () => ({ reviewApi: { counts: vi.fn() } }))
 vi.mock('@/api/ai', () => ({ aiApi: { translate: vi.fn() } }))
+vi.mock('@/api/vocabularyImport', () => ({
+  vocabularyImportApi: { startCsv: vi.fn(), startLingq: vi.fn(), get: vi.fn(), active: vi.fn() },
+}))
 
 // jsdom doesn't implement scrollIntoView, which the radix Select popup uses
 // when it opens to scroll the highlighted item into view.
@@ -32,6 +36,7 @@ import { vocabularyApi } from '@/api/vocabulary'
 import { dictionaryApi } from '@/api/dictionary'
 import { aiApi } from '@/api/ai'
 import { reviewApi } from '@/api/review'
+import { vocabularyImportApi } from '@/api/vocabularyImport'
 import type { VocabListItem } from '@/api/vocabulary'
 
 import { addedAfterFromPreset, VocabularyPage } from './VocabularyPage'
@@ -419,5 +424,23 @@ describe('VocabularyPage states', () => {
     const button = await screen.findByRole('button', { name: '⟳ Повтор лексики (4)' })
     expect(within(button).getByText('⟳ Повтор')).toHaveClass('sm:hidden')
     expect(within(button).getByText('⟳ Повтор лексики')).toHaveClass('hidden', 'sm:inline')
+  })
+
+  it('opens the LingQ import dialog from the ⋯ menu next to the bulk actions', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
+    vi.mocked(vocabularyApi.list).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 25 })
+    vi.mocked(vocabularyImportApi.active).mockResolvedValue(null)
+    renderPage()
+    const user = userEvent.setup()
+
+    const more = screen.getByRole('button', { name: 'Ещё действия' })
+    expect(more.parentElement).toBe(screen.getByRole('button', { name: 'Ещё действия (0)' }).parentElement)
+    expect(vocabularyImportApi.active).not.toHaveBeenCalled()
+    await user.click(more)
+    await user.click(screen.getByRole('menuitem', { name: 'Импорт из LingQ…' }))
+
+    expect(await screen.findByRole('heading', { name: 'Импорт из LingQ' })).toBeInTheDocument()
+    expect(vocabularyImportApi.active).toHaveBeenCalledWith('pt')
+    vi.unstubAllGlobals()
   })
 })

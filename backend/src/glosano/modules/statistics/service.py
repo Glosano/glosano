@@ -90,9 +90,21 @@ async def get_overview(
         )
         for status, count in rows:
             counts[status] += count
+    # Imported items are a bulk migration, not daily learning activity: skip them.
+    imported_token = select(TokenItem.id).where(
+        TokenItem.id == ReviewItem.item_id, TokenItem.import_source.is_not(None)
+    )
+    imported_phrase = select(PhraseItem.id).where(
+        PhraseItem.id == ReviewItem.item_id, PhraseItem.import_source.is_not(None)
+    )
     first_added = (
         select(func.min(ReviewItem.created_at).label("first_at"))
-        .where(ReviewItem.user_id == user_id, ReviewItem.language_code == language_code)
+        .where(
+            ReviewItem.user_id == user_id,
+            ReviewItem.language_code == language_code,
+            ~((ReviewItem.item_kind == "token") & imported_token.exists()),
+            ~((ReviewItem.item_kind == "phrase") & imported_phrase.exists()),
+        )
         .group_by(ReviewItem.item_kind, ReviewItem.item_id)
         .subquery()
     )

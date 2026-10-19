@@ -79,6 +79,12 @@ USER_TABLES: dict[str, tuple[str, str]] = {
         "id owner_user_id language_code title raw_text word_count segment_count "
         "current_source_version visibility status created_at updated_at",
     ),
+    "vocabulary_import_jobs": (
+        "user_id",
+        "id user_id language_code source conflict_mode status total processed "
+        "created_tokens created_phrases updated_items known_words skipped issues_json "
+        "issues_dropped meta_json error_code created_at finished_at",
+    ),
     "lesson_import_jobs": (
         "requested_by_user_id",
         "id lesson_id requested_by_user_id job_type status payload_json error_message "
@@ -86,13 +92,13 @@ USER_TABLES: dict[str, tuple[str, str]] = {
     ),
     "token_items": (
         "user_id",
-        "id user_id language_code token_text status confidence added_by "
+        "id user_id language_code token_text status confidence added_by import_source "
         "created_from_lesson_id created_from_segment_id created_at updated_at",
     ),
     "phrase_items": (
         "user_id",
         "id user_id language_code phrase_text display_text status confidence added_by "
-        "created_from_lesson_id created_from_segment_id created_at updated_at",
+        "import_source created_from_lesson_id created_from_segment_id created_at updated_at",
     ),
     "personal_translations": (
         "owner_user_id",

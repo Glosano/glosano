@@ -1,4 +1,4 @@
-"""Bound lesson multipart uploads before the parser allocates temporary files."""
+"""Bound lesson and vocabulary CSV uploads before the parser allocates temporary files."""
 
 from __future__ import annotations
 
@@ -9,6 +9,12 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 MAX_LESSON_FILE_BYTES = 5 * 1024 * 1024
 # Allow bounded space for multipart boundaries, headers, title and language.
 _MAX_REQUEST_BYTES = MAX_LESSON_FILE_BYTES + 64 * 1024
+# Lesson files and LingQ vocabulary CSV exports share the same small-upload limit;
+# the value is the 413 detail for that path.
+_CAPPED_PATHS = {
+    "/api/lessons/import-file": "lesson file too large",
+    "/api/vocabulary/import/csv": "csv_too_large",
+}
 
 
 class LessonUploadMiddleware:
@@ -26,7 +32,7 @@ class LessonUploadMiddleware:
         if (
             scope["type"] != "http"
             or scope["method"] != "POST"
-            or scope["path"].rstrip("/") != "/api/lessons/import-file"
+            or (path := scope["path"].rstrip("/")) not in _CAPPED_PATHS
         ):
             await self.app(scope, receive, send)
             return
@@ -34,7 +40,7 @@ class LessonUploadMiddleware:
         if getattr(request.state, "user_id", None) is None:
             await JSONResponse({"detail": "Unauthorized"}, status_code=401)(scope, receive, send)
             return
-        too_large = JSONResponse({"detail": "lesson file too large"}, status_code=413)
+        too_large = JSONResponse({"detail": _CAPPED_PATHS[path]}, status_code=413)
         length = request.headers.get("content-length")
         if length and length.isdecimal() and int(length) > _MAX_REQUEST_BYTES:
             await too_large(scope, receive, send)

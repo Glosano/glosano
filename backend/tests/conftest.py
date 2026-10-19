@@ -76,6 +76,9 @@ async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fix
     from glosano.modules.lesson_library import (
         models as _lesson_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )
+    from glosano.modules.lingq_import import (
+        models as _lingq_import_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    )
     from glosano.modules.reader_state import (
         models as _reader_state_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )

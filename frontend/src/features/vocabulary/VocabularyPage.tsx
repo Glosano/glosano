@@ -17,6 +17,8 @@ import type { VocabListItem } from '@/api/vocabulary'
 import { WordCard } from '@/features/reader/WordCard'
 import { BulkActionsMenu, type BulkAction } from './BulkActionsMenu'
 import { FilterPopover } from './FilterPopover'
+import { LingqImportDialog } from './import/LingqImportDialog'
+import { VocabularyMoreMenu } from './import/VocabularyMoreMenu'
 import { PaginationNumbers } from './PaginationNumbers'
 import { SearchInput } from './SearchInput'
 import { useBulkAction, usePatchItem, useVocabInvalidate, useVocabList } from './useVocabularyQuery'
@@ -128,6 +130,7 @@ export function VocabularyPage({ lang, tab }: Props) {
   const [deletedToast, setDeletedToast] = useState<number | null>(null)
   const [bulkErrorVisible, setBulkErrorVisible] = useState(false)
   const [selectedItem, setSelectedItem] = useState<VocabListItem | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   function handleCardClose() {
     setSelectedItem(null)
@@ -216,7 +219,11 @@ export function VocabularyPage({ lang, tab }: Props) {
               ))}
             </SelectContent>
           </Select>
-          <BulkActionsMenu count={selection.length} onAction={handleBulkAction} />
+          {/* One grid cell for both menus, so the mobile two-column layout keeps its order. */}
+          <div className="flex items-center gap-2">
+            <BulkActionsMenu count={selection.length} onAction={handleBulkAction} />
+            <VocabularyMoreMenu onImportLingq={() => setImportOpen(true)} />
+          </div>
           <Button
             type="button"
             size="lg"
@@ -359,6 +366,10 @@ export function VocabularyPage({ lang, tab }: Props) {
           onClose={handleCardClose}
         />
       )}
+
+      {/* Always mounted, so the dialog keeps the import it started while closed; the app-level
+          ImportJobsWatcher polls it. Keyed by language so another language starts clean. */}
+      <LingqImportDialog key={lang} lang={lang} open={importOpen} onOpenChange={setImportOpen} />
 
       {deletedToast !== null && (
         <div

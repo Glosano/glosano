@@ -1,5 +1,6 @@
 import { Outlet } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { ImportJobsWatcher } from '@/features/vocabulary/import/ImportJobsWatcher'
 import { intlLocale, useI18n } from '@/lib/i18n'
 
 export function RootLayout() {
@@ -11,6 +12,8 @@ export function RootLayout() {
   return (
     <div className="min-h-dvh bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-50">
       <Outlet />
+      {/* Vocabulary imports keep being watched after their dialog and page unmount. */}
+      <ImportJobsWatcher />
     </div>
   )
 }

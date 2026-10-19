@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     ocr_base_url: str = ""
     ocr_api_key: str = ""
 
+    # LingQ vocabulary import (the user's token is per-request, never configured here)
+    lingq_base_url: str = "https://www.lingq.com"
+    lingq_timeout_seconds: float = Field(default=30.0, gt=0)
+    lingq_page_delay_seconds: float = Field(default=1.0, ge=0)
+
     # Frontend static assets (production only)
     static_dir: Path | None = None
 

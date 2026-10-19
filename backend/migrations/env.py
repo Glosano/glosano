@@ -24,6 +24,7 @@ from glosano.modules.chat import models as _chat_models  # noqa: F401
 from glosano.modules.dictionary import models as _dictionary_models  # noqa: F401
 from glosano.modules.identity import models as _identity_models  # noqa: F401
 from glosano.modules.lesson_library import models as _lesson_library_models  # noqa: F401
+from glosano.modules.lingq_import import models as _lingq_import_models  # noqa: F401
 from glosano.modules.reader_state import models as _reader_state_models  # noqa: F401
 from glosano.modules.review import models as _review_models  # noqa: F401
 from glosano.modules.statistics import models as _statistics_models  # noqa: F401

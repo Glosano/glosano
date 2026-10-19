@@ -40,6 +40,7 @@ class TokenItem(Base):
     status: Mapped[str] = mapped_column(String(16))  # tracked | known | ignored ('new' is computed)
     confidence: Mapped[int | None] = mapped_column(Integer)
     added_by: Mapped[str] = mapped_column(String(16), default="user", server_default="user")
+    import_source: Mapped[str | None] = mapped_column(String(16))  # NULL | lingq (ADR-0033)
     created_from_lesson_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("lessons.id", ondelete="SET NULL")
     )
@@ -62,6 +63,10 @@ class TokenItem(Base):
             name="ck_token_items_confidence_tracked",
         ),
         CheckConstraint("added_by IN ('user', 'bulk')", name="ck_token_items_added_by"),
+        CheckConstraint(
+            "import_source IS NULL OR import_source = 'lingq'",
+            name="ck_token_items_import_source",
+        ),
         Index("ix_token_items_user_lang", "user_id", "language_code"),
         Index(
             "ix_token_items_user_lesson",
@@ -90,6 +95,7 @@ class PhraseItem(Base):
     status: Mapped[str] = mapped_column(String(16))  # tracked | known | ignored
     confidence: Mapped[int | None] = mapped_column(Integer)
     added_by: Mapped[str] = mapped_column(String(16), default="user", server_default="user")
+    import_source: Mapped[str | None] = mapped_column(String(16))  # NULL | lingq (ADR-0033)
     created_from_lesson_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("lessons.id", ondelete="SET NULL")
     )
@@ -112,6 +118,10 @@ class PhraseItem(Base):
             name="ck_phrase_items_confidence_tracked",
         ),
         CheckConstraint("added_by IN ('user', 'bulk')", name="ck_phrase_items_added_by"),
+        CheckConstraint(
+            "import_source IS NULL OR import_source = 'lingq'",
+            name="ck_phrase_items_import_source",
+        ),
         # 2..8 non-space words joined by single spaces (empties structurally excluded).
         CheckConstraint(
             r"phrase_text ~ '^\S+( \S+){1,7}$'",

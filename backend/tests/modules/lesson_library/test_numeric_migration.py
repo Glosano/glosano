@@ -23,6 +23,34 @@ from glosano.modules.statistics.models import (
 from glosano.modules.vocabulary.models import ItemTag, PersonalNote, PersonalTranslation, TokenItem
 
 
+async def _insert_legacy_token(
+    session: AsyncSession,
+    *,
+    item_id: uuid.UUID,
+    user_id: uuid.UUID,
+    token: str,
+    status: str,
+    added_by: str,
+    confidence: int | None,
+) -> None:
+    # Raw SQL: the ORM model tracks the head schema, this database is at revision 0019.
+    await session.execute(
+        text(
+            "INSERT INTO token_items (id, user_id, language_code, token_text, status, "
+            "confidence, added_by) "
+            "VALUES (:id, :user_id, 'en', :token, :status, :confidence, :added_by)"
+        ),
+        {
+            "id": item_id,
+            "user_id": user_id,
+            "token": token,
+            "status": status,
+            "confidence": confidence,
+            "added_by": added_by,
+        },
+    )
+
+
 async def test_numeric_migration_repairs_legacy_data() -> None:
     with PostgresContainer("postgres:16-alpine", driver="asyncpg") as pg:
         url = pg.get_connection_url()
@@ -101,27 +129,25 @@ async def test_numeric_migration_repairs_legacy_data() -> None:
                 ("42", "user", "known"),
                 ("43", "user", "tracked"),
             ]:
-                s.add(
-                    TokenItem(
-                        user_id=user_id,
-                        language_code="en",
-                        token_text=token,
-                        status=status,
-                        added_by=added_by,
-                        confidence=1 if status == "tracked" else None,
-                    )
+                await _insert_legacy_token(
+                    s,
+                    item_id=uuid.uuid4(),
+                    user_id=user_id,
+                    token=token,
+                    status=status,
+                    added_by=added_by,
+                    confidence=1 if status == "tracked" else None,
                 )
             protected_ids = {token: uuid.uuid4() for token in ("44", "45", "46", "47")}
             for token, item_id in protected_ids.items():
-                s.add(
-                    TokenItem(
-                        id=item_id,
-                        user_id=user_id,
-                        language_code="en",
-                        token_text=token,
-                        status="known",
-                        added_by="bulk",
-                    )
+                await _insert_legacy_token(
+                    s,
+                    item_id=item_id,
+                    user_id=user_id,
+                    token=token,
+                    status="known",
+                    added_by="bulk",
+                    confidence=None,
                 )
             s.add(
                 PersonalTranslation(

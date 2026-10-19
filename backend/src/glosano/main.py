@@ -24,12 +24,14 @@ from glosano.api.reader import router as reader_router
 from glosano.api.review import router as review_router
 from glosano.api.stats import router as stats_router
 from glosano.api.vocabulary import router as vocabulary_router
+from glosano.api.vocabulary_import import router as vocabulary_import_router
 from glosano.core.config import get_settings
 from glosano.core.db import dispose_engine, init_engine
 from glosano.core.lesson_upload import LessonUploadMiddleware
 from glosano.core.logging import configure_logging
 from glosano.core.spa import SpaStaticFiles
 from glosano.modules.identity.middleware import CSRFMiddleware, SessionMiddleware
+from glosano.modules.lingq_import import jobs as import_jobs
 
 
 @asynccontextmanager
@@ -38,10 +40,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     settings = get_settings()
     configure_logging(settings)
     init_engine(settings)
+    try:
+        await import_jobs.mark_interrupted_jobs()
+    except Exception as exc:
+        # Do not keep the API down over this cleanup (e.g. migration not applied yet).
+        logger.warning("Could not mark interrupted vocabulary imports ({})", type(exc).__name__)
     logger.info("Glosano API starting (version={}, env={})", __version__, settings.env)
     try:
         yield
     finally:
+        await import_jobs.shutdown()
         await dispose_engine()
         logger.info("Glosano API stopped")
 
@@ -75,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(stats_router)
     app.include_router(dictionary_router)
     app.include_router(vocabulary_router)
+    app.include_router(vocabulary_import_router)
     app.include_router(ai_router)
     app.include_router(chats_router)
 
