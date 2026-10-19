@@ -76,8 +76,9 @@ chmod 600 .env
 GLOSANO_ENV=prod
 GLOSANO_SECRET_KEY=<output of: openssl rand -hex 32>
 
-# Change the database password. Both lines must agree.
-POSTGRES_PASSWORD=<a long random password>
+# Change the database password. Both lines must agree. Letters and digits only:
+# the password also goes into a URL, where characters like @ : / break it.
+POSTGRES_PASSWORD=<output of: openssl rand -hex 24>
 GLOSANO_DATABASE_URL=postgresql+asyncpg://flinq:<the same password>@postgres:5432/flinq
 
 # app-api listens only on the server itself; the reverse proxy (step 4) faces the internet.
@@ -105,7 +106,7 @@ docker compose ps
 curl http://127.0.0.1:8000/health
 ```
 
-All four services should be `running` (`postgres` and `redis` also `healthy`), and `/health` should answer `{"status":"ok","version":"…"}`.
+All four services should be `Up` (`postgres` and `redis` also `(healthy)`), and `/health` should answer `{"status":"ok","version":"…"}`.
 
 ## 4. Put it behind HTTPS
 
@@ -160,11 +161,13 @@ Open `https://glosano.example.com` — you should see the sign-in screen with th
 
 Glosano uses email and password; there is no SSO and no email delivery.
 
-**First admin.** Create it from the command line; the generated password is printed once — sign in and change it in Settings:
+**First admin.** Create it from the command line; the generated password is printed once — sign in and change it in **Settings → Profile**:
 
 ```bash
 docker compose run --rm app-api glosano identity create-admin you@example.com --name "Your Name"
 ```
+
+Use an address with a real-looking domain. `create-admin` accepts any address, but sign-in and sign-up reject reserved domains such as `.local`, `.test` or `.localhost`, so an admin created with one can never sign in.
 
 > [!WARNING]
 > `GLOSANO_INITIAL_ADMIN_EMAIL` is another way: whoever signs up with that address becomes admin. Glosano does not verify email addresses, so on a site that is already reachable from the internet a stranger who guesses the address can sign up first. Use it only before the site is public, or not at all.
@@ -194,15 +197,35 @@ Word cards show entries from Wiktionary, taken from [Kaikki.org](https://kaikki.
 docker compose run --rm app-api glosano dictionary refresh --lang en --target ru
 ```
 
-| `--lang` | `--target` | Source |
-|---|---|---|
-| `en` | `ru` | English Wiktionary |
-| `en` | `pt` | English Wiktionary |
-| `ru` | `en` | English Wiktionary |
-| `pt` | `en` | English Wiktionary |
-| `pt` | `ru` | Russian Wiktionary |
+| `--lang` | `--target` | Source | Download |
+|---|---|---|---|
+| `en` | `ru` | English Wiktionary | ~520 MB |
+| `en` | `pt` | English Wiktionary | ~520 MB (same file as `en`→`ru`) |
+| `ru` | `en` | English Wiktionary | ~90 MB |
+| `pt` | `en` | English Wiktionary | ~580 MB |
+| `pt` | `ru` | Russian Wiktionary | ~15 MB |
 
-A large dump (English) is around 500 MB and takes 10–20 minutes to import; run long imports detached with `docker compose run -d --name glosano-dict-en-ru …` and follow them with `docker logs -f glosano-dict-en-ru`. Downloads are cached in the `app_data` volume, so re-running `refresh` later only re-imports. To load a dump you already have, mount it into the container and pass `--file`.
+A large dump takes 10–20 minutes to import, and kaikki.org is sometimes slow to serve it. Run long imports detached and follow their progress (logged every 50 MB downloaded):
+
+```bash
+docker compose run -d --name glosano-dict-en-ru app-api glosano dictionary refresh --lang en --target ru
+docker logs -f glosano-dict-en-ru
+docker rm glosano-dict-en-ru   # once it has finished
+```
+
+Each download is saved in the `app_data` volume under `/var/lib/glosano/dictionary-dumps/`. `refresh` downloads the dump again every time; to re-import the saved copy instead, pass it with `--file`:
+
+```bash
+docker compose run --rm app-api glosano dictionary refresh --lang en --target ru \
+  --file /var/lib/glosano/dictionary-dumps/kaikki.org-dictionary-English.jsonl.gz
+```
+
+To load a dump you downloaded yourself, mount it into the container:
+
+```bash
+docker compose run --rm -v "$PWD/dump.jsonl:/tmp/dump.jsonl:ro" app-api \
+  glosano dictionary refresh --lang pt --target en --file /tmp/dump.jsonl
+```
 
 Dictionary data is licensed CC-BY-SA 4.0; Glosano shows the attribution on every card that uses it. The reader, vocabulary and review work without any dictionary — cards just have no dictionary section.
 
@@ -272,8 +295,8 @@ All settings are environment variables in `.env`. Changes take effect after `doc
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GLOSANO_ENV` | `prod` | `prod` sends cookies as `Secure` (HTTPS only). `dev` is for local development. |
-| `GLOSANO_SECRET_KEY` | — (required) | Signs sessions. Generate with `openssl rand -hex 32`; changing it signs everyone out. |
+| `GLOSANO_ENV` | `prod` | `prod` sends cookies as `Secure` (HTTPS only). `dev` is for local development — and is what `.env.example` sets, so change it. |
+| `GLOSANO_SECRET_KEY` | — (required) | Signs sessions. Generate with `openssl rand -hex 32`; changing it signs everyone out. Compose refuses an empty value but not the `.env.example` placeholder — replace it. |
 | `GLOSANO_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
 | `GLOSANO_BIND` | `8000` | Host port of `app-api`, or `address:port`. Use `127.0.0.1:8000` behind a proxy. |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1` | Proxies trusted for `X-Forwarded-*`. `*` is safe while `GLOSANO_BIND` is on `127.0.0.1`. |
@@ -293,7 +316,7 @@ All settings are environment variables in `.env`. Changes take effect after `doc
 
 **The sign-in form accepts the password but I stay on the sign-in screen.** The browser dropped the `Secure` session cookie because the page was opened over plain HTTP. Open the site through its `https://` address. For a trial on your own machine, `http://localhost:8000` also works.
 
-**"Registration is disabled".** `GLOSANO_ALLOW_PUBLIC_REGISTRATION=false`. Create the account with `glosano identity create-admin`, or open registration for a moment.
+**"Registration has been disabled by the administrator".** `GLOSANO_ALLOW_PUBLIC_REGISTRATION=false`. Open registration for a moment, or create the account with `glosano identity create-admin` — which makes it an admin.
 
 **"Too many attempts".** Sign-in is limited to 5 tries per 15 minutes per address and email. Wait, or clear the counter:
 
