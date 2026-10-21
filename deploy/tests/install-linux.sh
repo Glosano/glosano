@@ -59,7 +59,14 @@ run_installer() {
     -e PATH=/test-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
     -e GLOSANO_INSTALL_DIR=/instance -e GLOSANO_ADMIN_EMAIL=owner@example.com \
     -e "GLOSANO_BIND=127.0.0.1:$port" -e "GLOSANO_URL=http://localhost:$port" \
-    glosano-installer-test bash /assets/install.sh
+    -e "QA_UID=$(id -u)" -e "QA_GID=$(id -g)" \
+    glosano-installer-test bash -c '
+      # On Linux bind mounts keep container root ownership. Return only the
+      # disposable fixture to the runner, including when installation fails.
+      finish() { chown -R "$QA_UID:$QA_GID" /instance; }
+      trap finish EXIT
+      bash /assets/install.sh
+    '
 }
 run_installer
 before=$(sha256sum "$test_dir/instance/.env")
