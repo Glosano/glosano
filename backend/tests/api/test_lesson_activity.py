@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import NotRequired, TypedDict
 
 import pytest
 from httpx import AsyncClient
@@ -101,13 +102,22 @@ async def test_segment_move_is_activity(
     assert await _activity(lesson) is not None
 
 
-async def _sentences(c: AsyncClient, lesson_id: uuid.UUID) -> list[dict[str, object]]:
+class ContentToken(TypedDict):
+    i: NotRequired[int]
+
+
+class ContentSentence(TypedDict):
+    seg_id: str
+    tokens: list[ContentToken]
+
+
+async def _sentences(c: AsyncClient, lesson_id: uuid.UUID) -> list[ContentSentence]:
     r = await c.get(f"/api/lessons/{lesson_id}/content")
     assert r.status_code == 200
     return [sent for para in r.json()["paragraphs"] for sent in para["sentences"]]
 
 
-def _word_ordinals(sentence: dict[str, object]) -> list[int]:
+def _word_ordinals(sentence: ContentSentence) -> list[int]:
     tokens = sentence["tokens"]
     assert isinstance(tokens, list)
     return [tok["i"] for tok in tokens if "i" in tok]

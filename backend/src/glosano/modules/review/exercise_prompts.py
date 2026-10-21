@@ -9,7 +9,9 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from typing import Any
+from collections.abc import Mapping
+
+from pydantic import JsonValue
 
 from glosano.modules.ai_translation.prompts import LANGUAGE_NAMES
 
@@ -159,16 +161,23 @@ def normalize_fill_answer(value: str) -> str:
 
 
 def validate_fill_answer(
-    payload: dict[str, Any], expected: str, *, learn_lang: str | None = None
+    payload: Mapping[str, JsonValue], expected: str, *, learn_lang: str | None = None
 ) -> None:
-    if normalize_fill_answer(payload["answer"]) != normalize_fill_answer(expected):
+    answer = payload["answer"]
+    if not isinstance(answer, str):
+        raise ValueError("answer must be a string")
+    if normalize_fill_answer(answer) != normalize_fill_answer(expected):
         raise ValueError("answer must match the studied form")
     literal = re.escape(normalize_fill_answer(expected))
     # Chinese/Japanese sentences do not separate words with spaces: Unicode
     # word boundaries would miss a revealed answer next to another character.
     pattern = literal if learn_lang in ("zh-Hans", "ja") else rf"(?<!\w){literal}(?!\w)"
-    if any(re.search(pattern, normalize_fill_answer(payload[key])) for key in ("before", "after")):
-        raise ValueError("the answer must not be revealed in the sentence context")
+    for key in ("before", "after"):
+        context = payload[key]
+        if not isinstance(context, str):
+            raise ValueError("sentence context must be a string")
+        if re.search(pattern, normalize_fill_answer(context)):
+            raise ValueError("the answer must not be revealed in the sentence context")
 
 
 def build_feedback_prompt(
@@ -195,13 +204,16 @@ def build_feedback_prompt(
     )
 
 
-def extract_json(text: str) -> dict[str, Any]:
+def extract_json(text: str) -> dict[str, JsonValue]:
     """Первая '{' … последняя '}' → json.loads. ValueError, если структуры нет."""
     start = text.find("{")
     end = text.rfind("}")
     if start == -1 or end <= start:
         raise ValueError("no JSON object in response")
-    return json.loads(text[start : end + 1])
+    payload: JsonValue = json.loads(text[start : end + 1])
+    if not isinstance(payload, dict):
+        raise ValueError("response must be a JSON object")
+    return payload
 
 
 _REQUIRED_KEYS: dict[str, set[str]] = {
@@ -215,21 +227,23 @@ _REQUIRED_KEYS: dict[str, set[str]] = {
 }
 
 
-def validate_payload(kind: str, payload: dict[str, Any]) -> None:
+def validate_payload(kind: str, payload: Mapping[str, JsonValue]) -> None:
     """ValueError при отсутствии ключей / неверных options."""
     missing = _REQUIRED_KEYS[kind] - payload.keys()
     if missing:
         raise ValueError(f"missing keys: {sorted(missing)}")
     if kind == "fill_blank":
+        fields: dict[str, str] = {}
         for key in _REQUIRED_KEYS[kind]:
             value = payload[key]
             if not isinstance(value, str) or len(value) > 1000:
                 raise ValueError("fill fields must be strings of at most 1000 characters")
-        if not payload["answer"].strip() or not payload["translation"].strip():
+            fields[key] = value
+        if not fields["answer"].strip() or not fields["translation"].strip():
             raise ValueError("answer and translation must not be empty")
-        if not (payload["before"] + payload["after"]).strip():
+        if not (fields["before"] + fields["after"]).strip():
             raise ValueError("sentence context must not be empty")
-        if "_" in payload["before"] + payload["after"]:
+        if "_" in fields["before"] + fields["after"]:
             raise ValueError("only one implicit gap is allowed")
     if kind in ("cloze", "reverse"):
         options = payload["options"]

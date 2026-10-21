@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
-from testcontainers.postgres import PostgresContainer  # pyright: ignore[reportMissingTypeStubs]
+from testcontainers.postgres import PostgresContainer
 
 LESSON_SQL = (
     "INSERT INTO lessons (id, owner_user_id, language_code, title, raw_text, word_count, "

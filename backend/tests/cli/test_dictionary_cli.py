@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Coroutine
 from pathlib import Path
 
 import pytest
@@ -39,13 +39,7 @@ def test_unsupported_pair_without_file_errors() -> None:
 async def test_run_refresh_real_body_against_test_db(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Exercise the REAL `_run_refresh` body (engine init / session_scope /
-    dispose), not a monkeypatched replacement. `init_engine`/`dispose_engine`
-    are imported inside `_run_refresh` at call time from `glosano.core.db`, so
-    they must be patched there (not on `cli_dictionary`) to take effect.
-    They're stubbed to no-ops because the test engine is already initialized
-    by conftest, and disposing it would break every other test in the run.
-    """
+    """Invoke the real CLI body on the test loop and shared Postgres engine."""
     import glosano.core.db as core_db
     from glosano.cli import dictionary as cli_dictionary
 
@@ -58,7 +52,28 @@ async def test_run_refresh_real_body_against_test_db(
     monkeypatch.setattr(core_db, "init_engine", _noop_init_engine)
     monkeypatch.setattr(core_db, "dispose_engine", _noop_dispose_engine)
 
-    await cli_dictionary._run_refresh("pt", "ru", FIXTURES / "ru_portuguese.jsonl", "cli-real")
+    pending: list[Coroutine[object, object, None]] = []
+
+    def run_on_test_loop(coro: Coroutine[object, object, None]) -> None:
+        pending.append(coro)
+
+    monkeypatch.setattr(cli_dictionary.asyncio, "run", run_on_test_loop)
+    result = CliRunner().invoke(
+        app,
+        [
+            "dictionary",
+            "refresh",
+            "--lang",
+            "pt",
+            "--target",
+            "ru",
+            "--file",
+            str(FIXTURES / "ru_portuguese.jsonl"),
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(pending) == 1
+    await pending[0]
 
     # db_session and _run_refresh's own session_scope() are separate sessions
     # on the same (already-initialized) engine; import_dump commits internally,

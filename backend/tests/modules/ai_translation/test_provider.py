@@ -6,6 +6,7 @@ import json
 
 import httpx
 import pytest
+from pydantic import JsonValue
 
 from glosano.core.config import Settings
 from glosano.modules.ai_translation import provider as provider_mod
@@ -181,3 +182,49 @@ async def test_non_json_2xx_body_raises_rejected() -> None:
     with pytest.raises(ProviderRejected):
         await p.complete(system="s", user="u")
     assert calls["n"] == 1  # not retried
+
+
+@pytest.mark.parametrize("usage", [None, {}, {"prompt_tokens": None, "completion_tokens": None}])
+async def test_optional_usage_and_null_content(usage: JsonValue) -> None:
+    response = httpx.Response(
+        200, json={"choices": [{"message": {"content": None}}], "usage": usage}
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _: response)) as client:
+        completion = await OpenAICompatibleProvider(_settings(), client=client).complete(
+            system="s", user="u"
+        )
+    assert completion.text == ""
+    assert completion.input_tokens is None and completion.output_tokens is None
+
+
+INVALID_COMPLETIONS: list[JsonValue] = [
+    [],
+    None,
+    {"choices": []},
+    {"choices": [None]},
+    {"choices": [{"message": []}]},
+    {"choices": [{"message": {"content": ["wrong"]}}]},
+    {"choices": [{"message": {"content": "ok"}}], "usage": []},
+    {"choices": [{"message": {"content": "ok"}}], "usage": "wrong"},
+    {"choices": [{"message": {"content": "ok"}}], "usage": {"prompt_tokens": "42"}},
+    {"choices": [{"message": {"content": "ok"}}], "usage": {"completion_tokens": True}},
+]
+
+
+@pytest.mark.parametrize("body", INVALID_COMPLETIONS)
+async def test_invalid_completion_fields_are_rejected_without_retry(body: JsonValue) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(
+            200, content=json.dumps(body), headers={"content-type": "application/json"}
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ProviderRejected, match="malformed provider response"):
+            await OpenAICompatibleProvider(_settings(), client=client).complete(
+                system="s", user="u"
+            )
+    assert calls == 1

@@ -3,7 +3,7 @@
 import uuid
 
 import pytest
-from pydantic import ValidationError
+from pydantic import JsonValue, ValidationError
 
 from glosano.modules.review.exercise_prompts import (
     normalize_fill_answer,
@@ -52,7 +52,7 @@ def test_phrase_payload_preserves_spacing_and_form() -> None:
         {"after": "x" * 1001},
     ],
 )
-def test_rejects_unusable_payload(changes: dict[str, object]) -> None:
+def test_rejects_unusable_payload(changes: dict[str, JsonValue]) -> None:
     payload = {"before": "Say ", "answer": "bom dia", "after": "!", "translation": "Hello"}
     with pytest.raises(ValueError):
         validate_payload("fill_blank", {**payload, **changes})

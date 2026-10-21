@@ -1,6 +1,8 @@
 """Grammar suggestions and durable, user-owned tag provenance."""
 
+import json
 import uuid
+from typing import get_args
 
 import pytest
 from httpx import AsyncClient
@@ -8,7 +10,7 @@ from httpx import AsyncClient
 from glosano.core.config import get_settings
 from glosano.core.languages import UI_LANGUAGE_CODES
 from glosano.modules.ai_translation import service
-from glosano.modules.ai_translation.grammar import _LABELS, parse_grammar_tags
+from glosano.modules.ai_translation.grammar import PartOfSpeech, parse_grammar_tags
 from glosano.modules.ai_translation.provider import LLMCompletion
 
 
@@ -192,7 +194,11 @@ def test_grammar_tags_use_ui_language_labels(ui_language: str, label: str) -> No
     assert tags == [label]
 
 
-def test_every_part_of_speech_has_all_ui_languages() -> None:
-    for pos, labels in _LABELS.items():
-        assert set(labels) == set(UI_LANGUAGE_CODES), pos
-        assert all(label for label in labels.values()), pos
+@pytest.mark.parametrize("part_of_speech", get_args(PartOfSpeech))
+@pytest.mark.parametrize("ui_language", UI_LANGUAGE_CODES)
+def test_every_part_of_speech_has_all_ui_languages(part_of_speech: str, ui_language: str) -> None:
+    answer = json.dumps({"part_of_speech": part_of_speech})
+    tags = parse_grammar_tags(answer, ui_language=ui_language)
+    assert len(tags) == 1 and tags[0].strip()
+    if ui_language in {"ru", "ja", "zh-Hans", "hi"}:
+        assert tags != parse_grammar_tags(answer, ui_language="en")

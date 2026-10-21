@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from loguru import logger
+from pydantic import JsonValue
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,7 +41,7 @@ class ExerciseParseError(Exception):
 
 @dataclass(frozen=True)
 class ExerciseResult:
-    payload: dict  # type: ignore[type-arg]
+    payload: dict[str, JsonValue]
     model: str
     latency_ms: int
 
@@ -225,7 +226,9 @@ async def generate_exercise(
         learn_lang=learn_lang,
     )
     if kind in ("cloze", "reverse"):
-        options = list(result.payload["options"])
+        raw_options = result.payload["options"]
+        assert isinstance(raw_options, list)  # validated by validate_payload
+        options = list(raw_options)
         random.shuffle(options)  # порядок вариантов не должен выдавать ответ
         return ExerciseResult(
             payload={**result.payload, "options": options},

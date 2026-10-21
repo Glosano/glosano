@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
-from testcontainers.postgres import PostgresContainer  # pyright: ignore[reportMissingTypeStubs]
+from testcontainers.postgres import PostgresContainer
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
 

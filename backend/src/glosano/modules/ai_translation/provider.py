@@ -13,6 +13,7 @@ from typing import Protocol
 
 import httpx
 from loguru import logger
+from pydantic import JsonValue
 
 from glosano.core.config import Settings
 
@@ -91,13 +92,33 @@ class OpenAICompatibleProvider:
 
 def _parse_completion(response: httpx.Response) -> LLMCompletion:
     try:
-        body = response.json()
-        text = body["choices"][0]["message"]["content"] or ""
+        body: JsonValue = response.json()
+        if not isinstance(body, dict):
+            raise ValueError("expected an object")
+        choices = body["choices"]
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+            raise ValueError("expected choices")
+        message = choices[0]["message"]
+        if not isinstance(message, dict):
+            raise ValueError("expected a message")
+        text = message["content"]
+        if text is None:
+            text = ""
+        if not isinstance(text, str):
+            raise ValueError("expected text content")
+        usage = body.get("usage")
+        if usage is None:
+            usage = {}
+        if not isinstance(usage, dict):
+            raise ValueError("expected usage object")
+        input_tokens = usage.get("prompt_tokens")
+        output_tokens = usage.get("completion_tokens")
+        for count in (input_tokens, output_tokens):
+            if count is not None and (not isinstance(count, int) or isinstance(count, bool)):
+                raise ValueError("expected integer token count")
+        # Narrow each optional count for the dataclass contract.
+        assert input_tokens is None or isinstance(input_tokens, int)
+        assert output_tokens is None or isinstance(output_tokens, int)
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise ProviderRejected("malformed provider response") from exc
-    usage = body.get("usage") or {}
-    return LLMCompletion(
-        text=text,
-        input_tokens=usage.get("prompt_tokens"),
-        output_tokens=usage.get("completion_tokens"),
-    )
+    return LLMCompletion(text=text, input_tokens=input_tokens, output_tokens=output_tokens)

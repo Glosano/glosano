@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glosano.core.db import session_scope
@@ -135,15 +135,41 @@ async def test_satellites_do_not_leak_across_kinds():
             source_type="user",
         )
         translation_id = translation.id
-    # Тег фразы не виден через token-скоуп — ни по id токена, ни по id фразы.  # noqa: RUF003
+    # A token with the same UUID as the phrase must not inherit its satellites.
     async with session_scope() as s:
-        assert await service._list_tags(s, user_id=user_id, kind="token", item_id=token_id) == []
-        assert await service._list_tags(s, user_id=user_id, kind="token", item_id=item_id) == []
-    # update_translation с kind='token' и phrase-ид падает на проверке  # noqa: RUF003
-    # владения item'ом: TokenItem с таким id не существует ->  # noqa: RUF003
-    # ItemNotFound (до перевода дело не доходит).
-    async with session_scope() as s:
-        with pytest.raises(service.ItemNotFound):
+        s.add(
+            TokenItem(
+                id=item_id,
+                user_id=user_id,
+                language_code="en",
+                token_text="collision",
+                status="tracked",
+                confidence=1,
+            )
+        )
+        await s.flush()
+        for text in ("far", "collision"):
+            result = await service.lookup(
+                s,
+                user_id=user_id,
+                kind="token",
+                language_code="en",
+                text=text,
+                target_language_code="ru",
+            )
+            assert result.item_id in (token_id, item_id)
+            assert result.tags == [] and result.translations == []
+        phrase = await service.lookup(
+            s,
+            user_id=user_id,
+            kind="phrase",
+            language_code="en",
+            text="so far so good",
+            target_language_code="ru",
+        )
+        assert phrase.tags == ["a"]
+        assert [row.id for row in phrase.translations] == [translation_id]
+        with pytest.raises(service.TranslationNotFound):
             await service.update_translation(
                 s,
                 user_id=user_id,
@@ -151,17 +177,6 @@ async def test_satellites_do_not_leak_across_kinds():
                 item_id=item_id,
                 translation_id=translation_id,
                 translation_text="x",
-            )
-    # Сама проверка _owned_translation: перевод kind='phrase' не отдаётся
-    # под kind='token' даже при совпадающем item_id.
-    async with session_scope() as s:
-        with pytest.raises(service.TranslationNotFound):
-            await service._owned_translation(
-                s,
-                user_id=user_id,
-                kind="token",
-                item_id=item_id,
-                translation_id=translation_id,
             )
 
 
@@ -183,19 +198,25 @@ async def test_create_item_duplicate_race_upserts_existing_phrase():
         user_id = await _make_user(s)
     item_id = await _phrase_item(user_id)  # «конкурент» уже вставил строку
 
-    real_get = service._get_phrase_item
     calls = 0
 
-    async def _none_once(
+    async def none_once(
         session: AsyncSession, *, user_id: uuid.UUID, language_code: str, text: str
     ) -> PhraseItem | None:
         nonlocal calls
         calls += 1
         if calls == 1:
-            return None  # пре-чек «не видит» строку -> идём в INSERT-ветку
-        return await real_get(session, user_id=user_id, language_code=language_code, text=text)
+            return None
+        # Rollback expires ORM instances; actually re-read the winning row.
+        return await session.scalar(
+            select(PhraseItem).where(
+                PhraseItem.user_id == user_id,
+                PhraseItem.language_code == language_code,
+                PhraseItem.phrase_text == text,
+            )
+        )
 
-    with mock.patch.object(service, "_get_phrase_item", side_effect=_none_once):
+    with mock.patch.object(service, "_get_phrase_item", side_effect=none_once):
         async with session_scope() as s:
             item = await service.create_item(
                 s,
@@ -206,7 +227,7 @@ async def test_create_item_duplicate_race_upserts_existing_phrase():
                 status="known",
                 confidence=None,
             )
-    assert calls == 2  # пре-чек + перечитка после IntegrityError
+    assert calls == 2
     assert item.id == item_id
     assert item.status == "known"
     assert item.confidence is None
@@ -226,19 +247,25 @@ async def test_create_item_duplicate_race_upserts_existing_token():
         await s.flush()
         token_id = token.id
 
-    real_get = service._get_token_item
     calls = 0
 
-    async def _none_once(
+    async def none_once(
         session: AsyncSession, *, user_id: uuid.UUID, language_code: str, text: str
     ) -> TokenItem | None:
         nonlocal calls
         calls += 1
         if calls == 1:
             return None
-        return await real_get(session, user_id=user_id, language_code=language_code, text=text)
+        # Rollback expires ORM instances; actually re-read the winning row.
+        return await session.scalar(
+            select(TokenItem).where(
+                TokenItem.user_id == user_id,
+                TokenItem.language_code == language_code,
+                TokenItem.token_text == text,
+            )
+        )
 
-    with mock.patch.object(service, "_get_token_item", side_effect=_none_once):
+    with mock.patch.object(service, "_get_token_item", side_effect=none_once):
         async with session_scope() as s:
             item = await service.create_item(
                 s,

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine
-from testcontainers.postgres import PostgresContainer  # pyright: ignore[reportMissingTypeStubs]
+from testcontainers.postgres import PostgresContainer
 
 
 async def test_lesson_tags_migration_roundtrip() -> None:

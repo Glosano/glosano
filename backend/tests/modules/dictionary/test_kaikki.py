@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+import pytest
+from pydantic import JsonValue
 
 from glosano.modules.dictionary.kaikki import parse_record
 
-EN_BUILDING: dict[str, Any] = {
+EN_BUILDING: dict[str, JsonValue] = {
     "word": "building",
     "lang_code": "en",
     "pos": "noun",
@@ -23,7 +24,7 @@ EN_BUILDING: dict[str, Any] = {
     ],
 }
 
-RU_DOM: dict[str, Any] = {
+RU_DOM: dict[str, JsonValue] = {
     "word": "дом",
     "lang_code": "ru",
     "pos": "noun",
@@ -72,12 +73,12 @@ def test_wrong_language_is_skipped() -> None:
 
 
 def test_record_without_translations_is_skipped() -> None:
-    record: dict[str, Any] = {"word": "aaa", "lang_code": "en", "pos": "noun", "senses": []}
+    record: dict[str, JsonValue] = {"word": "aaa", "lang_code": "en", "pos": "noun", "senses": []}
     assert parse_record(record, source_lang="en", target_lang="ru") is None
 
 
 def test_examples_capped_at_five() -> None:
-    record: dict[str, Any] = {
+    record: dict[str, JsonValue] = {
         "word": "casa",
         "lang_code": "pt",
         "pos": "noun",
@@ -86,3 +87,45 @@ def test_examples_capped_at_five() -> None:
     entry = parse_record(record, source_lang="pt", target_lang="ru")
     assert entry is not None
     assert len(entry.examples) == 5
+
+
+@pytest.mark.parametrize("missing", [None, []])
+def test_missing_or_invalid_sense_lists_are_skipped(missing: JsonValue) -> None:
+    record: dict[str, JsonValue] = {"word": "casa", "lang_code": "pt", "senses": missing}
+    assert parse_record(record, source_lang="pt", target_lang="ru") is None
+
+
+def test_malformed_nested_values_do_not_become_dictionary_text() -> None:
+    record: dict[str, JsonValue] = {
+        "word": "house",
+        "lang_code": "en",
+        "translations": [
+            {"code": "ru", "word": 42},
+            {"code": "ru", "word": "дом", "sense": []},
+        ],
+        "senses": [
+            {
+                "glosses": [False, "building"],
+                "examples": [
+                    {"text": []},
+                    {"text": "A house.", "translation": ["wrong"]},
+                    {"text": "My house.", "english": "fallback"},
+                ],
+            },
+        ],
+    }
+    entry = parse_record(record, source_lang="en", target_lang="ru")
+    assert entry is not None
+    assert entry.gloss_summary == "building"
+    assert [(t.translation_text, t.usage_note) for t in entry.translations] == [("дом", None)]
+    assert [(e.example_text, e.example_translation) for e in entry.examples] == [
+        ("A house.", None),
+        ("My house.", "fallback"),
+    ]
+
+
+@pytest.mark.parametrize("senses", ["invalid", [None], [{"glosses": None}]])
+def test_malformed_senses_raise_so_import_counts_skipped_lines(senses: JsonValue) -> None:
+    record: dict[str, JsonValue] = {"word": "casa", "lang_code": "pt", "senses": senses}
+    with pytest.raises(ValueError):
+        parse_record(record, source_lang="pt", target_lang="ru")

@@ -72,8 +72,8 @@ class LookupResult:
     translations: list[PersonalTranslation]
     primary: PersonalTranslation | None
     note: str | None
-    tags: list[str] = field(default_factory=list)
-    ai_tags: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list[str])
+    ai_tags: list[str] = field(default_factory=list[str])
 
 
 @dataclass
@@ -85,8 +85,8 @@ class VocabListItem:
     confidence: int | None
     primary_translation_text: str | None
     primary_translation_target: str | None
-    tags: list[str] = field(default_factory=list)
-    ai_tags: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list[str])
+    ai_tags: list[str] = field(default_factory=list[str])
     pos: str | None = None
     context: str | None = None
     created_at: datetime | None = None

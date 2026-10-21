@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Awaitable, Iterator
+from typing import Protocol, cast
 
 import pytest
 import redis.asyncio as aioredis
@@ -130,13 +131,18 @@ def _redis_container() -> Iterator[RedisContainer]:  # pyright: ignore[reportUnu
         yield r
 
 
+class _FlushableRedis(Protocol):
+    def flushdb(self) -> Awaitable[bool]: ...
+
+
 @pytest.fixture
 async def redis_client(_redis_container: RedisContainer) -> AsyncIterator[aioredis.Redis]:
     host = _redis_container.get_container_host_ip()
     port = int(_redis_container.get_exposed_port(6379))
     client = aioredis.Redis(host=host, port=port, decode_responses=True)
     yield client
-    await client.flushdb()
+    # Async Redis returns an awaitable; upstream leaves **kwargs unannotated.
+    await cast(_FlushableRedis, client).flushdb()
     await client.aclose()
 
 

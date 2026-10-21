@@ -77,3 +77,9 @@ def test_json_roundtrip_and_missing_keys():
     s = Sm2State(ease_factor=2.18, interval_days=15.0, repetitions=3)
     assert state_from_json(state_to_json(s)) == s
     assert state_from_json({}) == INITIAL_STATE
+
+
+def test_json_numeric_strings_keep_legacy_coercion() -> None:
+    assert state_from_json(
+        {"ease_factor": "2.18", "interval_days": "15", "repetitions": "3"}
+    ) == Sm2State(2.18, 15.0, 3)

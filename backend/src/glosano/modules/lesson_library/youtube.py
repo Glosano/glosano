@@ -13,6 +13,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 import requests
+from pydantic import JsonValue
 from requests.adapters import HTTPAdapter
 from youtube_transcript_api import YouTubeTranscriptApi
 
@@ -130,7 +131,9 @@ class RestrictedSession(requests.Session):
         self.max_redirects = 3
         self.mount("https://", _BoundedAdapter(self.deadline))
 
-    def send(self, request: Any, **kwargs: Any) -> Any:
+    def send(self, request: requests.PreparedRequest, **kwargs: Any) -> requests.Response:
+        if request.url is None:
+            raise VideoImportError("request_blocked")
         parsed = urlsplit(request.url)
         if (
             parsed.scheme != "https"
@@ -194,7 +197,8 @@ class YouTubeTranscriptProvider:
         except (ValueError, KeyError, TypeError):
             raise VideoImportError("invalid_transcript") from None
 
-    def _acquire(self, video_id: str, language_code: str) -> VideoResult:
+    def acquire_sync(self, video_id: str, language_code: str) -> VideoResult:
+        """Blocking acquisition used by the isolated subprocess entry point."""
         from glosano.modules.lesson_library.video_segments import Cue, plain_text
 
         parse_youtube_url(f"https://youtu.be/{video_id}")
@@ -213,16 +217,21 @@ class YouTubeTranscriptProvider:
                         },
                     )
                     response.raise_for_status()
-                    metadata = response.json()
+                    metadata: JsonValue = response.json()
                     if not isinstance(metadata, dict) or not isinstance(metadata.get("title"), str):
                         raise VideoImportError("metadata_unavailable")
-                    title = plain_text(metadata["title"]).strip()[:200]
+                    raw_title = metadata["title"]
+                    assert isinstance(raw_title, str)
+                    title = plain_text(raw_title).strip()[:200]
                     if not title:
+                        raise VideoImportError("metadata_unavailable")
+                    author = metadata.get("author_name") or ""
+                    if not isinstance(author, str):
                         raise VideoImportError("metadata_unavailable")
                     return VideoResult(
                         video_id,
                         title,
-                        plain_text(metadata.get("author_name") or "")[:200] or None,
+                        plain_text(author)[:200] or None,
                         track.language_code,
                         track.is_generated,
                         [
@@ -275,7 +284,7 @@ class YouTubeTranscriptProvider:
 def acquire_main() -> None:
     """Private subprocess entry point; only safe structured output crosses IPC."""
     try:
-        result = YouTubeTranscriptProvider()._acquire(sys.argv[1], sys.argv[2])
+        result = YouTubeTranscriptProvider().acquire_sync(sys.argv[1], sys.argv[2])
         payload = asdict(result)
     except VideoImportError as exc:
         payload = {"error": exc.code, "retryable": exc.retryable}

@@ -200,7 +200,7 @@ RETRYABLE_ERRORS = {"network_error", "import_expired", "import_failed", "queue_u
 
 
 def prepared_segments(lesson_id: uuid.UUID, fragments: list[Fragment]) -> list[LessonSegment]:
-    segments = []
+    segments: list[LessonSegment] = []
     offset = 0
     for i, fragment in enumerate(fragments):
         segments.append(

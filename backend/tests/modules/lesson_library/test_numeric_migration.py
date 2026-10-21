@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from testcontainers.postgres import PostgresContainer  # pyright: ignore[reportMissingTypeStubs]
+from testcontainers.postgres import PostgresContainer
 
 from glosano.modules.identity.models import User
 from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonTokenOccurrence

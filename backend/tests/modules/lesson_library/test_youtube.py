@@ -133,7 +133,7 @@ def test_provider_http_status_policy(
 
     from glosano.modules.lesson_library.youtube import YouTubeTranscriptProvider
 
-    calls = []
+    calls: list[int] = []
 
     def unavailable(*args: object) -> None:
         calls.append(1)
@@ -153,7 +153,7 @@ def test_provider_http_status_policy(
 
     monkeypatch.setattr("glosano.modules.lesson_library.youtube.time.sleep", no_sleep)
     with pytest.raises(VideoImportError, match=code):
-        YouTubeTranscriptProvider()._acquire("M7lc1UVf-VE", "en")
+        YouTubeTranscriptProvider().acquire_sync("M7lc1UVf-VE", "en")
     assert len(calls) == retries
 
 
@@ -269,7 +269,7 @@ async def test_provider_subprocess_returns_typed_snapshot(monkeypatch: pytest.Mo
             "from glosano.modules.lesson_library.youtube import "
             "YouTubeTranscriptProvider,VideoResult,acquire_main;"
             "from glosano.modules.lesson_library.video_segments import Cue;"
-            "YouTubeTranscriptProvider._acquire=lambda *args: "
+            "YouTubeTranscriptProvider.acquire_sync=lambda *args: "
             'VideoResult("M7lc1UVf-VE","Title",None,"en-US",True,[Cue("Hello.",0,1000)]);'
             "acquire_main()"
         )
@@ -305,3 +305,48 @@ async def test_cancelled_acquisition_reaps_child(monkeypatch: pytest.MonkeyPatch
     with pytest.raises(asyncio.CancelledError):
         await task
     assert processes[0].returncode is not None and processes[0].returncode < 0
+
+
+@pytest.mark.parametrize(
+    "metadata", [[], {"title": 42}, {"title": ""}, {"title": "Title", "author_name": ["wrong"]}]
+)
+def test_provider_rejects_invalid_metadata(
+    monkeypatch: pytest.MonkeyPatch, metadata: object
+) -> None:
+    from types import SimpleNamespace
+
+    import requests
+
+    from glosano.modules.lesson_library.youtube import RestrictedSession, YouTubeTranscriptProvider
+
+    def fetch() -> list[SimpleNamespace]:
+        return []
+
+    track = SimpleNamespace(language_code="en", language="English", is_generated=False, fetch=fetch)
+
+    def list_tracks(*args: object) -> list[SimpleNamespace]:
+        return [track]
+
+    def get_metadata(*args: object, **kwargs: object) -> requests.Response:
+        import json
+
+        response = requests.Response()
+        response.status_code = 200
+        response._content = json.dumps(metadata).encode()
+        return response
+
+    monkeypatch.setattr(
+        "glosano.modules.lesson_library.youtube.YouTubeTranscriptApi.list", list_tracks
+    )
+    monkeypatch.setattr(RestrictedSession, "get", get_metadata)
+    with pytest.raises(VideoImportError, match="metadata_unavailable"):
+        YouTubeTranscriptProvider().acquire_sync("M7lc1UVf-VE", "en")
+
+
+def test_restricted_session_blocks_request_without_url() -> None:
+    import requests
+
+    from glosano.modules.lesson_library.youtube import RestrictedSession
+
+    with RestrictedSession() as session, pytest.raises(VideoImportError, match="request_blocked"):
+        session.send(requests.PreparedRequest())

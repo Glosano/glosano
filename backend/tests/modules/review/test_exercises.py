@@ -136,7 +136,8 @@ async def test_cloze_validates_options_and_retries_once(monkeypatch: pytest.Monk
         res = await generate_exercise(
             s, user_id=user_id, kind="cloze", review_item_id=ri_id, provider=provider
         )
-    assert len(res.payload["options"]) == 4
+    options = res.payload["options"]
+    assert isinstance(options, list) and len(options) == 4
     assert len(provider.calls) == 2
 
 
@@ -189,7 +190,8 @@ async def test_feedback_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
             user_text="Cada dia e unico.",
             provider=provider,
         )
-    assert "Опечатка" in res.payload["feedback"]
+    feedback = res.payload["feedback"]
+    assert isinstance(feedback, str) and "Опечатка" in feedback
 
 
 async def test_writing_exercise_needs_items(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -200,7 +202,8 @@ async def test_writing_exercise_needs_items(monkeypatch: pytest.MonkeyPatch) -> 
         res = await generate_exercise(
             s, user_id=user_id, kind="writing", review_item_ids=[ri_id], provider=provider
         )
-    assert "Ответы" in res.payload["text"]
+    text = res.payload["text"]
+    assert isinstance(text, str) and "Ответы" in text
     assert provider.calls[0]["max_tokens"] == 1200
 
 
@@ -208,19 +211,20 @@ async def test_ui_language_change_keeps_native_translation_and_feedback_follows_
     monkeypatch: pytest.MonkeyPatch,
 ):
     from glosano.modules.identity.models import UserProfile
-    from glosano.modules.review.exercises import _load_context
 
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
-    provider = FakeProvider([json.dumps({"feedback": "Good"})])
+    provider = FakeProvider([EXAMPLE_JSON, json.dumps({"feedback": "Good"})])
     async with session_scope() as s:
         user_id, ri_id = await _setup_item(s)
         profile = await s.get(UserProfile, user_id)
         assert profile
         profile.ui_language_code = "en"
-        ctx = await _load_context(s, user_id=user_id, review_item_id=ri_id)
-        assert ctx.target_lang == "ru"
-        assert ctx.feedback_lang == "en"
-        assert ctx.translation == "каждый"  # the saved native translation stays
+        await generate_exercise(
+            s, user_id=user_id, kind="example", review_item_id=ri_id, provider=provider
+        )
+        example = str(provider.calls[0]["user"])
+        assert "Meaning (user's own translation): каждый" in example
+        assert "into Russian" in example
         await translation_feedback(
             s,
             user_id=user_id,
@@ -229,7 +233,7 @@ async def test_ui_language_change_keeps_native_translation_and_feedback_follows_
             user_text="Cada dia",
             provider=provider,
         )
-        prompt = str(provider.calls[0]["user"])
+        prompt = str(provider.calls[1]["user"])
         assert "Answer in English" in prompt
         assert "this Russian sentence" in prompt
         assert "Answer in Russian" not in prompt

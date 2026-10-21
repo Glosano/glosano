@@ -8,6 +8,7 @@ Confidence (ADR-0005 mapping) is a separate axis in review/service.py.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -49,7 +50,7 @@ def state_to_json(state: Sm2State) -> dict[str, float | int]:
     }
 
 
-def state_from_json(data: dict) -> Sm2State:  # type: ignore[type-arg]
+def state_from_json(data: Mapping[str, float | int | str]) -> Sm2State:
     return Sm2State(
         ease_factor=float(data.get("ease_factor", INITIAL_STATE.ease_factor)),
         interval_days=float(data.get("interval_days", INITIAL_STATE.interval_days)),
