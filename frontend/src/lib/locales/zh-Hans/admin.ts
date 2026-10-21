@@ -53,4 +53,11 @@ export const admin: Catalog = {
     '模型运行在 Docker 主机上时，请用 host.docker.internal 代替 localhost。模型服务器必须已启动。',
   'Testing sends a short diagnostic request and may incur a provider charge. It does not change your active connection.':
     '测试会发送简短的诊断请求，提供商可能收费。不会更改当前连接。',
+  'Models loaded: {{count}}': '已加载模型：{{count}}',
+  'Search models': '搜索模型',
+  'Choose a model': '选择模型',
+  'No matching models. Try another search or enter the identifier manually.':
+    '没有匹配的模型。请尝试其他搜索词或手动输入模型标识符。',
+  'Choose a model, test the connection, then save the settings.':
+    '选择模型，测试连接，然后保存设置。',
 }

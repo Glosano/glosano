@@ -58,4 +58,11 @@ export const admin: Catalog = {
     'Для модели на машине с Docker используйте host.docker.internal вместо localhost. Сервер модели должен быть запущен.',
   'Testing sends a short diagnostic request and may incur a provider charge. It does not change your active connection.':
     'Проверка отправляет короткий тестовый запрос, за который провайдер может списать оплату. Активное подключение не меняется.',
+  'Models loaded: {{count}}': 'Загружено моделей: {{count}}',
+  'Search models': 'Поиск моделей',
+  'Choose a model': 'Выберите модель',
+  'No matching models. Try another search or enter the identifier manually.':
+    'Модели не найдены. Измените запрос или введите название модели вручную.',
+  'Choose a model, test the connection, then save the settings.':
+    'Выберите модель, проверьте подключение и сохраните настройки.',
 }

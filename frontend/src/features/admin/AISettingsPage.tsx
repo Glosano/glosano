@@ -49,10 +49,15 @@ function AIForm({ initial }: { initial: AISettings }) {
   const [preset, setPreset] = useState<string>(
     presets.find(([, url]) => url === initial.base_url)?.[0] ?? 'custom',
   )
-  const [busy, setBusy] = useState(false)
+  const [activeAction, setActiveAction] = useState<'save' | 'test' | 'models' | null>(null)
+  const busy = activeAction !== null
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [models, setModels] = useState<string[]>([])
+  const [modelSearch, setModelSearch] = useState('')
+  const filteredModels = models.filter((model) =>
+    model.toLowerCase().includes(modelSearch.trim().toLowerCase()),
+  )
   const version = useRef(0)
 
   function edit(patch: Partial<AIDraft>) {
@@ -60,14 +65,17 @@ function AIForm({ initial }: { initial: AISettings }) {
     setDraft((current) => ({ ...current, ...patch }))
     setMessage('')
     setError('')
-    setModels([])
+    if ('base_url' in patch || 'key_action' in patch || 'api_key' in patch) {
+      setModels([])
+      setModelSearch('')
+    }
   }
   function changeServer(base_url: string) {
     edit({ base_url, key_action: initial.has_key ? 'replace' : 'remove', api_key: '' })
   }
   async function act(action: 'save' | 'test' | 'models') {
     const current = version.current
-    setBusy(true)
+    setActiveAction(action)
     setError('')
     setMessage('')
     // Keep credentials out of React Query's mutation cache and browser storage.
@@ -89,6 +97,7 @@ function AIForm({ initial }: { initial: AISettings }) {
         const result = await adminApi.models(payload)
         if (current === version.current) {
           setModels(result.models)
+          setModelSearch('')
           if (!result.models.length)
             setMessage(t('This server does not list models. Enter the model manually.'))
         }
@@ -101,7 +110,7 @@ function AIForm({ initial }: { initial: AISettings }) {
             : getApiErrorMessage(cause),
         )
     } finally {
-      setBusy(false)
+      setActiveAction(null)
     }
   }
   return (
@@ -221,7 +230,6 @@ function AIForm({ initial }: { initial: AISettings }) {
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               id="ai-model"
-              list="ai-models"
               value={draft.model}
               maxLength={255}
               onChange={(event) => edit({ model: event.target.value })}
@@ -234,14 +242,55 @@ function AIForm({ initial }: { initial: AISettings }) {
               disabled={initial.force_disabled || !draft.base_url}
               onClick={() => void act('models')}
             >
-              {t('Load models')}
+              {t(activeAction === 'models' ? 'Loading…' : 'Load models')}
             </Button>
           </div>
-          <datalist id="ai-models">
-            {models.map((model) => (
-              <option key={model} value={model} />
-            ))}
-          </datalist>
+          {models.length > 0 && (
+            <div className="space-y-2 rounded-md border border-border bg-background p-3">
+              <p role="status" className="text-sm">
+                {t('Models loaded: {{count}}', { count: models.length })}
+              </p>
+              <label htmlFor="ai-model-search" className="block text-sm font-medium">
+                {t('Search models')}
+              </label>
+              <Input
+                id="ai-model-search"
+                value={modelSearch}
+                onChange={(event) => setModelSearch(event.target.value)}
+                autoComplete="off"
+              />
+              {filteredModels.length > 0 ? (
+                <>
+                  <label htmlFor="ai-model-list" className="block text-sm font-medium">
+                    {t('Choose a model')}
+                  </label>
+                  <select
+                    id="ai-model-list"
+                    className={selectClass}
+                    size={6}
+                    value={filteredModels.includes(draft.model) ? draft.model : ''}
+                    onChange={(event) => edit({ model: event.target.value })}
+                  >
+                    <option value="" disabled>
+                      {t('Choose a model')}
+                    </option>
+                    {filteredModels.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {t('No matching models. Try another search or enter the identifier manually.')}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t('Choose a model, test the connection, then save the settings.')}
+              </p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             {t('You can always enter the model identifier manually.')}
           </p>
@@ -259,7 +308,7 @@ function AIForm({ initial }: { initial: AISettings }) {
       )}
       <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={busy}>
-          {t(busy ? 'Working…' : 'Save AI settings')}
+          {t(activeAction === 'save' ? 'Working…' : 'Save AI settings')}
         </Button>
         <Button
           type="button"

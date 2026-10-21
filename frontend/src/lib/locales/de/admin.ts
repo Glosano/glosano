@@ -58,4 +58,11 @@ export const admin: Catalog = {
     'Für ein Modell auf dem Docker-Host host.docker.internal statt localhost verwenden. Der Modellserver muss bereits laufen.',
   'Testing sends a short diagnostic request and may incur a provider charge. It does not change your active connection.':
     'Der Test sendet eine kurze Anfrage und kann Kosten beim Anbieter verursachen. Die aktive Verbindung bleibt unverändert.',
+  'Models loaded: {{count}}': 'Geladene Modelle: {{count}}',
+  'Search models': 'Modelle suchen',
+  'Choose a model': 'Modell auswählen',
+  'No matching models. Try another search or enter the identifier manually.':
+    'Keine passenden Modelle. Ändere die Suche oder gib die Modellkennung manuell ein.',
+  'Choose a model, test the connection, then save the settings.':
+    'Wähle ein Modell, teste die Verbindung und speichere die Einstellungen.',
 }

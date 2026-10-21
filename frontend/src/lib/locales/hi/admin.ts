@@ -57,4 +57,11 @@ export const admin: Catalog = {
     'Docker होस्ट के मॉडल के लिए localhost की जगह host.docker.internal उपयोग करें। मॉडल सर्वर पहले से चलना चाहिए।',
   'Testing sends a short diagnostic request and may incur a provider charge. It does not change your active connection.':
     'जाँच एक छोटा निदान अनुरोध भेजती है और प्रदाता शुल्क ले सकता है। इससे सक्रिय कनेक्शन नहीं बदलता।',
+  'Models loaded: {{count}}': 'लोड किए गए मॉडल: {{count}}',
+  'Search models': 'मॉडल खोजें',
+  'Choose a model': 'मॉडल चुनें',
+  'No matching models. Try another search or enter the identifier manually.':
+    'कोई मेल खाता मॉडल नहीं मिला। दूसरी खोज आज़माएँ या पहचानकर्ता स्वयं दर्ज करें।',
+  'Choose a model, test the connection, then save the settings.':
+    'मॉडल चुनें, कनेक्शन जाँचें और फिर सेटिंग सहेजें।',
 }
