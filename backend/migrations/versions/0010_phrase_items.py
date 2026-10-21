@@ -29,9 +29,7 @@ def upgrade() -> None:
         sa.Column("display_text", sa.Text(), nullable=False),
         sa.Column("status", sa.String(length=16), nullable=False),
         sa.Column("confidence", sa.Integer(), nullable=True),
-        sa.Column(
-            "added_by", sa.String(length=16), server_default="user", nullable=False
-        ),
+        sa.Column("added_by", sa.String(length=16), server_default="user", nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

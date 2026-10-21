@@ -39,8 +39,11 @@ async def _create_phrase(c: AsyncClient, csrf: str, text: str, lang: str = "en")
     r = await c.post(
         "/api/vocabulary/items",
         json={
-            "kind": "phrase", "language_code": lang,
-            "text": text, "status": "tracked", "confidence": 1,
+            "kind": "phrase",
+            "language_code": lang,
+            "text": text,
+            "status": "tracked",
+            "confidence": 1,
         },
         headers={"X-CSRF-Token": csrf},
     )

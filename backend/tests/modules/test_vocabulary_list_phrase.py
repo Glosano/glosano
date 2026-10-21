@@ -57,15 +57,25 @@ async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFuncti
 
 async def _seed(user_id: uuid.UUID) -> None:
     async with session_scope() as s:
-        s.add(TokenItem(
-            user_id=user_id, language_code="en", token_text="far",
-            status="tracked", confidence=1,
-        ))
-        s.add(PhraseItem(
-            user_id=user_id, language_code="en",
-            phrase_text="so far so good", display_text="so far, so good",
-            status="tracked", confidence=2,
-        ))
+        s.add(
+            TokenItem(
+                user_id=user_id,
+                language_code="en",
+                token_text="far",
+                status="tracked",
+                confidence=1,
+            )
+        )
+        s.add(
+            PhraseItem(
+                user_id=user_id,
+                language_code="en",
+                phrase_text="so far so good",
+                display_text="so far, so good",
+                status="tracked",
+                confidence=2,
+            )
+        )
 
 
 async def test_kind_all_returns_both():
@@ -78,7 +88,8 @@ async def test_kind_all_returns_both():
         )
         assert total == 2
         assert {(i.kind, i.text) for i in items} == {
-            ("token", "far"), ("phrase", "so far, so good"),
+            ("token", "far"),
+            ("phrase", "so far, so good"),
         }
         phrase = next(i for i in items if i.kind == "phrase")
         assert phrase.pos is None and phrase.context is None
@@ -106,7 +117,11 @@ async def test_q_searches_phrase_display_text():
     async with session_scope() as s:
         kw: dict[str, Any] = {**LIST_DEFAULTS, "q": "so good"}
         items, total = await service.list_items(
-            s, user_id=user_id, language_code="en", kind="all", **kw,
+            s,
+            user_id=user_id,
+            language_code="en",
+            kind="all",
+            **kw,
         )
         assert total == 1 and items[0].kind == "phrase"
 
@@ -118,8 +133,12 @@ async def test_phrase_primary_translation_hydrated():
     async with session_scope() as s:
         phrase_id = (await s.execute(select(PhraseItem.id))).scalar_one()
         await service.add_translation(
-            s, user_id=user_id, kind="phrase", item_id=phrase_id,
-            target_language_code="ru", translation_text="пока всё хорошо",
+            s,
+            user_id=user_id,
+            kind="phrase",
+            item_id=phrase_id,
+            target_language_code="ru",
+            translation_text="пока всё хорошо",
             source_type="user",
         )
     async with session_scope() as s:

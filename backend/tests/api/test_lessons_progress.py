@@ -34,9 +34,7 @@ async def _card(c: AsyncClient, lesson_id: uuid.UUID, lang: str = "pt") -> dict[
     return next(i for i in await library_items(c, lang) if i["id"] == str(lesson_id))
 
 
-async def _put_position(
-    c: AsyncClient, csrf: str, lesson_id: uuid.UUID, ordinal: int
-) -> None:
+async def _put_position(c: AsyncClient, csrf: str, lesson_id: uuid.UUID, ordinal: int) -> None:
     r = await c.put(
         "/api/reader/positions",
         json={

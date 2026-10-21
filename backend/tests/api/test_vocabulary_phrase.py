@@ -66,8 +66,11 @@ async def test_create_phrase_then_lookup_normalizes():
             "/api/vocabulary/items",
             headers=h,
             json={
-                "kind": "phrase", "language_code": "en",
-                "text": "So Far, so GOOD", "status": "tracked", "confidence": 1,
+                "kind": "phrase",
+                "language_code": "en",
+                "text": "So Far, so GOOD",
+                "status": "tracked",
+                "confidence": 1,
             },
         )
         assert r.status_code == 201, r.text
@@ -86,8 +89,11 @@ async def test_create_phrase_is_upsert():
         csrf = await _register(c)
         h = {"X-CSRF-Token": csrf}
         body: dict[str, Any] = {
-            "kind": "phrase", "language_code": "en",
-            "text": "give up", "status": "tracked", "confidence": 1,
+            "kind": "phrase",
+            "language_code": "en",
+            "text": "give up",
+            "status": "tracked",
+            "confidence": 1,
         }
         r1 = await c.post("/api/vocabulary/items", headers=h, json=body)
         body["status"], body["confidence"] = "known", None
@@ -105,8 +111,11 @@ async def test_create_phrase_rejects_one_and_nine_words():
                 "/api/vocabulary/items",
                 headers=h,
                 json={
-                    "kind": "phrase", "language_code": "en",
-                    "text": text, "status": "tracked", "confidence": 1,
+                    "kind": "phrase",
+                    "language_code": "en",
+                    "text": text,
+                    "status": "tracked",
+                    "confidence": 1,
                 },
             )
             assert r.status_code == 422, text
@@ -120,8 +129,11 @@ async def test_phrase_translations_and_patch():
             "/api/vocabulary/items",
             headers=h,
             json={
-                "kind": "phrase", "language_code": "en",
-                "text": "give up", "status": "tracked", "confidence": 1,
+                "kind": "phrase",
+                "language_code": "en",
+                "text": "give up",
+                "status": "tracked",
+                "confidence": 1,
             },
         )
         item_id = r.json()["item_id"]

@@ -42,13 +42,19 @@ async def _clean() -> AsyncIterator[None]:  # pyright: ignore[reportUnusedFuncti
 async def _seed(user_id: uuid.UUID) -> tuple[uuid.UUID, uuid.UUID]:
     async with session_scope() as s:
         token = TokenItem(
-            user_id=user_id, language_code="en", token_text="far",
-            status="tracked", confidence=1,
+            user_id=user_id,
+            language_code="en",
+            token_text="far",
+            status="tracked",
+            confidence=1,
         )
         phrase = PhraseItem(
-            user_id=user_id, language_code="en",
-            phrase_text="so far so good", display_text="so far, so good",
-            status="tracked", confidence=1,
+            user_id=user_id,
+            language_code="en",
+            phrase_text="so far so good",
+            display_text="so far, so good",
+            status="tracked",
+            confidence=1,
         )
         s.add_all([token, phrase])
         await s.flush()
@@ -61,8 +67,11 @@ async def test_set_known_covers_both_kinds():
     token_id, phrase_id = await _seed(user_id)
     async with session_scope() as s:
         affected = await service.bulk_action(
-            s, user_id=user_id, item_ids=[token_id, phrase_id],
-            action="set_known", tag_name=None,
+            s,
+            user_id=user_id,
+            item_ids=[token_id, phrase_id],
+            action="set_known",
+            tag_name=None,
         )
         assert affected == 2
     async with session_scope() as s:

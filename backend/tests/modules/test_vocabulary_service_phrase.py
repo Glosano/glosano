@@ -61,15 +61,23 @@ async def test_phrase_translation_roundtrip():
     item_id = await _phrase_item(user_id)
     async with session_scope() as s:
         row, created = await service.add_translation(
-            s, user_id=user_id, kind="phrase", item_id=item_id,
-            target_language_code="ru", translation_text="пока всё хорошо",
+            s,
+            user_id=user_id,
+            kind="phrase",
+            item_id=item_id,
+            target_language_code="ru",
+            translation_text="пока всё хорошо",
             source_type="user",
         )
         assert created and row.is_primary and row.item_kind == "phrase"
     async with session_scope() as s:
         updated = await service.update_translation(
-            s, user_id=user_id, kind="phrase", item_id=item_id,
-            translation_id=row.id, translation_text="пока что неплохо",
+            s,
+            user_id=user_id,
+            kind="phrase",
+            item_id=item_id,
+            translation_id=row.id,
+            translation_text="пока что неплохо",
         )
         assert updated.translation_text == "пока что неплохо"
     async with session_scope() as s:
@@ -105,8 +113,11 @@ async def test_satellites_do_not_leak_across_kinds():
     async with session_scope() as s:
         user_id = await _make_user(s)
         token = TokenItem(
-            user_id=user_id, language_code="en", token_text="far",
-            status="tracked", confidence=1,
+            user_id=user_id,
+            language_code="en",
+            token_text="far",
+            status="tracked",
+            confidence=1,
         )
         s.add(token)
         await s.flush()
@@ -115,8 +126,12 @@ async def test_satellites_do_not_leak_across_kinds():
     async with session_scope() as s:
         await service.add_tag(s, user_id=user_id, kind="phrase", item_id=item_id, tag_name="a")
         translation, _ = await service.add_translation(
-            s, user_id=user_id, kind="phrase", item_id=item_id,
-            target_language_code="ru", translation_text="пока всё хорошо",
+            s,
+            user_id=user_id,
+            kind="phrase",
+            item_id=item_id,
+            target_language_code="ru",
+            translation_text="пока всё хорошо",
             source_type="user",
         )
         translation_id = translation.id
@@ -130,15 +145,22 @@ async def test_satellites_do_not_leak_across_kinds():
     async with session_scope() as s:
         with pytest.raises(service.ItemNotFound):
             await service.update_translation(
-                s, user_id=user_id, kind="token", item_id=item_id,
-                translation_id=translation_id, translation_text="x",
+                s,
+                user_id=user_id,
+                kind="token",
+                item_id=item_id,
+                translation_id=translation_id,
+                translation_text="x",
             )
     # Сама проверка _owned_translation: перевод kind='phrase' не отдаётся
     # под kind='token' даже при совпадающем item_id.
     async with session_scope() as s:
         with pytest.raises(service.TranslationNotFound):
             await service._owned_translation(
-                s, user_id=user_id, kind="token", item_id=item_id,
+                s,
+                user_id=user_id,
+                kind="token",
+                item_id=item_id,
                 translation_id=translation_id,
             )
 
@@ -149,9 +171,7 @@ async def test_phrase_item_not_found_for_wrong_kind():
     item_id = await _phrase_item(user_id)
     async with session_scope() as s:
         with pytest.raises(service.ItemNotFound):
-            await service.put_note(
-                s, user_id=user_id, kind="token", item_id=item_id, note_text="x"
-            )
+            await service.put_note(s, user_id=user_id, kind="token", item_id=item_id, note_text="x")
 
 
 async def test_create_item_duplicate_race_upserts_existing_phrase():
@@ -178,8 +198,13 @@ async def test_create_item_duplicate_race_upserts_existing_phrase():
     with mock.patch.object(service, "_get_phrase_item", side_effect=_none_once):
         async with session_scope() as s:
             item = await service.create_item(
-                s, user_id=user_id, kind="phrase", language_code="en",
-                text="So far, so good", status="known", confidence=None,
+                s,
+                user_id=user_id,
+                kind="phrase",
+                language_code="en",
+                text="So far, so good",
+                status="known",
+                confidence=None,
             )
     assert calls == 2  # пре-чек + перечитка после IntegrityError
     assert item.id == item_id
@@ -191,8 +216,11 @@ async def test_create_item_duplicate_race_upserts_existing_token():
     async with session_scope() as s:
         user_id = await _make_user(s)
         token = TokenItem(
-            user_id=user_id, language_code="en", token_text="far",
-            status="tracked", confidence=1,
+            user_id=user_id,
+            language_code="en",
+            token_text="far",
+            status="tracked",
+            confidence=1,
         )
         s.add(token)
         await s.flush()
@@ -213,8 +241,13 @@ async def test_create_item_duplicate_race_upserts_existing_token():
     with mock.patch.object(service, "_get_token_item", side_effect=_none_once):
         async with session_scope() as s:
             item = await service.create_item(
-                s, user_id=user_id, kind="token", language_code="en",
-                text="Far", status="known", confidence=None,
+                s,
+                user_id=user_id,
+                kind="token",
+                language_code="en",
+                text="Far",
+                status="known",
+                confidence=None,
             )
     assert calls == 2
     assert item.id == token_id

@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -167,7 +167,7 @@ async def test_worker_maintenance_expires_abandoned_jobs(monkeypatch: pytest.Mon
     cleaned = asyncio.Event()
 
     @asynccontextmanager
-    async def committed_cleanup_session() -> AsyncIterator[AsyncSession]:
+    async def committed_cleanup_session() -> AsyncGenerator[AsyncSession]:
         async with session_scope() as session:
             yield session
         # Observations from another connection must wait for the worker's commit,

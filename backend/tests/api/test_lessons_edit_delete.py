@@ -9,7 +9,12 @@ from sqlalchemy import select
 
 from glosano.core.db import session_scope
 from glosano.main import create_app
-from glosano.modules.lesson_library.models import Lesson, LessonSegment, LessonSource
+from glosano.modules.lesson_library.models import (
+    Lesson,
+    LessonSegment,
+    LessonSource,
+    LessonVisibility,
+)
 from glosano.modules.reader_state.models import BulkAction, ReaderPosition
 from glosano.modules.review.models import ReviewItem
 from glosano.modules.statistics.models import DailyReadOccurrence, DailyUserStats
@@ -17,15 +22,17 @@ from glosano.modules.vocabulary.models import PhraseItem, TokenItem
 
 from ._reader_helpers import library_items, register_and_onboard, seed_ready_lesson
 
+type Material = tuple[uuid.UUID, dict[str, str]]
+
 
 @pytest.fixture
-async def material(client: AsyncClient, monkeypatch: pytest.MonkeyPatch):
+async def material(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> Material:
     csrf = await register_and_onboard(client, f"{uuid.uuid4()}@example.com")
     lesson_id = await seed_ready_lesson(client, csrf, monkeypatch, text="Olá mundo.")
     return lesson_id, {"X-CSRF-Token": csrf}
 
 
-async def test_owner_can_load_original_text(client: AsyncClient, material):
+async def test_owner_can_load_original_text(client: AsyncClient, material: Material) -> None:
     lesson_id, _ = material
     response = await client.get(f"/api/lessons/{lesson_id}/edit")
     assert response.status_code == 200
@@ -36,12 +43,13 @@ async def test_owner_can_load_original_text(client: AsyncClient, material):
 
 @pytest.mark.parametrize("change_text", [False, True])
 async def test_edit_versions_text_and_preserves_learning_data(
-    client: AsyncClient, material, change_text: bool
-):
+    client: AsyncClient, material: Material, change_text: bool
+) -> None:
     lesson_id, headers = material
     today = datetime.now(UTC).date()
     async with session_scope() as s:
         lesson = await s.get(Lesson, lesson_id)
+        assert lesson is not None
         user_id = lesson.owner_user_id
         segment = (
             await s.scalars(select(LessonSegment).where(LessonSegment.lesson_id == lesson_id))
@@ -85,6 +93,7 @@ async def test_edit_versions_text_and_preserves_learning_data(
     assert detail["raw_text"] == text.replace("\r\n", "\n")
     async with session_scope() as s:
         lesson = await s.get(Lesson, lesson_id)
+        assert lesson is not None
         assert lesson.status == "ready"
         assert lesson.current_source_version == (2 if change_text else 1)
         assert lesson.word_count == (4 if change_text else 2)
@@ -101,8 +110,12 @@ async def test_edit_versions_text_and_preserves_learning_data(
             await s.scalars(select(BulkAction).where(BulkAction.lesson_id == lesson_id))
         ).all()
         assert len(actions) == (0 if change_text else 1)
-        assert (await s.get(DailyUserStats, (user_id, today))).tokens_read == 2
-        assert (await s.get(TokenItem, token_id)).status == "tracked"
+        stats = await s.get(DailyUserStats, (user_id, today))
+        assert stats is not None
+        assert stats.tokens_read == 2
+        saved_token = await s.get(TokenItem, token_id)
+        assert saved_token is not None
+        assert saved_token.status == "tracked"
         assert (await s.scalars(select(ReviewItem).where(ReviewItem.item_id == token_id))).one()
         ledger = await s.get(DailyReadOccurrence, (user_id, today, lesson_id, 0))
         assert (ledger is None) == change_text
@@ -111,11 +124,15 @@ async def test_edit_versions_text_and_preserves_learning_data(
     assert ("Bom" in content.text) == change_text
 
 
-async def test_delete_preserves_vocabulary_reviews_and_totals(client: AsyncClient, material):
+async def test_delete_preserves_vocabulary_reviews_and_totals(
+    client: AsyncClient, material: Material
+) -> None:
     lesson_id, headers = material
     today = datetime.now(UTC).date()
     async with session_scope() as s:
-        user_id = (await s.get(Lesson, lesson_id)).owner_user_id
+        lesson = await s.get(Lesson, lesson_id)
+        assert lesson is not None
+        user_id = lesson.owner_user_id
         token = TokenItem(
             user_id=user_id,
             language_code="pt",
@@ -158,20 +175,27 @@ async def test_delete_preserves_vocabulary_reviews_and_totals(client: AsyncClien
     async with session_scope() as s:
         for model, item_id in zip((TokenItem, PhraseItem), ids, strict=True):
             item = await s.get(model, item_id)
+            assert item is not None
             assert item.status == "tracked"
             assert item.created_from_lesson_id is None
             assert (await s.scalars(select(ReviewItem).where(ReviewItem.item_id == item_id))).one()
-        assert (await s.get(DailyUserStats, (user_id, today))).tokens_read == 2
+        stats = await s.get(DailyUserStats, (user_id, today))
+        assert stats is not None
+        assert stats.tokens_read == 2
         assert not (
             await s.scalars(select(LessonSource).where(LessonSource.lesson_id == lesson_id))
         ).all()
 
 
 @pytest.mark.parametrize("visibility", ["private", "shared"])
-async def test_other_users_cannot_manage_material(client: AsyncClient, material, visibility: str):
+async def test_other_users_cannot_manage_material(
+    client: AsyncClient, material: Material, visibility: LessonVisibility
+) -> None:
     lesson_id, _ = material
     async with session_scope() as s:
-        (await s.get(Lesson, lesson_id)).visibility = visibility
+        lesson = await s.get(Lesson, lesson_id)
+        assert lesson is not None
+        lesson.visibility = visibility
     async with AsyncClient(
         transport=ASGITransport(app=create_app()), base_url="http://test"
     ) as other:
@@ -201,7 +225,9 @@ async def test_other_users_cannot_manage_material(client: AsyncClient, material,
         {"title": "Title", "raw_text": "x\u0000y"},
     ],
 )
-async def test_invalid_edit_leaves_material_unchanged(client: AsyncClient, material, body):
+async def test_invalid_edit_leaves_material_unchanged(
+    client: AsyncClient, material: Material, body: dict[str, str]
+) -> None:
     lesson_id, headers = material
     assert (
         await client.patch(f"/api/lessons/{lesson_id}", headers=headers, json=body)
@@ -209,7 +235,7 @@ async def test_invalid_edit_leaves_material_unchanged(client: AsyncClient, mater
     assert (await client.get(f"/api/lessons/{lesson_id}/edit")).json()["raw_text"] == "Olá mundo."
 
 
-async def test_mutations_require_csrf(client: AsyncClient, material):
+async def test_mutations_require_csrf(client: AsyncClient, material: Material) -> None:
     lesson_id, _ = material
     assert (await client.delete(f"/api/lessons/{lesson_id}")).status_code == 403
     assert (
@@ -217,7 +243,9 @@ async def test_mutations_require_csrf(client: AsyncClient, material):
     ).status_code == 403
 
 
-async def test_old_reader_cannot_apply_ordinals_to_replacement_text(client: AsyncClient, material):
+async def test_old_reader_cannot_apply_ordinals_to_replacement_text(
+    client: AsyncClient, material: Material
+) -> None:
     lesson_id, headers = material
     response = await client.patch(
         f"/api/lessons/{lesson_id}", headers=headers, json={"title": "New", "raw_text": "Bom dia."}
@@ -265,13 +293,13 @@ async def test_old_reader_cannot_apply_ordinals_to_replacement_text(client: Asyn
 
 
 async def test_failed_processing_rolls_back_the_entire_edit(
-    client: AsyncClient, material, monkeypatch
-):
+    client: AsyncClient, material: Material, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from glosano.modules.lesson_library import service
 
     lesson_id, headers = material
 
-    async def fail(*args, **kwargs):
+    async def fail(*args: object, **kwargs: object) -> None:
         raise RuntimeError("processing failed")
 
     monkeypatch.setattr(service, "process_lesson_import", fail)
@@ -285,16 +313,22 @@ async def test_failed_processing_rolls_back_the_entire_edit(
     assert detail["raw_text"] == "Olá mundo."
     assert detail["title"] == "Reader fixture"
     async with session_scope() as s:
-        assert (await s.get(Lesson, lesson_id)).current_source_version == 1
+        lesson = await s.get(Lesson, lesson_id)
+        assert lesson is not None
+        assert lesson.current_source_version == 1
 
 
-async def test_delete_during_pending_import_is_safe_for_late_worker(client: AsyncClient, material):
+async def test_delete_during_pending_import_is_safe_for_late_worker(
+    client: AsyncClient, material: Material
+) -> None:
     from glosano.modules.lesson_library.models import LessonImportJob
     from glosano.worker.tasks import run_lesson_import
 
     lesson_id, headers = material
     async with session_scope() as s:
-        (await s.get(Lesson, lesson_id)).status = "processing"
+        lesson = await s.get(Lesson, lesson_id)
+        assert lesson is not None
+        lesson.status = "processing"
         job_id = (
             await s.scalars(
                 select(LessonImportJob.id).where(LessonImportJob.lesson_id == lesson_id)
