@@ -1,7 +1,8 @@
 # Install a release with Docker Compose
 
-Requirements: Linux with Docker Engine and Compose **v2.20 or newer**, access to
-GHCR, and an HTTPS reverse proxy for access from other devices. Python, Node.js,
+Requirements: Docker Desktop with Linux containers on macOS/Windows, or Docker
+Engine on Linux; Compose **v2.20 or newer** and access to GHCR. HTTPS is needed
+only for access from other devices. See the [local quickstart](local-install.md). Python, Node.js,
 Git and a local application build are not required. Docker Swarm is not supported.
 
 Download `compose.yaml` from the chosen GitHub release into an empty installation
@@ -12,7 +13,10 @@ GLOSANO_VERSION=vX.Y.Z
 GLOSANO_SECRET_KEY=<openssl rand -hex 32>
 POSTGRES_PASSWORD=<openssl rand -hex 24>
 GLOSANO_BIND=127.0.0.1:8000
+GLOSANO_LOCAL_HTTP=true
 ```
+
+This example is for HTTP localhost. For an HTTPS server set `GLOSANO_LOCAL_HTTP=false`.
 
 Use a **hexadecimal** database password because it is also part of a URL.
 Both application roles use this password automatically. Never change it merely
@@ -34,7 +38,7 @@ running on the same host, keep the loopback binding; set `FORWARDED_ALLOW_IPS`
 to the trusted proxy address (or `*` only when the published port is isolated
 from untrusted clients). A proxy in another container must share a Docker
 network with the API, or use a deliberately configured host binding. Do not
-expose PostgreSQL or Redis. `http://localhost:8000` is for a local browser trial;
+expose PostgreSQL or Redis. `http://localhost:8000` with local HTTP mode is for a browser on this machine;
 plain HTTP on a LAN IP is not a supported production login address.
 
 `docker compose ps` shows `migrate` as exited **0**, which is expected. API

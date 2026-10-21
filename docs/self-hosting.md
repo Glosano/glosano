@@ -10,6 +10,9 @@
 
 ---
 
+**Running on your own computer?** Start with the [local installation guide](local-install.md):
+macOS, Windows and Linux, `http://localhost:8000`, no HTTPS required.
+
 This guide takes you from an empty Linux server to a working instance at `https://glosano.example.com`: HTTPS, an admin account, a built-in dictionary and, optionally, AI translation. Prebuilt releases avoid a local build. AI and dictionary downloads are optional.
 
 **Contents**
@@ -37,8 +40,8 @@ This guide takes you from an empty Linux server to a working instance at `https:
 | OS | Any Linux that runs Docker | Ubuntu 24.04 / Debian 12 |
 
 - **Docker Engine with Compose v2.20+** (`docker compose version` must work). Releases use prebuilt public GHCR images for amd64 and arm64.
-- The one-command installer supports **Linux** and requires Bash, curl, OpenSSL and sha256sum. It does not install Docker. Git is needed only for the source-build alternative.
-- **A domain name and HTTPS.** In production Glosano marks its session cookie `Secure`, so browsers only keep it over HTTPS. Plain `http://localhost` is the one exception browsers make — fine for a trial on your own machine, not for anyone else on the network.
+- The Bash installer supports **Linux and macOS** and requires Bash, curl, OpenSSL and sha256sum or shasum. It does not install Docker. Git is needed only for the source-build alternative.
+- **A domain name and HTTPS.** In production Glosano marks its session cookie `Secure`, so browsers only keep it over HTTPS. For a browser on the same machine, use the explicit local HTTP mode described in the [local guide](local-install.md); it also works in Safari.
 - **Outbound internet** from the server for dictionary downloads, YouTube captions and an AI provider, if you use one.
 
 ## 2. What runs where
@@ -357,7 +360,8 @@ All settings are environment variables in `.env`. Changes take effect after `doc
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `GLOSANO_ENV` | `prod` | `prod` sends cookies as `Secure` (HTTPS only). `dev` is for local development — and is what `.env.example` sets, so change it. |
+| `GLOSANO_LOCAL_HTTP` | `false` | Set by the installer for localhost HTTP; use only with a `127.0.0.1` binding. Server HTTPS keeps this `false`. |
+| `GLOSANO_ENV` | `prod` | `prod` sends cookies as `Secure` (HTTPS only), except with explicit `GLOSANO_LOCAL_HTTP=true`. `dev` is for local development — and is what `.env.example` sets, so change it. |
 | `GLOSANO_SECRET_KEY` | — (required) | Signs sessions. Generate with `openssl rand -hex 32`; changing it signs everyone out. Compose refuses an empty value but not the `.env.example` placeholder — replace it. |
 | `GLOSANO_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
 | `GLOSANO_BIND` | `8000` | Host port of `app-api`, or `address:port`. Use `127.0.0.1:8000` behind a proxy. |
@@ -376,7 +380,7 @@ All settings are environment variables in `.env`. Changes take effect after `doc
 
 ## 12. Troubleshooting
 
-**The sign-in form accepts the password but I stay on the sign-in screen.** The browser dropped the `Secure` session cookie because the page was opened over plain HTTP. Open the site through its `https://` address. For a trial on your own machine, `http://localhost:8000` also works.
+**The sign-in form accepts the password but I stay on the sign-in screen.** The browser dropped the `Secure` session cookie because the page was opened over plain HTTP. Open the site through its `https://` address. For a local installation, use `http://localhost:8000` with `GLOSANO_LOCAL_HTTP=true` and a loopback binding; see the [local guide](local-install.md).
 
 **"Registration has been disabled by the administrator".** `GLOSANO_ALLOW_PUBLIC_REGISTRATION=false`. Open registration for a moment, or create the account with `glosano identity create-admin` — which makes it an admin.
 

@@ -27,7 +27,7 @@ class InstallerTests(unittest.TestCase):
         self.script.write_text((ROOT / "deploy/install.sh").read_text().replace("__VERSION__", "v0.0.1"))
         self.install = self.root / "instance with spaces"
         self.env = os.environ | {
-            "PATH": f"{self.bin}:{os.environ['PATH']}",
+            "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}",
             "GLOSANO_INSTALL_DIR": str(self.install),
             "GLOSANO_ADMIN_EMAIL": "owner@example.com",
             "GLOSANO_URL": "http://localhost:49179",
@@ -128,9 +128,35 @@ for line in pathlib.Path(sys.argv[-1]).read_text().splitlines():
             listener.bind(("127.0.0.1", 0))
             listener.listen()
             bind = f"127.0.0.1:{listener.getsockname()[1]}"
-            result = self.run_install(GLOSANO_BIND=bind)
+            result = self.run_install(GLOSANO_BIND=bind, GLOSANO_URL=f"http://localhost:{listener.getsockname()[1]}")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("occupied", result.stderr)
+
+    def test_macos_uses_portable_checksum_and_local_http(self):
+        self.command("uname", '#!/bin/sh\necho Darwin\n')
+        self.command("shasum", (self.bin / "sha256sum").read_text())
+        bash_env = self.root / "bash-env"
+        bash_env.write_text('command() { if [[ "$*" == "-v sha256sum" ]]; then return 1; fi; builtin command "$@"; }\n')
+        result = self.run_install(BASH_ENV=str(bash_env))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GLOSANO_LOCAL_HTTP=true", (self.install / ".env").read_text())
+
+    def test_local_network_binding_and_port_mismatch_are_rejected(self):
+        for bind in ("0.0.0.0:49179", "192.168.1.2:49179", "127.0.0.1:49180"):
+            with self.subTest(bind=bind):
+                result = self.run_install(GLOSANO_BIND=bind)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse((self.install / ".env").exists())
+
+    def test_https_preserves_server_cookie_mode(self):
+        result = self.run_install(GLOSANO_URL="https://glosano.example.com")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GLOSANO_LOCAL_HTTP=false", (self.install / ".env").read_text())
+
+    def test_local_url_port_sets_default_binding(self):
+        result = self.run_install(GLOSANO_BIND="", GLOSANO_URL="http://127.0.0.1:49179")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GLOSANO_BIND=127.0.0.1:49179", (self.install / ".env").read_text())
 
 
 if __name__ == "__main__":

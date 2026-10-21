@@ -1,6 +1,6 @@
 # ADR-0008 — Authentication model for MVP
 
-- Статус: Accepted
+- Статус: Superseded частично: Secure-cookie в локальной HTTP-поставке — ADR-0035; остальные решения действуют.
 - Дата: 2026-05-01
 - Связан со: `docs/specs/2026-04-11-mvp-product-alignment-design.md` §10.3, ADR-0006 (tech stack: argon2-cffi, sessions), `docs/architecture/2026-04-11-mvp-architecture-overview.md` §12, §14, `docs/ui/login.md`, `docs/ui/register.md`, `docs/ui/onboarding.md`
 

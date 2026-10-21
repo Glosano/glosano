@@ -23,6 +23,7 @@ Portainer Docker Standalone environment.
    | `POSTGRES_PASSWORD` | Random hexadecimal password: `openssl rand -hex 24` |
    | `GLOSANO_BIND` | `127.0.0.1:8000` for a proxy on the Docker host |
    | `GLOSANO_ALLOW_PUBLIC_REGISTRATION` | `false` (default) |
+   | `GLOSANO_LOCAL_HTTP` | `false` for server HTTPS; `true` only for localhost on the Docker host |
    | `GLOSANO_LLM_ENABLED` | `false` (default) |
 
    Generate the secrets on a trusted computer and paste their values. Preserve
@@ -39,8 +40,8 @@ Portainer Docker Standalone environment.
 
 Configure an HTTPS reverse proxy before using Glosano from another device.
 Production session cookies are Secure; plain HTTP on a LAN IP will not work.
-For a browser running on the Docker host, `http://localhost:8000` is a local trial
-option. See the [host proxy examples](self-hosting.md#4-put-it-behind-https).
+For a browser running on the Docker host, set `GLOSANO_LOCAL_HTTP=true`, retain
+`GLOSANO_BIND=127.0.0.1:8000`, and open `http://localhost:8000` without HTTPS. See the [host proxy examples](self-hosting.md#4-put-it-behind-https).
 
 If the proxy runs in another container, connect it to the stack's Docker network
 (normally `glosano_default`) and use `http://app-api:8000` as upstream, never

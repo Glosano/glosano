@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from loguru import logger
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from glosano import __version__
 from glosano.api.ai import router as ai_router
@@ -73,6 +74,12 @@ def create_app() -> FastAPI:
     app.add_middleware(LessonUploadMiddleware)
     app.add_middleware(CSRFMiddleware)
     app.add_middleware(SessionMiddleware)  # outer — runs first per request
+
+    if settings.local_http:
+        # Reject non-local Host headers before sessions or other application work.
+        app.add_middleware(
+            TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"], www_redirect=False
+        )
 
     app.include_router(health_router)
     app.include_router(auth_router)
