@@ -10,7 +10,7 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -70,7 +70,17 @@ async def run_migrations_online() -> None:
     )
 
     async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+        # Session-level lock covers the whole Alembic run, including migration
+        # transactions. Multiple launchers cannot race schema initialization.
+        await connection.execute(text("SET lock_timeout = '60s'"))
+        await connection.execute(text("SELECT pg_advisory_lock(476567192650)"))
+        await connection.commit()
+        try:
+            await connection.run_sync(do_run_migrations)
+        finally:
+            await connection.rollback()
+            await connection.execute(text("SELECT pg_advisory_unlock(476567192650)"))
+            await connection.commit()
 
     await connectable.dispose()
 

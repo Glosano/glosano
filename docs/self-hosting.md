@@ -56,6 +56,9 @@ This guide takes you from an empty Linux server to a working instance at `https:
 
 ## 3. Install
 
+For a published container release, use the [release Compose guide](docker-compose-install.md).
+The source-build procedure below remains available for development and unreleased commits.
+
 ### 3.1 Get the code
 
 ```bash

@@ -35,7 +35,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
         request.state.session_token = None
 
         token = request.cookies.get(SESSION_COOKIE)
-        if token:
+        if token and request.url.path not in {"/health", "/health/ready"}:
             async with session_scope() as s:
                 sess = await SessionRepo(s).get_active(token)
                 if sess is not None:
