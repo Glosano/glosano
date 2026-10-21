@@ -19,6 +19,11 @@ from glosano.modules.admin.crypto import SecretError, decrypt, encrypt
 from glosano.modules.admin.models import AISettings
 from glosano.modules.admin.settings import read_row
 
+# Catalogs include descriptions, pricing and capabilities for hundreds of models.
+# Keep the short Chat Completions diagnostic on its smaller response budget.
+MODELS_RESPONSE_MAX_BYTES = 8 * 1024 * 1024
+DIAGNOSTIC_RESPONSE_MAX_BYTES = 256 * 1024
+
 
 class Draft(BaseModel):
     model_config = ConfigDict(extra="forbid", hide_input_in_errors=True)
@@ -170,11 +175,12 @@ async def diagnose(
                             "server_unavailable" if code >= 500 else "incompatible_response",
                         )
                     )
-                raw = b""
-                async for block in response.aiter_bytes():
-                    raw += block
-                    if len(raw) > 262144:
+                limit = MODELS_RESPONSE_MAX_BYTES if models else DIAGNOSTIC_RESPONSE_MAX_BYTES
+                raw = bytearray()
+                async for block in response.aiter_bytes(chunk_size=64 * 1024):
+                    if len(raw) + len(block) > limit:
                         raise network.EndpointError("response_too_large")
+                    raw.extend(block)
                 body: JsonValue = json.loads(raw)
                 if not isinstance(body, dict):
                     raise ValueError

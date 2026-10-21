@@ -1,9 +1,11 @@
 """ADR-0036 acceptance on real PostgreSQL/Redis and a local HTTP provider."""
 
 import asyncio
+import gzip
 import json
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -351,3 +353,56 @@ async def test_diagnostic_errors_are_bounded_and_never_follow_redirects(
     assert response.status_code == 422
     assert response.json() == {"detail": expected}
     assert calls == 1
+
+
+@pytest.mark.parametrize(
+    ("size", "compressed", "expected_status"),
+    [
+        (800_000, False, 200),
+        (8 * 1024 * 1024, False, 200),
+        (8 * 1024 * 1024 + 1, False, 422),
+        (8 * 1024 * 1024 + 1, True, 422),
+    ],
+)
+async def test_models_catalog_size_limit(
+    client: httpx.AsyncClient, size: int, compressed: bool, expected_status: int
+):
+    """Large provider metadata is accepted; decoded, chunked bodies remain bounded."""
+    await admin(client)
+    raw = json.dumps(
+        {"data": [{"id": f"provider/model-{i:04}", "description": "metadata"} for i in range(468)]}
+    ).encode()
+    raw += b" " * (size - len(raw))
+    wire = gzip.compress(raw) if compressed else raw
+
+    async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        try:
+            await reader.readuntil(b"\r\n\r\n")
+            writer.write(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n")
+            if compressed:
+                writer.write(b"Content-Encoding: gzip\r\n")
+            writer.write(b"Connection: close\r\n\r\n")
+            for start in range(0, len(wire), 16384):
+                block = wire[start : start + 16384]
+                writer.write(f"{len(block):x}\r\n".encode() + block + b"\r\n")
+                await writer.drain()
+            writer.write(b"0\r\n\r\n")
+            await writer.drain()
+        except ConnectionError:
+            pass  # The client may close early after reaching the size limit.
+        finally:
+            writer.close()
+            with suppress(ConnectionError):
+                await writer.wait_closed()
+
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    async with server:
+        response = await client.post(
+            PATH + "/models", json=draft(base_url=f"http://127.0.0.1:{port}/v1")
+        )
+    assert response.status_code == expected_status, response.text
+    if expected_status == 200:
+        assert response.json() == {"models": [f"provider/model-{i:04}" for i in range(468)]}
+    else:
+        assert response.json() == {"detail": "response_too_large"}
