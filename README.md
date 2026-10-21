@@ -53,7 +53,8 @@ Prefer to inspect the script first? Download `install.sh` from the selected
 [release](https://github.com/Glosano/glosano/releases), read it, then run `bash install.sh`.
 
 See the **[self-hosting guide](docs/self-hosting.md)** for the installer, manual
-[Docker Compose deployment](docs/docker-compose-install.md), HTTPS, backups,
+[Docker Compose deployment](docs/docker-compose-install.md),
+[Portainer Stack](docs/portainer.md), HTTPS, backups,
 updates, dictionaries and AI providers.
 
 ## Development

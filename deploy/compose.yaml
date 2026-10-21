@@ -2,12 +2,12 @@
 # Set the variables in .env or in Portainer Stack environment variables.
 name: ${COMPOSE_PROJECT_NAME:-glosano}
 
-# Shared by app-api and app-worker. Values come from .env next to this file;
-# see docs/self-hosting.md for what each one does.
+# Shared by application roles. Values come from .env or Portainer Stack variables;
+# see docs/self-hosting.md and docs/portainer.md.
 x-app-env: &app-env
   GLOSANO_ENV: prod
   GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
-  GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY:?set GLOSANO_SECRET_KEY in .env (openssl rand -hex 32)}
+  GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY:?set GLOSANO_SECRET_KEY (openssl rand -hex 32)}
   GLOSANO_DATABASE_URL: postgresql+asyncpg://glosano:${POSTGRES_PASSWORD:?set a random hexadecimal POSTGRES_PASSWORD}@postgres:5432/glosano
   GLOSANO_REDIS_URL: ${GLOSANO_REDIS_URL:-redis://redis:6379/0}
   GLOSANO_DATA_DIR: /var/lib/glosano

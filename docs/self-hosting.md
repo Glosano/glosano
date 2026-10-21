@@ -43,7 +43,8 @@ This guide takes you from an empty Linux server to a working instance at `https:
 
 ## 2. What runs where
 
-`docker compose up` starts four containers:
+The release stack starts four long-running containers plus a one-shot `migrate`
+container that prepares the schema before the API starts:
 
 | Service | Role | Data |
 |---|---|---|
@@ -55,6 +56,9 @@ This guide takes you from an empty Linux server to a working instance at `https:
 `app-api` and `app-worker` run from the same image and share the `app_data` volume, which holds the downloaded dictionary dumps. Everything worth backing up lives in Postgres.
 
 ## 3. Install
+
+Using Portainer? Follow the [Portainer Stack guide](portainer.md) for deployment
+through its UI with no local `.env` or application build.
 
 ### One-command installation (Linux)
 

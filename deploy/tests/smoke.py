@@ -46,4 +46,14 @@ with httpx.Client(base_url="http://app-api:8000", timeout=10) as client:
         raise AssertionError("Worker did not finish the import")
     assert response.json()["word_count"] > 0, response.text
     assert client.get("/me").json()["ai_enabled"] is False
-print("PASS: production UI, authentication, onboarding and real worker import (AI disabled)")
+    response = client.post("/api/vocabulary/items", json={
+        "kind": "token", "language_code": "pt", "text": "mundo",
+        "status": "tracked", "confidence": 1, "lesson_id": lesson_id,
+    })
+    assert response.status_code == 201, response.text
+    item_id = response.json()["item_id"]
+    response = client.get(f"/api/lessons/{lesson_id}/vocabulary?target=en")
+    assert response.status_code == 200, response.text
+    item = next(row for row in response.json()["items"] if row["text"] == "mundo")
+    assert item["item_id"] == item_id and item["status"] == "tracked", item
+print("PASS: production UI, authentication, onboarding, worker import and vocabulary save (AI disabled)")
