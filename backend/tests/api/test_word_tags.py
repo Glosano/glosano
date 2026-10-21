@@ -12,6 +12,7 @@ from glosano.core.languages import UI_LANGUAGE_CODES
 from glosano.modules.ai_translation import service
 from glosano.modules.ai_translation.grammar import PartOfSpeech, parse_grammar_tags
 from glosano.modules.ai_translation.provider import LLMCompletion
+from tests._ai_helpers import provider_factory
 
 
 async def register(client: AsyncClient) -> None:
@@ -124,7 +125,7 @@ async def test_grammar_suggestions_use_context(
             assert "Portuguese" in user
             return LLMCompletion(text=answer, input_tokens=10, output_tokens=20)
 
-    monkeypatch.setattr(service, "_default_provider", lambda: Provider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(Provider()))
     response = await client.post(
         "/api/ai/word-tags",
         json={
@@ -173,7 +174,7 @@ async def test_invalid_grammar_is_not_returned_as_tags(
         async def complete(self, *, system: str, user: str, max_tokens: int = 100) -> LLMCompletion:
             return LLMCompletion(text=answer, input_tokens=1, output_tokens=1)
 
-    monkeypatch.setattr(service, "_default_provider", lambda: Provider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(Provider()))
     response = await client.post(
         "/api/ai/word-tags",
         json={

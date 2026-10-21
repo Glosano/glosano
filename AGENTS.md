@@ -87,21 +87,21 @@ Transitions:
 
 Reader must provide undo for the last bulk-known action.
 
-### AI — ADR-0003
+### AI — ADR-0003, configuration superseded by ADR-0036
 
 - **AI is optional.** Base product must work without an AI provider. Dictionary, reader, personal dict, SRS, and stats all function without AI.
 - **MVP scope:** contextual translation of selected text only. No grammar explanation, no chat, no exercise generation in MVP.
 - **Provider:** a single adapter compatible with the OpenAI Chat Completions API. Covers OpenAI, OpenRouter, vLLM, LM Studio, LocalAI, and Ollama (which exposes an OpenAI-compatible endpoint).
-- **Configuration:** environment variables on the Docker Compose service:
+- **Configuration:** `/admin/ai` (admin only) stores the complete instance configuration in PostgreSQL; changes apply to API and worker without restart. Provider keys are encrypted using `GLOSANO_SECRET_KEY`. Until the first explicit save, these Docker Compose environment variables remain the legacy fallback:
   ```
   GLOSANO_LLM_BASE_URL=https://api.openai.com/v1
   GLOSANO_LLM_API_KEY=sk-...
   GLOSANO_LLM_MODEL=gpt-4o-mini
   GLOSANO_LLM_ENABLED=true
   ```
-- `GLOSANO_LLM_ENABLED=false` is the admin kill-switch — reader and dictionary keep working, AI sections disappear from cards.
+- `GLOSANO_LLM_FORCE_DISABLED=true` is the unconditional environment kill-switch, including diagnostics and model listing. After the first admin save, `GLOSANO_LLM_ENABLED` is no longer authoritative. Normal AI-off is persisted through the admin UI; reader and dictionary keep working.
 - AI responses are always marked as AI-generated. The canonical translation of a card is whatever the user explicitly wrote; AI output is draft material.
-- AI response cache is **per-user**, keyed on `(user_id, model, prompt_hash)`. No sharing between users.
+- AI response cache is **per-user**, separated by provider revision as well as user/model/request identity (ADR-0036). No sharing between users.
 - Retry: simple exponential backoff, max 3 attempts, on network errors and 5xx.
 
 ### Dictionary — ADR-0004
@@ -126,8 +126,8 @@ No streak. No reading time. No heatmaps. Keep room for meaningful metrics after 
 
 - JSON export of all user data (button in profile).
 - Hard-delete of user profile (shared library and dictionaries untouched).
-- Admin kill-switch for all external AI calls (see `GLOSANO_LLM_ENABLED`).
-- Provider secrets in MVP live in container env vars — no DB-level secret encryption in MVP.
+- Admin AI toggle and unconditional `GLOSANO_LLM_FORCE_DISABLED` environment override (ADR-0036).
+- AI provider keys saved through the admin UI are encrypted in PostgreSQL; legacy env remains supported before first save. Back up the original instance secret separately (ADR-0036).
 
 ## Non-goals (do not propose for MVP)
 
@@ -249,8 +249,8 @@ Final schema will be recorded in an ADR before migrations are written.
    - Code, identifiers, API schemas, commit messages, PR titles: English.
    - Design docs, ADRs, decision logs: match the surrounding document (current docs are in Russian).
 5. **Tokenization and status semantics** are subtle — ADR-0001 and ADR-0005 are mandatory reading before touching anything vocabulary-related. Do not special-case morphology for Russian; LingQ model is deliberate.
-6. **When AI is disabled** (`GLOSANO_LLM_ENABLED=false`), the product must still run and the reader must still render cards — just without the AI section. Every AI-touching code path needs this graceful degradation.
-7. **Never commit provider secrets.** API keys live only in environment variables or the developer's local `.env` (gitignored).
+6. **When effective AI settings are disabled** (admin toggle or `GLOSANO_LLM_FORCE_DISABLED=true`), the product must still run and the reader must still render cards — just without the AI section. Every AI-touching code path needs this graceful degradation.
+7. **Never commit provider secrets.** API keys belong only in legacy environment variables/local `.env` (gitignored) or encrypted instance settings under ADR-0036. Never return plaintext keys to browsers or log them.
 8. **Do not introduce dependencies on morphological analyzers** (`pymorphy3`, `spaCy`, `stanza`) in core code without an ADR. ADR-0001 explicitly rejected this class of dependency for the learning pipeline.
 9. **CC-BY-SA attribution for dictionary data is not optional.** Any card rendering must include the Wiktionary attribution.
 10. **Ask before destructive actions.** No force-pushing, no rewriting merged commits, no deleting branches or volumes without explicit user approval.

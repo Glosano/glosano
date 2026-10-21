@@ -14,6 +14,7 @@ x-app-env: &app-env
   GLOSANO_DATA_DIR: /var/lib/glosano
   GLOSANO_ALLOW_PUBLIC_REGISTRATION: ${GLOSANO_ALLOW_PUBLIC_REGISTRATION:-false}
   GLOSANO_INITIAL_ADMIN_EMAIL: ${GLOSANO_INITIAL_ADMIN_EMAIL:-}
+  GLOSANO_LLM_FORCE_DISABLED: ${GLOSANO_LLM_FORCE_DISABLED:-false}
   GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
   GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
   GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
@@ -67,6 +68,8 @@ services:
     command: ["alembic", "upgrade", "head"]
 
   app-api:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     image: ${GLOSANO_IMAGE:-ghcr.io/glosano/glosano}:${GLOSANO_VERSION:?set a release version such as v0.0.1}
     restart: unless-stopped
     depends_on:
@@ -92,6 +95,8 @@ services:
       start_period: 20s
 
   app-worker:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     image: ${GLOSANO_IMAGE:-ghcr.io/glosano/glosano}:${GLOSANO_VERSION:?set a release version such as v0.0.1}
     restart: unless-stopped
     depends_on:

@@ -16,7 +16,8 @@ from urllib.parse import urlparse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.config import Settings, get_settings
+from glosano.core.config import Settings
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.ai_translation.models import AIRequest
 from glosano.modules.ai_translation.prompts import (
     build_hints_prompt,
@@ -52,10 +53,11 @@ class SentenceTranslationResult:
     text: str
     model: str
     latency_ms: int
+    provider_revision: str = "legacy"
 
 
-def _default_provider() -> LLMProvider:
-    return OpenAICompatibleProvider(get_settings())
+def _default_provider(settings: Settings) -> LLMProvider:
+    return OpenAICompatibleProvider(settings)
 
 
 def _sha256(text: str) -> str:
@@ -118,12 +120,12 @@ async def translate_hints(
     lesson_id: uuid.UUID | None = None,
     provider: LLMProvider | None = None,
 ) -> TranslationHints:
-    settings = get_settings()
+    settings = await effective_settings()
     if not settings.llm_enabled:
         logger.debug("ai translate skipped: llm disabled")
         raise AIDisabled
 
-    provider = provider or _default_provider()
+    provider = provider or _default_provider(settings)
     system, user = build_hints_prompt(
         surface_text=surface_text,
         context_text=context_text,
@@ -215,12 +217,12 @@ async def translate_sentence(
     lesson_id: uuid.UUID | None = None,
     provider: LLMProvider | None = None,
 ) -> SentenceTranslationResult:
-    settings = get_settings()
+    settings = await effective_settings()
     if not settings.llm_enabled:
         logger.debug("ai translate sentence skipped: llm disabled")
         raise AIDisabled
 
-    provider = provider or _default_provider()
+    provider = provider or _default_provider(settings)
     system, user = build_sentence_prompt(
         sentence_text=sentence_text,
         target_language_code=target_language_code,
@@ -298,7 +300,12 @@ async def translate_sentence(
         request_id,
         latency_ms,
     )
-    return SentenceTranslationResult(text=text, model=settings.llm_model, latency_ms=latency_ms)
+    return SentenceTranslationResult(
+        text=text,
+        model=settings.llm_model,
+        latency_ms=latency_ms,
+        provider_revision=settings.llm_revision,
+    )
 
 
 @dataclass(frozen=True)
@@ -323,10 +330,10 @@ async def suggest_word_tags(
 
     from glosano.modules.ai_translation.grammar import build_grammar_prompt, parse_grammar_tags
 
-    settings = get_settings()
+    settings = await effective_settings()
     if not settings.llm_enabled:
         raise AIDisabled
-    provider = provider or _default_provider()
+    provider = provider or _default_provider(settings)
     system, user = build_grammar_prompt(
         surface_text=surface_text, context_text=context_text, language_code=language_code
     )

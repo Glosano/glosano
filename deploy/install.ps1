@@ -105,6 +105,7 @@
                 'GLOSANO_LOCAL_HTTP=' + $localHttp.ToString().ToLowerInvariant()
                 'GLOSANO_ALLOW_PUBLIC_REGISTRATION=false'
                 'GLOSANO_LLM_ENABLED=false'
+                'GLOSANO_LLM_FORCE_DISABLED=false'
                 "GLOSANO_INSTALL_ADMIN_EMAIL=$email"
                 "GLOSANO_INSTALL_URL=$url"
             ) -join "`n"
@@ -128,7 +129,7 @@
         if (Test-Path -LiteralPath $composePath) {
             if ((Get-FileHash -Algorithm SHA256 -LiteralPath $composePath).Hash -ne $expected) { Fail 'Existing Compose differs; refusing to overwrite local changes.' }
         } else { Move-Item -LiteralPath $downloadedCompose -Destination $composePath }
-        foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED')) {
+        foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED', 'GLOSANO_LLM_FORCE_DISABLED')) {
             $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
             Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
         }

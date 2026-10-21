@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.ai_translation import service
 from glosano.modules.lesson_library.models import Lesson, LessonSegment
 from glosano.modules.reader_state.models import LessonSegmentTranslation
@@ -18,11 +19,17 @@ class SegmentNotFound(Exception):  # noqa: N818 -- matches sibling exception nam
 
 
 async def _select_stored(
-    session: AsyncSession, *, user_id: uuid.UUID, segment_id: uuid.UUID, target_language_code: str
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    segment_id: uuid.UUID,
+    target_language_code: str,
+    provider_revision: str,
 ) -> LessonSegmentTranslation | None:
     return await session.scalar(
         select(LessonSegmentTranslation).where(
             LessonSegmentTranslation.user_id == user_id,
+            LessonSegmentTranslation.provider_revision == provider_revision,
             LessonSegmentTranslation.segment_id == segment_id,
             LessonSegmentTranslation.target_language_code == target_language_code,
         )
@@ -42,8 +49,13 @@ async def get_or_translate_segment(
     if segment is None or segment.lesson_id != lesson.id:
         raise SegmentNotFound
 
+    revision = (await effective_settings()).llm_revision
     stored = await _select_stored(
-        session, user_id=user_id, segment_id=segment_id, target_language_code=target_language_code
+        session,
+        user_id=user_id,
+        segment_id=segment_id,
+        target_language_code=target_language_code,
+        provider_revision=revision,
     )
     if stored is not None:
         return stored, True
@@ -61,6 +73,7 @@ async def get_or_translate_segment(
         segment_id=segment_id,
         target_language_code=target_language_code,
         translation_text=result.text,
+        provider_revision=result.provider_revision,
         source="ai",
         model=result.model,
     )
@@ -74,6 +87,7 @@ async def get_or_translate_segment(
             user_id=user_id,
             segment_id=segment_id,
             target_language_code=target_language_code,
+            provider_revision=result.provider_revision,
         )
         assert existing is not None  # the conflicting concurrent writer committed it
         return existing, True

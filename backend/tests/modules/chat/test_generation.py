@@ -4,6 +4,7 @@ import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import httpx
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, update
@@ -656,3 +657,13 @@ async def test_context_budget_counts_request_without_a_repair_reservation(
         get_settings.cache_clear()
         with pytest.raises(ContextError, match="context_limit"):
             await build_context(s, job)
+
+
+@pytest.fixture(autouse=True)
+def scripted_provider_dns(monkeypatch: pytest.MonkeyPatch):
+    from glosano.modules.admin import network
+
+    async def target(url: str) -> tuple[httpx.URL, dict[str, str], dict[str, object]]:
+        return httpx.URL(url), {}, {}
+
+    monkeypatch.setattr(network, "target", target)

@@ -54,6 +54,15 @@ export function AvatarMenu() {
           {user.email}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {user.role === 'admin' && (
+          <DropdownMenuItem
+            onClick={() => {
+              void navigate({ to: '/admin/ai' })
+            }}
+          >
+            {t('AI settings')}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onClick={() => {
             void navigate({ to: '/settings/profile' })

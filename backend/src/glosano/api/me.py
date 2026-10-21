@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 
-from glosano.core.config import get_settings
 from glosano.core.db import SessionDep
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.identity import service
 from glosano.modules.identity.export import export_user_data
 from glosano.modules.identity.middleware import CSRF_COOKIE, SESSION_COOKIE
@@ -37,7 +37,7 @@ async def get_me(
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED)
     return MeResponse(
-        ai_enabled=get_settings().llm_enabled,
+        ai_enabled=(await effective_settings()).llm_enabled,
         id=user.id,
         email=user.email,
         role=user.role,

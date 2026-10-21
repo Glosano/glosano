@@ -14,6 +14,7 @@ from loguru import logger
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from glosano import __version__
+from glosano.api.admin import router as admin_router
 from glosano.api.ai import router as ai_router
 from glosano.api.auth import router as auth_router
 from glosano.api.chats import router as chats_router
@@ -92,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(vocabulary_router)
     app.include_router(vocabulary_import_router)
     app.include_router(ai_router)
+    app.include_router(admin_router)
     app.include_router(chats_router)
 
     # Serve frontend static assets in production (see architecture §5.3).

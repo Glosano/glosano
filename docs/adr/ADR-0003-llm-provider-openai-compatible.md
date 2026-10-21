@@ -1,6 +1,6 @@
 # ADR-0003 — LLM provider: OpenAI-compatible adapter
 
-- Статус: Accepted
+- Статус: Superseded частично: источник конфигурации, хранение ключа и env kill-switch — [ADR-0036](ADR-0036-admin-ai-settings.md); остальные решения действуют с последующими уточнениями.
 - Дата: 2026-04-11
 - Связан со: `docs/specs/2026-04-11-mvp-product-alignment-design.md` §5, §10.2
 

@@ -47,6 +47,7 @@ function ReviewPageContent({ lang, lessonId, mode, itemKind, from }: Props) {
   const counts = useQuery({
     queryKey: ['review-counts', lang, lessonId ?? null, itemKind ?? null],
     queryFn: () => reviewApi.counts(lang, lessonId, itemKind),
+    refetchInterval: 15_000,
     enabled: !!mode,
   })
   useEffect(() => {

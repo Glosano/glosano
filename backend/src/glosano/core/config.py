@@ -38,8 +38,11 @@ class Settings(BaseSettings):
 
     # LLM provider (ADR-0003)
     llm_enabled: bool = False
+    llm_force_disabled: bool = False
+    llm_revision: str = ""
+    llm_configuration_error: bool = False
     llm_base_url: str = "https://api.openai.com/v1"
-    llm_api_key: str = ""
+    llm_api_key: str = Field(default="", repr=False)
     llm_model: str = "gpt-4o-mini"
     llm_timeout_seconds: int = 30
 

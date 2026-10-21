@@ -154,7 +154,7 @@ async def evaluate(
         if previous.attempt_id != aid or previous.kind != "evaluation":
             raise HTTPException(409, "operation_conflict")
         return previous
-    generations.require_ai()
+    await generations.require_ai()
     await generations.ensure_idle(s, cid)
     if attempt.correct is not None or attempt.status == "complete":
         raise HTTPException(409, "attempt_already_evaluated")

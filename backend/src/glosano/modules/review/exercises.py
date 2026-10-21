@@ -19,7 +19,7 @@ from pydantic import JsonValue
 from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.config import get_settings
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.ai_translation.provider import (
     LLMCompletion,
     LLMProvider,
@@ -111,7 +111,7 @@ async def _call_llm(
     learn_lang: str | None = None,
 ) -> ExerciseResult:
     """Общий путь: kill-switch -> провайдер -> parse+validate (+1 ретрай) -> audit."""
-    settings = get_settings()
+    settings = await effective_settings()
     if not settings.llm_enabled:
         raise AIDisabled
     provider = provider or OpenAICompatibleProvider(settings)
@@ -178,7 +178,7 @@ async def generate_exercise(
     provider: LLMProvider | None = None,
     now: datetime | None = None,
 ) -> ExerciseResult:
-    if not get_settings().llm_enabled:
+    if not (await effective_settings()).llm_enabled:
         raise AIDisabled  # kill-switch wins over a missing native language
     if kind == "writing":
         assert review_item_ids  # непустой список валидируется на API-слое
@@ -247,7 +247,7 @@ async def translation_feedback(
     user_text: str,
     provider: LLMProvider | None = None,
 ) -> ExerciseResult:
-    if not get_settings().llm_enabled:
+    if not (await effective_settings()).llm_enabled:
         raise AIDisabled  # kill-switch wins over a missing native language
     ctx = await _load_context(session, user_id=user_id, review_item_id=review_item_id)
     prompt = ep.build_feedback_prompt(

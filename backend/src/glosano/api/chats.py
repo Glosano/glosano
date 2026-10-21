@@ -102,7 +102,7 @@ async def send_message(request: Request, body: SendRequest, session: SessionDep)
 @router.get("/capabilities")
 async def chat_capabilities(request: Request) -> dict[str, Any]:
     user(request)
-    return generations.capabilities()
+    return await generations.capabilities()
 
 
 @router.get("/{cid}")

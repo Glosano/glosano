@@ -185,3 +185,13 @@ async def test_nonstream_length_never_yields_truncated_text():
                 chunks.append(chunk)
     assert chunks == []
     assert calls == [True, False]
+
+
+@pytest.fixture(autouse=True)
+def scripted_provider_dns(monkeypatch: pytest.MonkeyPatch):
+    from glosano.modules.admin import network
+
+    async def target(url: str) -> tuple[httpx.URL, dict[str, str], dict[str, object]]:
+        return httpx.URL(url), {}, {}
+
+    monkeypatch.setattr(network, "target", target)

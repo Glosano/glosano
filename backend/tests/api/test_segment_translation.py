@@ -17,6 +17,7 @@ from glosano.modules.ai_translation.models import AIRequest
 from glosano.modules.ai_translation.provider import LLMCompletion
 from glosano.modules.lesson_library.models import LessonSegment
 from glosano.modules.reader_state.models import LessonSegmentTranslation
+from tests._ai_helpers import provider_factory
 from tests.api._reader_helpers import register_and_onboard as _register_and_onboard
 from tests.api._reader_helpers import seed_ready_lesson as _seed_ready_lesson
 
@@ -57,7 +58,7 @@ async def test_first_call_translates_and_stores(
 ) -> None:
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
     fake = _GoodProvider()
-    monkeypatch.setattr(service, "_default_provider", lambda: fake)
+    monkeypatch.setattr(service, "_default_provider", provider_factory(fake))
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -93,7 +94,7 @@ async def test_second_call_is_served_from_storage(
 ) -> None:
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
     fake = _GoodProvider()
-    monkeypatch.setattr(service, "_default_provider", lambda: fake)
+    monkeypatch.setattr(service, "_default_provider", provider_factory(fake))
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -148,7 +149,7 @@ async def test_ai_disabled_but_already_stored_returns_200(
         body = {"target_language_code": "ru"}
 
         monkeypatch.setattr(get_settings(), "llm_enabled", True)
-        monkeypatch.setattr(service, "_default_provider", lambda: fake)
+        monkeypatch.setattr(service, "_default_provider", provider_factory(fake))
         r1 = await c.post(url, json=body, headers={"X-CSRF-Token": csrf})
         assert r1.status_code == 200
         assert r1.json()["stored"] is False
@@ -165,7 +166,7 @@ async def test_segment_from_another_lesson_returns_404(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
-    monkeypatch.setattr(service, "_default_provider", lambda: _GoodProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(_GoodProvider()))
 
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -200,7 +201,7 @@ async def test_cache_isolated_by_user_and_native_language(
 
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
     fake = _GoodProvider("Personal response")
-    monkeypatch.setattr(service, "_default_provider", lambda: fake)
+    monkeypatch.setattr(service, "_default_provider", provider_factory(fake))
     transport = ASGITransport(app=create_app())
     async with (
         AsyncClient(transport=transport, base_url="http://test") as first,

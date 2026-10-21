@@ -84,6 +84,7 @@ export function ModeSelect({
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ['review-counts', lang, lessonId ?? null, itemKind ?? null],
     queryFn: () => reviewApi.counts(lang, lessonId, itemKind),
+    refetchInterval: 15_000,
   })
   const scope = sessionSubtitle(t, { lessonId, itemKind })
   const countText = (key: 'due' | 'new' | 'practice' | 'fill') =>

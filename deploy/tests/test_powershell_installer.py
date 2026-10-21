@@ -27,7 +27,7 @@ function docker {
         'compose version --short' { if ($env:TEST_COMPOSE_VERSION) { $env:TEST_COMPOSE_VERSION } else { '2.39.0' }; return }
     }
     if (($args -join ' ') -match 'config --quiet') {
-        foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED')) {
+        foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED', 'GLOSANO_LLM_FORCE_DISABLED')) {
             if (Test-Path -LiteralPath "Env:$name") { throw "Exported $name would override .env" }
         }
     }
@@ -45,7 +45,7 @@ function Invoke-RestMethod {
 }
 $originalEnvironment = [Environment]::GetEnvironmentVariables('Process')
 & $env:TEST_INSTALLER
-foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED')) {
+foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED', 'GLOSANO_LLM_FORCE_DISABLED')) {
     $current = [Environment]::GetEnvironmentVariables('Process')
     if ($originalEnvironment.Contains($name) -ne $current.Contains($name) -or $originalEnvironment[$name] -cne $current[$name]) {
         throw "Installer changed the caller's environment: $name"

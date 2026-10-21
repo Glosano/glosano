@@ -41,6 +41,7 @@ printf '%s\n' "$*" >> "$TEST_LOG"
 case "$*" in
   'info') exit 0;;
   'compose version --short') echo "${TEST_COMPOSE_VERSION:-2.39.0}";;
+  *'config --quiet'*) test -z "${GLOSANO_LLM_FORCE_DISABLED+x}";;
   *'up -d'*) test "${TEST_FAIL_UP:-}" != 1;;
 esac
 ''')
@@ -77,6 +78,16 @@ for line in pathlib.Path(sys.argv[-1]).read_text().splitlines():
         result = self.run_install()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('unfinished update', result.stderr)
+
+    def test_ai_force_switch_is_persisted_not_inherited_from_shell(self):
+        result = self.run_install(GLOSANO_LLM_FORCE_DISABLED='true')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        config = self.install / '.env'
+        self.assertIn('GLOSANO_LLM_FORCE_DISABLED=false', config.read_text())
+        config.write_text(config.read_text().replace(
+            'GLOSANO_LLM_FORCE_DISABLED=false', 'GLOSANO_LLM_FORCE_DISABLED=true'))
+        self.assertEqual(self.run_install().returncode, 0)
+        self.assertIn('GLOSANO_LLM_FORCE_DISABLED=true', config.read_text())
 
     def test_install_and_repeat_preserve_configuration(self):
         result = self.run_install()

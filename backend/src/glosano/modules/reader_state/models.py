@@ -65,6 +65,9 @@ class LessonSegmentTranslation(Base):
         ForeignKey("lesson_segments.id", ondelete="CASCADE")
     )
     target_language_code: Mapped[str] = mapped_column(String(8))
+    provider_revision: Mapped[str] = mapped_column(
+        String(80), default="legacy", server_default="legacy"
+    )
     translation_text: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(16), default="ai")
     model: Mapped[str] = mapped_column(String(255))
@@ -72,6 +75,10 @@ class LessonSegmentTranslation(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "user_id", "segment_id", "target_language_code", name="uq_segment_translation_user_lang"
+            "user_id",
+            "segment_id",
+            "target_language_code",
+            "provider_revision",
+            name="uq_segment_translation_user_lang",
         ),
     )

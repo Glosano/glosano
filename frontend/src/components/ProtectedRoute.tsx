@@ -19,6 +19,7 @@ export function ProtectedRoute({ children }: Props) {
     queryFn: meApi.get,
     retry: false,
     staleTime: 30_000,
+    refetchInterval: 15_000,
   })
   const hydrated = useHydratedProfile(data)
 

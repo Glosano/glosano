@@ -14,6 +14,7 @@ from glosano.modules.identity.models import UserProfile
 from glosano.modules.identity.service import translation_target
 from glosano.modules.lesson_library.models import Lesson
 from glosano.modules.vocabulary.models import TokenItem
+from tests._ai_helpers import provider_factory
 
 PREFERENCES = {"daily_goal_minutes": 15, "daily_goal_reviews": 500}
 
@@ -238,7 +239,7 @@ async def test_translation_target_requires_native(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setattr(get_settings(), "llm_enabled", True)
-    monkeypatch.setattr(ai_service, "_default_provider", lambda: _GoodProvider())
+    monkeypatch.setattr(ai_service, "_default_provider", provider_factory(_GoodProvider()))
     user_id = await register(client)
     assert await onboard(client, learning_languages=["pt"]) == 200
     await clear_native(user_id)

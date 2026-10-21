@@ -19,6 +19,7 @@ from glosano.core.db import Base
 
 # Import all modules here so Alembic autogenerate sees their ORM models.
 # As new modules are added, import them below.
+from glosano.modules.admin import models as _admin_models  # noqa: F401
 from glosano.modules.ai_translation import models as _ai_translation_models  # noqa: F401
 from glosano.modules.chat import models as _chat_models  # noqa: F401
 from glosano.modules.dictionary import models as _dictionary_models  # noqa: F401

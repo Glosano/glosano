@@ -16,6 +16,7 @@ from glosano.modules.ai_translation.provider import (
     ProviderRejected,
     ProviderUnavailable,
 )
+from tests._ai_helpers import provider_factory
 
 BODY = {"surface_text": "later", "context_text": "See you later!", "target_language_code": "ru"}
 
@@ -80,7 +81,7 @@ async def _clean_audit(  # pyright: ignore[reportUnusedFunction] — autouse fix
 
 
 async def test_translate_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(service, "_default_provider", lambda: _GoodProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(_GoodProvider()))
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         csrf = await _register_and_onboard(c, "ai-ok@example.com")
@@ -123,7 +124,7 @@ async def test_translate_kill_switch_503(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 async def test_translate_provider_down_502(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(service, "_default_provider", lambda: _DownProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(_DownProvider()))
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         csrf = await _register_and_onboard(c, "ai-502@example.com")
@@ -133,7 +134,7 @@ async def test_translate_provider_down_502(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 async def test_translate_provider_rejected_502(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(service, "_default_provider", lambda: _RejectedProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(_RejectedProvider()))
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         csrf = await _register_and_onboard(c, "ai-rejected@example.com")
@@ -143,7 +144,7 @@ async def test_translate_provider_rejected_502(monkeypatch: pytest.MonkeyPatch) 
 
 
 async def test_translate_empty_response_502(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(service, "_default_provider", lambda: _EmptyProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(_EmptyProvider()))
     transport = ASGITransport(app=create_app())
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         csrf = await _register_and_onboard(c, "ai-empty@example.com")
@@ -169,7 +170,7 @@ async def test_target_comes_from_native_language_and_prompt_hash_changes(
             prompts.append(system + user)
             return LLMCompletion(text="translation", input_tokens=1, output_tokens=1)
 
-    monkeypatch.setattr(service, "_default_provider", lambda: LanguageProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(LanguageProvider()))
     csrf = await _register_and_onboard(client, f"{uuid.uuid4()}@example.com", "pt", "en")
     client.headers["X-CSRF-Token"] = csrf
     user_id = (await client.get("/me")).json()["id"]
@@ -215,7 +216,7 @@ async def test_word_tags_labels_follow_ui_language(
                 output_tokens=1,
             )
 
-    monkeypatch.setattr(service, "_default_provider", lambda: GrammarProvider())
+    monkeypatch.setattr(service, "_default_provider", provider_factory(GrammarProvider()))
     r = await client.post(
         "/auth/register",
         json={

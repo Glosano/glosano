@@ -5,7 +5,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.config import get_settings
+from glosano.core.config import Settings, get_settings
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.chat.models import (
     Attempt,
     Citation,
@@ -106,7 +107,10 @@ async def message_data(s: AsyncSession, job: Generation, message: Message) -> di
     return data
 
 
-async def build_context(s: AsyncSession, job: Generation) -> tuple[list[dict[str, str]], bool]:
+async def build_context(
+    s: AsyncSession, job: Generation, *, settings: Settings | None = None
+) -> tuple[list[dict[str, str]], bool]:
+    settings = settings or await effective_settings()
     conversation = await s.get(Conversation, job.conversation_id)
     if conversation is None:
         raise ContextError("context_unavailable")
@@ -136,7 +140,7 @@ async def build_context(s: AsyncSession, job: Generation) -> tuple[list[dict[str
             encoded(
                 {
                     "messages": messages,
-                    "model": get_settings().llm_model,
+                    "model": settings.llm_model,
                     "stream": True,
                     "max_tokens": get_settings().chat_answer_max_tokens,
                 }

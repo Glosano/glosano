@@ -104,3 +104,61 @@ For an existing installation, edit the port in `.env` (`GLOSANO_BIND` and
   empty lock directory. Keep `.env`, Compose and the volumes.
 - **Forgotten password:** use `docker compose exec app-api glosano identity --help`
   for the password reset command; do not reinstall over the data.
+
+
+## Configure AI in the browser
+
+After signing in and completing onboarding, open the account menu → **AI settings**
+(`/admin/ai`). Only administrators see this entry. Choose a preset (OpenAI,
+OpenRouter, Ollama, LM Studio or another OpenAI-compatible server), enter the
+server address, API key if needed, and model identifier. **Load models** is optional;
+a server without `/models` still works with a manually entered identifier.
+
+**Test connection** sends a small diagnostic request and may incur a provider
+charge. It tests the draft without replacing the active connection. Enable AI and
+save to apply the connection to translations, chat and AI practice without
+restarting API or worker. You can also save valid settings when the provider is
+unavailable, or skip AI entirely. The base reader, vocabulary and review remain usable.
+
+For a model running on the Docker host, use `http://host.docker.internal:11434/v1`
+(Ollama) or `http://host.docker.internal:1234/v1` (LM Studio), not container-local
+`localhost`. The supplied Compose files include the host gateway mapping for Linux.
+The model server must already be running and listening on an interface reachable
+from Docker; allow access only from the intended local network. A model in another
+container can use its service name on a shared Docker network. Public endpoints
+require HTTPS. Glosano does not install inference servers or download models.
+
+### Existing installations and emergency disable
+
+Before the first save in the admin panel, existing `GLOSANO_LLM_ENABLED`,
+`GLOSANO_LLM_BASE_URL`, `GLOSANO_LLM_API_KEY` and `GLOSANO_LLM_MODEL` values keep
+working. The form identifies this source as **Environment**. Saving explicitly
+moves the complete connection to PostgreSQL; it can retain the existing key without
+revealing it to the browser. After that, these four legacy variables no longer
+override the saved connection, including `GLOSANO_LLM_ENABLED=false`. Clearing a
+saved key does not bring back the old environment key. Changing servers requires
+entering a key for the new server or explicitly choosing no key.
+
+To prohibit **all** AI requests, including diagnostics and model listing, set
+`GLOSANO_LLM_FORCE_DISABLED=true` in `.env` or Portainer Stack variables and recreate
+both API and worker using your installation's Compose file. The admin panel cannot
+override this flag. Its default is false. The normal **Enable AI** control applies
+without a restart; diagnostics remain available while normal AI is off unless the
+force-disable flag is set. Requests already sent to a provider cannot be recalled;
+new calls and retries are blocked, and active chat streaming is stopped.
+
+### Keys, updates and recovery
+
+The API key is encrypted in PostgreSQL using a key derived from the existing
+`GLOSANO_SECRET_KEY`. Installers generate that instance secret automatically.
+Never replace it during an update. Keep a protected copy of the original instance
+secret separately from the database backup: restoring the database alone does not
+recover the encrypted provider key. After losing or changing the instance secret,
+AI fails closed and an administrator must re-enter or remove the provider key in
+**AI settings**. Saved learning data remains intact. A known default or unsuitable
+instance secret must be replaced with a strong random secret before storing an API key.
+
+Use the existing backup/restore procedure to roll back a schema upgrade; do not
+simply downgrade the image after saving AI settings. Removing the settings table
+could reactivate obsolete environment credentials. The migration refuses a direct
+downgrade if persisted settings or new provider-specific translations exist.

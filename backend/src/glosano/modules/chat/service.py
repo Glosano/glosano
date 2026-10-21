@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.config import get_settings
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.chat import citations, drafts, generations
 from glosano.modules.chat.access import conversation, language
 from glosano.modules.chat.inline_quotes import question_outside_quotes
@@ -116,7 +116,7 @@ async def detail(
         "messages": result,
         "attempts": [attempt_output(a) for a in attempts],
         "generations": [generations.output(g) for g in jobs],
-        "ai_enabled": get_settings().llm_enabled,
+        "ai_enabled": (await effective_settings()).llm_enabled,
     }
 
 
@@ -132,7 +132,7 @@ async def send(s: AsyncSession, uid: uuid.UUID, body: SendRequest) -> dict[str, 
             "generation": generations.output(previous),
         }
     generations.require_reply(body.kind)
-    generations.require_ai()
+    await generations.require_ai()
     row = (
         await conversation(s, uid, body.conversation_id, lock=True)
         if body.conversation_id

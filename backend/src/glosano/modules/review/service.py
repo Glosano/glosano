@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from sqlalchemy import ColumnElement, func, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.config import get_settings
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.identity.models import UserSettings
 from glosano.modules.identity.service import translation_target
 from glosano.modules.lesson_library.models import Lesson, LessonSegment
@@ -508,7 +508,7 @@ async def get_counts(
         new=new,
         practice=practice,
         fill=fill,
-        ai_enabled=get_settings().llm_enabled,
+        ai_enabled=(await effective_settings()).llm_enabled,
         daily=daily,
         lesson_title=lesson.title if lesson else None,
         session_sizes={

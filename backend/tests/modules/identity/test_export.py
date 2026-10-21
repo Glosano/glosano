@@ -270,6 +270,7 @@ async def test_export_is_complete_and_isolated(client: AsyncClient):
             assert records[table], table
     # Explicit classification catches any new table omitted from the privacy/export audit.
     excluded = {
+        "instance_ai_settings",  # Instance credentials must never enter personal exports.
         "user_sessions",
         "statistics_tracking",
         "dictionary_entries",

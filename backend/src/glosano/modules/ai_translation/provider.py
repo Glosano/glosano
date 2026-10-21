@@ -16,6 +16,8 @@ from loguru import logger
 from pydantic import JsonValue
 
 from glosano.core.config import Settings
+from glosano.modules.admin import network
+from glosano.modules.admin.settings import check_current
 
 _MAX_ATTEMPTS = 3
 _BACKOFF_BASE_SECONDS = 0.5
@@ -62,29 +64,51 @@ class OpenAICompatibleProvider:
         url = f"{s.llm_base_url.rstrip('/')}/chat/completions"
 
         own_client = self._client is None
-        client = self._client or httpx.AsyncClient(timeout=float(s.llm_timeout_seconds))
+        client = self._client or httpx.AsyncClient(
+            timeout=float(s.llm_timeout_seconds), trust_env=False, follow_redirects=False
+        )
         try:
-            last_error: Exception | None = None
             for attempt in range(1, _MAX_ATTEMPTS + 1):
+                if s.llm_revision:
+                    await check_current(s)
                 try:
-                    response = await client.post(url, json=payload, headers=headers)
+                    target_url: str | httpx.URL = url
+                    extensions: dict[str, object] = {}
+                    request_headers = dict(headers)
+                    if own_client:
+                        target_url, host_headers, extensions = await network.target(url)
+                        request_headers.update(host_headers)
+                    async with client.stream(
+                        "POST",
+                        target_url,
+                        json=payload,
+                        headers=request_headers,
+                        extensions=extensions,
+                        follow_redirects=False,
+                    ) as stream:
+                        raw = b""
+                        async for block in stream.aiter_bytes():
+                            raw += block
+                            if len(raw) > 262144:
+                                raise ProviderRejected("provider_output_limit")
+                        response = httpx.Response(stream.status_code, content=raw)
+                except network.EndpointError:
+                    raise ProviderRejected("invalid_endpoint") from None
                 except httpx.TransportError as exc:
-                    last_error = exc
                     logger.warning(
                         "llm attempt {}/{}: {}", attempt, _MAX_ATTEMPTS, type(exc).__name__
                     )
                 else:
-                    if response.status_code < 400:
+                    if 200 <= response.status_code < 300:
                         return _parse_completion(response)
                     if response.status_code < 500:
                         raise ProviderRejected(f"provider returned {response.status_code}")
-                    last_error = ProviderUnavailable(f"provider returned {response.status_code}")
                     logger.warning(
                         "llm attempt {}/{}: HTTP {}", attempt, _MAX_ATTEMPTS, response.status_code
                     )
                 if attempt < _MAX_ATTEMPTS:
                     await asyncio.sleep(_BACKOFF_BASE_SECONDS * 2 ** (attempt - 1))
-            raise ProviderUnavailable(str(last_error)) from last_error
+            raise ProviderUnavailable("provider_unavailable") from None
         finally:
             if own_client:
                 await client.aclose()

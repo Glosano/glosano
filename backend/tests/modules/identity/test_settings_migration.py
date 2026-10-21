@@ -6,13 +6,12 @@ import sys
 import uuid
 from pathlib import Path
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from glosano.modules.identity.repo import UserRepo
 from glosano.modules.lesson_library.models import Lesson
-from glosano.modules.reader_state.models import LessonSegmentTranslation
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3]
 
@@ -70,21 +69,29 @@ async def test_translation_migration_preserves_legacy_and_refuses_unsafe_downgra
         async with AsyncSession(engine) as session:
             user = await UserRepo(session).get_by_id_full(user_id)
             assert user and user.settings.preferred_translation_language_code == "ru"
-            legacy = await session.get(LessonSegmentTranslation, legacy_id)
-            assert legacy and legacy.user_id is None and legacy.translation_text == "legacy"
-            session.add(
-                LessonSegmentTranslation(
-                    user_id=user_id,
-                    segment_id=segment_id,
-                    target_language_code="en",
-                    translation_text="personal",
-                    model="new",
+            legacy = (
+                await session.execute(
+                    text(
+                        "SELECT user_id, translation_text FROM lesson_segment_translations "
+                        "WHERE id = :id"
+                    ),
+                    {"id": legacy_id},
                 )
+            ).one()
+            assert legacy.user_id is None and legacy.translation_text == "legacy"
+            # This test intentionally exercises the historical schema, not today's ORM.
+            await session.execute(
+                text("""INSERT INTO lesson_segment_translations
+                (id, user_id, segment_id, target_language_code, translation_text, source, model)
+                VALUES (:id, :uid, :segment, 'en', 'personal', 'ai', 'new')"""),
+                {"id": uuid.uuid4(), "uid": user_id, "segment": segment_id},
             )
             await session.commit()
         migrate("0016_statistics", downgrade=True, succeeds=False)
         async with AsyncSession(engine) as session:
-            assert len((await session.scalars(select(LessonSegmentTranslation))).all()) == 2
+            assert (
+                await session.scalar(text("SELECT count(*) FROM lesson_segment_translations")) == 2
+            )
             assert (
                 await session.scalar(text("SELECT version_num FROM alembic_version"))
                 == "0017_ui_language_translation"

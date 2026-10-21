@@ -62,6 +62,9 @@ async def _init_schema(  # pyright: ignore[reportUnusedFunction] — autouse fix
     from glosano.core.db import Base
 
     # Side-effect imports: register ORM models on Base.metadata before create_all.
+    from glosano.modules.admin import (
+        models as _admin_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    )
     from glosano.modules.ai_translation import (
         models as _ai_models,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     )

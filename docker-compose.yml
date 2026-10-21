@@ -15,6 +15,7 @@ x-app-env: &app-env
   GLOSANO_DATA_DIR: /var/lib/glosano
   GLOSANO_ALLOW_PUBLIC_REGISTRATION: ${GLOSANO_ALLOW_PUBLIC_REGISTRATION:-true}
   GLOSANO_INITIAL_ADMIN_EMAIL: ${GLOSANO_INITIAL_ADMIN_EMAIL:-}
+  GLOSANO_LLM_FORCE_DISABLED: ${GLOSANO_LLM_FORCE_DISABLED:-false}
   GLOSANO_LLM_ENABLED: ${GLOSANO_LLM_ENABLED:-false}
   GLOSANO_LLM_BASE_URL: ${GLOSANO_LLM_BASE_URL:-}
   GLOSANO_LLM_API_KEY: ${GLOSANO_LLM_API_KEY:-}
@@ -59,6 +60,8 @@ services:
       retries: 10
 
   app-api:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -79,6 +82,8 @@ services:
     command: ["glosano", "serve", "--host", "0.0.0.0", "--port", "8000"]
 
   app-worker:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build:
       context: .
       dockerfile: backend/Dockerfile

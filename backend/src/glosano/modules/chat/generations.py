@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glosano.core.config import get_settings
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.chat.models import Attempt, Generation, Message
 
 ACTIVE = ("queued", "running")
@@ -19,8 +19,8 @@ def require_reply(kind: str) -> None:
         raise HTTPException(409, "practice_disabled")
 
 
-def require_ai() -> None:
-    if not get_settings().llm_enabled:
+async def require_ai() -> None:
+    if not (await effective_settings()).llm_enabled:
         raise HTTPException(503, "ai_disabled")
 
 
@@ -116,7 +116,7 @@ async def retry(
         if previous.retry_of_id != gid or previous.conversation_id != cid:
             raise HTTPException(409, "operation_conflict")
         return previous
-    require_ai()
+    await require_ai()
     if original.status not in ("failed", "cancelled", "interrupted"):
         raise HTTPException(409, "generation_not_retryable")
     await ensure_idle(s, cid)
@@ -156,8 +156,8 @@ async def retry(
     return job
 
 
-def capabilities() -> dict[str, Any]:
-    settings = get_settings()
+async def capabilities() -> dict[str, Any]:
+    settings = await effective_settings()
     return {
         "ai_enabled": settings.llm_enabled,
         "context_char_budget": settings.chat_context_char_budget,

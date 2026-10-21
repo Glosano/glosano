@@ -28,7 +28,6 @@ export default defineConfig({
       '/dictionary': { target: API_TARGET, changeOrigin: true },
       '/review': { target: API_TARGET, changeOrigin: true },
       '/stats': { target: API_TARGET, changeOrigin: true },
-      '/admin': { target: API_TARGET, changeOrigin: true },
     },
   },
   test: {

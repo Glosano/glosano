@@ -13,8 +13,8 @@ from typing import Protocol
 import httpx
 from sqlalchemy import select
 
-from glosano.core.config import get_settings
 from glosano.core.db import session_scope
+from glosano.modules.admin.settings import effective_settings
 from glosano.modules.ai_translation.models import AIRequest
 from glosano.modules.chat.context import ContextError, build_context
 from glosano.modules.chat.models import Attempt, Conversation, Generation, Message
@@ -81,7 +81,7 @@ async def progress(gid: uuid.UUID, text: str | None = None) -> bool:
 async def monitor(gid: uuid.UUID) -> None:
     while True:
         await asyncio.sleep(1)
-        if not get_settings().llm_enabled:
+        if not (await effective_settings()).llm_enabled:
             raise ProviderError("ai_disabled")
         if not await progress(gid):
             raise ProviderError("generation_stopped")
@@ -95,7 +95,7 @@ async def generate(gid: uuid.UUID, provider: Provider, messages: list[dict[str, 
     if not await progress(gid):
         raise ProviderError("generation_stopped")
     async for chunk in provider.stream(messages):
-        if not get_settings().llm_enabled:
+        if not (await effective_settings()).llm_enabled:
             raise ProviderError("ai_disabled")
         if len(text) + len(chunk) > MAX_OUTPUT_CHARS:
             raise ProviderError("provider_output_limit")
@@ -109,6 +109,7 @@ async def generate(gid: uuid.UUID, provider: Provider, messages: list[dict[str, 
 
 async def run_generation(gid: uuid.UUID, *, provider: Provider | None = None) -> None:
     started = monotonic()
+    snapshot = await effective_settings()
     async with locked_job(gid) as (s, job):
         if job is None or job.status != "queued":
             return
@@ -121,16 +122,17 @@ async def run_generation(gid: uuid.UUID, *, provider: Provider | None = None) ->
             job = await s.get(Generation, gid)
             if job is None or job.status != "running":
                 return
-            messages, truncated = await build_context(s, job)
+            messages, truncated = await build_context(s, job, settings=snapshot)
         async with locked_job(gid) as (_, job):
             if job is None or job.status != "running":
                 return
             job.context_truncated = truncated
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(trust_env=False, follow_redirects=False) as client:
             work = asyncio.create_task(
                 generate(
                     gid,
-                    provider or ChatProvider(client, active=partial(progress, gid)),
+                    provider
+                    or ChatProvider(client, settings=snapshot, active=partial(progress, gid)),
                     messages,
                 )
             )
@@ -148,7 +150,7 @@ async def run_generation(gid: uuid.UUID, *, provider: Provider | None = None) ->
         async with locked_job(gid) as (s, job):
             if job is None or job.status != "running":
                 return
-            if not get_settings().llm_enabled:
+            if not (await effective_settings()).llm_enabled:
                 raise ProviderError("ai_disabled")
             message = await s.get(Message, job.message_id)
             if message:
@@ -160,7 +162,7 @@ async def run_generation(gid: uuid.UUID, *, provider: Provider | None = None) ->
                     request_id=gid,
                     user_id=job.user_id,
                     provider="openai-compatible-chat",
-                    model=get_settings().llm_model[:255],
+                    model=snapshot.llm_model[:255],
                     prompt_hash=hashlib.sha256(encoded(messages).encode()).hexdigest(),
                     selected_text_hash=hashlib.sha256(b"").hexdigest(),
                     latency_ms=int((monotonic() - started) * 1000),

@@ -37,6 +37,7 @@ dependencies = [
 
     # Security
     "argon2-cffi>=23.1",
+    "cryptography>=44",
 
     # Surface segmentation (ADR-0012)
     "jieba==0.42.1",
