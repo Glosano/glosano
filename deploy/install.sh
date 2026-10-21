@@ -38,6 +38,7 @@ install_dir=${GLOSANO_INSTALL_DIR:-}
 mkdir -p "$install_dir"
 cd "$install_dir"
 [[ ! -L .env && ! -L compose.yaml && ! -L .glosano-install ]] || fail 'Managed files must not be symbolic links.'
+[[ ! -e .glosano-update && ! -L .glosano-update ]] || fail 'An unfinished update needs recovery; see docs/docker-update.md.'
 if [[ ! -f .glosano-install ]]; then
   [[ -z $(find . -mindepth 1 -maxdepth 1 -print -quit) ]] || fail 'Choose an empty directory; existing files will not be overwritten.'
   printf '%s\n' "$version" > .glosano-install

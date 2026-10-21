@@ -60,6 +60,9 @@ Docker volumes; AI and dictionary downloads are optional. Re-running the same
 installer preserves data and credentials. See [local installation](docs/local-install.md)
 for stopping, restarting, ports and troubleshooting.
 
+Already installed? [Update with one command](docs/docker-update.md) from your installation
+directory. The updater keeps your data and settings and creates a backup before migrating.
+
 Access from other devices is a separate server setup with an HTTPS reverse proxy.
 
 Prefer to inspect the script first? Download `install.sh` or `install.ps1` from the selected

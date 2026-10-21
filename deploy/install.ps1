@@ -54,6 +54,7 @@
                 Fail 'Managed files must not be symbolic links.'
             }
         }
+        if (Test-Path -LiteralPath (Join-Path $installDir '.glosano-update')) { Fail 'An unfinished update needs recovery; see docs/docker-update.md.' }
         $markerPath = Join-Path $installDir '.glosano-install'
         if (-not (Test-Path -LiteralPath $markerPath)) {
             if (@(Get-ChildItem -Force -LiteralPath $installDir).Count -ne 0) { Fail 'Choose an empty directory; existing files will not be overwritten.' }

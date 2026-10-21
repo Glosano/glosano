@@ -58,6 +58,8 @@ jobs:
         run: deploy/tests/release.sh glosano:ci-${{ matrix.arch }}
       - name: Test the Linux installer
         run: deploy/tests/install-linux.sh glosano:ci-${{ matrix.arch }}
+      - name: Test update and full data recovery
+        run: python3 deploy/tests/update-lifecycle.py glosano:ci-${{ matrix.arch }}
       - name: Export the tested image
         if: startsWith(github.ref, 'refs/tags/')
         run: docker save glosano:ci-${{ matrix.arch }} | gzip > image.tar.gz
@@ -132,7 +134,7 @@ jobs:
               --title "Glosano $RELEASE_TAG" --generate-notes
           fi
           mkdir existing-assets
-          for asset in install.sh install.ps1 compose.yaml SHA256SUMS; do
+          for asset in install.sh install.ps1 update.sh update.ps1 update-check.py compose.yaml SHA256SUMS; do
             if gh release download "$RELEASE_TAG" --pattern "$asset" --dir existing-assets; then
               cmp "release-assets/$asset" "existing-assets/$asset"
             else

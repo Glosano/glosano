@@ -67,7 +67,7 @@ running whenever you want to use Glosano.
 Re-running the installer from the **same release** resumes an interrupted setup
 without replacing secrets, resetting an existing admin password, or deleting
 volumes. An update is a separate operation: follow the
-[backup/update procedure](docker-compose-install.md#update-deliberately).
+[one-command update](docker-update.md).
 Never use `docker compose down -v` to restart: `-v` deletes the stored data.
 
 ## Another port
