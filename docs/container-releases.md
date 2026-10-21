@@ -16,7 +16,13 @@ image tag and existing release versions must never be replaced.
 3. On the first publication, set the GHCR package visibility to **Public**.
    Public repository visibility alone does not make a package public. Check
    an anonymous pull from a clean Docker credentials directory for both platforms.
-4. Confirm the multi-platform manifest and document the version in release notes.
+   The workflow blocks release announcement until this works; after changing
+   visibility, re-run the failed jobs. Existing images are reused only when their
+   source revision matches, never replaced.
+4. Confirm the multi-platform manifest and release assets: `install.sh`,
+   `compose.yaml` and `SHA256SUMS`. They are versioned together and attached to a
+   draft before publication. A retry verifies existing assets instead of replacing
+   them. Document upgrade-specific notes in the release.
 
 Publication uses the repository's `GITHUB_TOKEN` with `packages: write`.
 PR jobs have read-only permissions and cannot publish. Tags must point to a

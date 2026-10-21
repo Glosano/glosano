@@ -10,7 +10,7 @@
 
 ---
 
-This guide takes you from an empty Linux server to a working instance at `https://glosano.example.com`: HTTPS, an admin account, a built-in dictionary and, optionally, AI translation. Plan for about 30 minutes, most of it spent waiting for the build and the dictionary download.
+This guide takes you from an empty Linux server to a working instance at `https://glosano.example.com`: HTTPS, an admin account, a built-in dictionary and, optionally, AI translation. Prebuilt releases avoid a local build. AI and dictionary downloads are optional.
 
 **Contents**
 
@@ -36,8 +36,8 @@ This guide takes you from an empty Linux server to a working instance at `https:
 | Disk | 5 GB | 10 GB + ~1 GB per dictionary |
 | OS | Any Linux that runs Docker | Ubuntu 24.04 / Debian 12 |
 
-- **Docker Engine with the Compose plugin** (`docker compose version` must work). Images are built on the server, there is no registry to pull from.
-- **Git**, to fetch the source and later updates.
+- **Docker Engine with Compose v2.20+** (`docker compose version` must work). Releases use prebuilt public GHCR images for amd64 and arm64.
+- The one-command installer supports **Linux** and requires Bash, curl, OpenSSL and sha256sum. It does not install Docker. Git is needed only for the source-build alternative.
 - **A domain name and HTTPS.** In production Glosano marks its session cookie `Secure`, so browsers only keep it over HTTPS. Plain `http://localhost` is the one exception browsers make — fine for a trial on your own machine, not for anyone else on the network.
 - **Outbound internet** from the server for dictionary downloads, YouTube captions and an AI provider, if you use one.
 
@@ -56,8 +56,55 @@ This guide takes you from an empty Linux server to a working instance at `https:
 
 ## 3. Install
 
-For a published container release, use the [release Compose guide](docker-compose-install.md).
-The source-build procedure below remains available for development and unreleased commits.
+### One-command installation (Linux)
+
+```bash
+curl -fsSL https://github.com/Glosano/glosano/releases/latest/download/install.sh | bash
+```
+
+The installer asks for an empty directory, the administrator's email and the
+application URL. Keep the default localhost URL for a browser on the same machine.
+For a server, configure the HTTPS proxy first (section 4), then enter its HTTPS
+origin. The installer checks both local container health and that URL. If the
+proxy is not ready, it reports the incomplete setup rather than claiming success.
+
+It generates secrets, downloads the matching release Compose with SHA256
+verification, applies migrations and creates the first admin. The temporary
+password is printed in the invoking terminal, not container logs. Change it in
+Settings. Public registration is closed; AI is disabled and dictionaries are not
+downloaded automatically.
+
+To avoid interactive questions, download and inspect `install.sh` from a release,
+then run it with these inputs:
+
+```bash
+GLOSANO_INSTALL_DIR="$HOME/glosano" \
+GLOSANO_ADMIN_EMAIL=you@example.com \
+GLOSANO_URL=https://glosano.example.com \
+bash install.sh
+```
+
+`GLOSANO_BIND` can select another IPv4 address and port (default
+`127.0.0.1:8000`). Match the URL/proxy to that binding. Never use plain HTTP on a
+LAN address as a workaround for production cookies. For a container-based proxy,
+see [networking in the Compose guide](docker-compose-install.md).
+
+The selected directory contains `compose.yaml`, `.env` (mode 600) and an installer
+version marker. Keep these files. Run the **same release's** installer to resume
+a download/startup failure. It preserves secrets and existing admin passwords and
+refuses to overwrite a customized Compose file or upgrade to a different release.
+A hard-killed installer may leave `.install.lock`; remove that empty directory
+only after confirming no installer is still running. Invalid admin email saved
+by a failed attempt can be corrected in `GLOSANO_INSTALL_ADMIN_EMAIL` in `.env`.
+
+A particular version can be installed by downloading its own `install.sh` from
+[GitHub Releases](https://github.com/Glosano/glosano/releases). Checksums verify
+asset consistency; they are not an independent signature of GitHub downloads.
+
+For manual setup use the [release Compose guide](docker-compose-install.md).
+The remaining commands in sections 3.1–3.4 describe the **source-build alternative**.
+Release installations use database/user `glosano`; the source-build example below
+uses `flinq`. Follow the matching guide for updates and backups.
 
 ### 3.1 Get the code
 
@@ -264,6 +311,10 @@ The Glosano Importer extension for Chrome and Firefox sends articles, selected t
 
 ## 9. Update to a new version
 
+**Release installations:** follow [the release update and restore procedure](docker-compose-install.md#update-deliberately). Do not re-run a newer installer as an updater.
+
+**Source-build installations:**
+
 ```bash
 cd /opt/glosano
 git pull
@@ -277,6 +328,8 @@ curl http://127.0.0.1:8000/health
 Take the backup before migrating: some migrations cannot be rolled back.
 
 ## 10. Back up and restore
+
+**Release installations:** use [the release backup and restore commands](docker-compose-install.md#update-deliberately), which use database/user `glosano`. Commands below are for the source-build `flinq` database.
 
 Back up Postgres; it holds everything. Redis keeps only queues and caches, and the `app_data` volume only re-downloadable dictionary dumps.
 
@@ -293,6 +346,8 @@ docker compose start app-api app-worker
 Each learner can also download all of their own data as JSON from their profile.
 
 ## 11. Configuration reference
+
+This table describes source-build defaults. The release Compose fixes production mode, defaults to a loopback binding and closed registration, requires a unique database password, and derives the application database URL from it.
 
 All settings are environment variables in `.env`. Changes take effect after `docker compose up -d`.
 

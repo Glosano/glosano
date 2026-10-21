@@ -36,17 +36,25 @@ Glosano is a self-hosted, LingQ-style platform for content-driven language learn
 
 ## Self-hosting
 
-Glosano ships as a Docker Compose stack: the app, a background worker, Postgres and Redis. The short version:
+Glosano ships as a Docker Compose stack with prebuilt **amd64 / arm64** images.
+On a Linux machine with Docker Engine and Compose v2.20+ already installed:
 
 ```bash
-git clone https://github.com/Glosano/glosano.git && cd glosano
-cp .env.example .env        # set GLOSANO_ENV=prod, GLOSANO_SECRET_KEY, database password
-docker compose build
-docker compose run --rm app-api alembic upgrade head
-docker compose up -d
+curl -fsSL https://github.com/Glosano/glosano/releases/latest/download/install.sh | bash
 ```
 
-The **[self-hosting guide](docs/self-hosting.md)** covers the rest: HTTPS behind Caddy or nginx, the first admin account, loading dictionaries, AI providers, updates, backups and troubleshooting.
+The installer asks for a directory, admin email and URL, generates the configuration,
+prepares the database and starts Glosano. Use `http://localhost:8000` for a local
+browser trial. Access from other devices needs an **existing HTTPS reverse proxy**.
+AI and dictionaries are optional. Re-running the installer preserves your data
+and credentials; updates are a separate, deliberate action.
+
+Prefer to inspect the script first? Download `install.sh` from the selected
+[release](https://github.com/Glosano/glosano/releases), read it, then run `bash install.sh`.
+
+See the **[self-hosting guide](docs/self-hosting.md)** for the installer, manual
+[Docker Compose deployment](docs/docker-compose-install.md), HTTPS, backups,
+updates, dictionaries and AI providers.
 
 ## Development
 
