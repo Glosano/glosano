@@ -1,0 +1,99 @@
+name: Docker images
+on:
+  pull_request:
+    paths:
+      - backend/**
+      - frontend/**
+      - deploy/**
+      - .dockerignore
+      - .github/workflows/docker.yml
+  push:
+    tags: ['v[0-9]*']
+permissions:
+  contents: read
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate release source
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: runtime
+          load: true
+          tags: glosano:ci-${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Glosano/glosano
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+      - name: Test the built image
+        run: deploy/tests/smoke.sh glosano:ci-${{ matrix.arch }}
+      - name: Export the tested image
+        if: startsWith(github.ref, 'refs/tags/')
+        run: docker save glosano:ci-${{ matrix.arch }} | gzip > image.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: image-${{ matrix.arch }}
+          path: image.tar.gz
+          retention-days: 2
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/') && github.repository == 'Glosano/glosano'
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          path: images
+      - name: Publish exactly the tested images
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          image=ghcr.io/glosano/glosano
+          if docker buildx imagetools inspect "$image:$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Release tag already exists; refusing to replace it.' >&2
+            exit 1
+          fi
+          for arch in amd64 arm64; do
+            gzip -dc "images/image-$arch/image.tar.gz" | docker load
+            docker tag "glosano:ci-$arch" "$image:$RELEASE_TAG-$arch"
+            docker push "$image:$RELEASE_TAG-$arch"
+          done
+          docker buildx imagetools create -t "$image:$RELEASE_TAG" \
+            "$image:$RELEASE_TAG-amd64" "$image:$RELEASE_TAG-arm64"
+          docker buildx imagetools inspect "$image:$RELEASE_TAG"

@@ -1,0 +1,38 @@
+x-app: &app
+  image: ${TEST_IMAGE:?set TEST_IMAGE}
+  environment: &env
+    GLOSANO_ENV: prod
+    GLOSANO_SECRET_KEY: container-smoke-test-only-not-a-production-secret
+    GLOSANO_DATABASE_URL: postgresql+asyncpg://smoke:smoke@postgres/smoke
+    GLOSANO_REDIS_URL: redis://redis:6379/0
+    GLOSANO_LLM_ENABLED: "false"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: smoke
+      POSTGRES_PASSWORD: smoke
+      POSTGRES_DB: smoke
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U smoke -d smoke"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  app-api:
+    <<: *app
+    command: [glosano, serve, --host, 0.0.0.0]
+  app-worker:
+    <<: *app
+    command: [glosano, worker]
