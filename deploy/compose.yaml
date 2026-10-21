@@ -6,6 +6,7 @@ name: ${COMPOSE_PROJECT_NAME:-glosano}
 # see docs/self-hosting.md and docs/portainer.md.
 x-app-env: &app-env
   GLOSANO_ENV: prod
+  GLOSANO_LOCAL_HTTP: ${GLOSANO_LOCAL_HTTP:-false}
   GLOSANO_LOG_LEVEL: ${GLOSANO_LOG_LEVEL:-INFO}
   GLOSANO_SECRET_KEY: ${GLOSANO_SECRET_KEY:?set GLOSANO_SECRET_KEY (openssl rand -hex 32)}
   GLOSANO_DATABASE_URL: postgresql+asyncpg://glosano:${POSTGRES_PASSWORD:?set a random hexadecimal POSTGRES_PASSWORD}@postgres:5432/glosano

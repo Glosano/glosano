@@ -7,7 +7,9 @@ output=${2:?Specify an empty output directory}
 cd "$(dirname "$0")/.."
 mkdir -p "$output"
 sed "s/__VERSION__/$version/g" deploy/install.sh > "$output/install.sh"
+sed "s/__VERSION__/$version/g" deploy/install.ps1 > "$output/install.ps1"
 # Pin the release default for Portainer, while allowing explicit upgrades.
 sed "s/\${GLOSANO_VERSION:?set a release version such as v0.0.1}/\${GLOSANO_VERSION:-$version}/g" deploy/compose.yaml > "$output/compose.yaml"
 chmod +x "$output/install.sh"
-(cd "$output" && sha256sum install.sh compose.yaml > SHA256SUMS)
+if command -v sha256sum >/dev/null; then checksum=(sha256sum); else checksum=(shasum -a 256); fi
+(cd "$output" && "${checksum[@]}" install.sh install.ps1 compose.yaml > SHA256SUMS)

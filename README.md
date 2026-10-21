@@ -37,20 +37,33 @@ Glosano is a self-hosted, LingQ-style platform for content-driven language learn
 ## Self-hosting
 
 Glosano ships as a Docker Compose stack with prebuilt **amd64 / arm64** images.
-On a Linux machine with Docker Engine and Compose v2.20+ already installed:
+Install and start Docker first: Docker Desktop with Linux containers on Windows/macOS,
+or Docker Engine with Compose v2.20+ on Linux. No domain, HTTPS certificate or
+application build is needed to run Glosano on your own computer.
+
+**macOS / Linux — Terminal:**
 
 ```bash
 curl -fsSL https://github.com/Glosano/glosano/releases/latest/download/install.sh | bash
 ```
 
-The installer asks for a directory, admin email and URL, generates the configuration,
-prepares the database and starts Glosano. Use `http://localhost:8000` for a local
-browser trial. Access from other devices needs an **existing HTTPS reverse proxy**.
-AI and dictionaries are optional. Re-running the installer preserves your data
-and credentials; updates are a separate, deliberate action.
+**Windows — PowerShell:**
 
-Prefer to inspect the script first? Download `install.sh` from the selected
-[release](https://github.com/Glosano/glosano/releases), read it, then run `bash install.sh`.
+```powershell
+irm https://github.com/Glosano/glosano/releases/latest/download/install.ps1 | iex
+```
+
+Keep the default URL **http://localhost:8000**. The installer asks for a directory
+and admin email, generates configuration, prepares the database and prints the
+initial password. Open the URL in your browser and sign in. Data stays in local
+Docker volumes; AI and dictionary downloads are optional. Re-running the same
+installer preserves data and credentials. See [local installation](docs/local-install.md)
+for stopping, restarting, ports and troubleshooting.
+
+Access from other devices is a separate server setup with an HTTPS reverse proxy.
+
+Prefer to inspect the script first? Download `install.sh` or `install.ps1` from the selected
+[release](https://github.com/Glosano/glosano/releases), read it, then run `bash install.sh` or `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
 
 See the **[self-hosting guide](docs/self-hosting.md)** for the installer, manual
 [Docker Compose deployment](docs/docker-compose-install.md),

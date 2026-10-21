@@ -1,0 +1,45 @@
+name: Installers
+on:
+  push:
+    branches: [main]
+    paths: ['deploy/**', '.github/workflows/installers.yml']
+  pull_request:
+    paths: ['deploy/**', '.github/workflows/installers.yml']
+permissions:
+  contents: read
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            runtime: bash
+          - os: macos-latest
+            runtime: bash
+          - os: windows-latest
+            runtime: powershell
+          - os: windows-latest
+            runtime: pwsh
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Test Bash installer
+        if: matrix.runtime == 'bash'
+        run: python3 -m unittest discover -s deploy/tests -p test_installer.py
+      - name: Test PowerShell installer
+        if: matrix.runtime != 'bash'
+        shell: pwsh
+        env:
+          GLOSANO_TEST_POWERSHELL: ${{ matrix.runtime }}
+        run: python -m unittest discover -s deploy/tests -p test_powershell_installer.py
+      - name: Package matching release assets
+        if: matrix.runtime == 'bash'
+        shell: bash
+        run: |
+          deploy/package-release.sh v0.0.0 "$RUNNER_TEMP/glosano-assets"
+          test -s "$RUNNER_TEMP/glosano-assets/install.ps1"
+          test -s "$RUNNER_TEMP/glosano-assets/compose.yaml"
