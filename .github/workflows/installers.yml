@@ -32,7 +32,8 @@ jobs:
         run: python3 -m unittest discover -s deploy/tests -p test_installer.py
       - name: Test PowerShell installer
         if: matrix.runtime != 'bash'
-        shell: pwsh
+        # Keep each runtime's module path; Python otherwise passes PS7 paths to PS5.1.
+        shell: ${{ matrix.runtime }}
         env:
           GLOSANO_TEST_POWERSHELL: ${{ matrix.runtime }}
         run: python -m unittest discover -s deploy/tests -p test_powershell_installer.py
