@@ -46,6 +46,7 @@ if 'pull' in args: sys.exit(1 if fail == 'pull' else 0)
 if 'stop' in args: sys.exit(0)
 if 'up' in args: sys.exit(1 if fail == 'start' else 0)
 if 'exec' in args:
+    sys.stdin.buffer.read()  # Compose exec forwards stdin even with -T.
     if 'pg_dump' in args: sys.exit(1 if fail == 'backup' else 0)
     if 'SAVE' in args: print('ERR' if fail == 'redis' else 'OK')
     sys.exit(0)
@@ -96,7 +97,7 @@ class UpdaterTests(unittest.TestCase):
         self.env.update(PATH=str(self.bin)+os.pathsep+self.env['PATH'], GLOSANO_INSTALL_DIR=str(self.install), TEST_ASSETS=str(self.assets), TEST_LOG=str(self.root/'docker.log'))
 
     def run_update(self, **extra):
-        return subprocess.run(['bash',str(self.script)], env=self.env|extra, capture_output=True, text=True, timeout=40)
+        return subprocess.run(['bash',str(self.script)], env=self.env|extra, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=40)
 
     def commands(self):
         path = self.root/'docker.log'
@@ -136,6 +137,16 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(repeat.returncode,0,repeat.stderr)
         self.assertEqual(len(self.backups()),1)
         self.assertFalse(any('up' in c or 'stop' in c or 'pull' in c for c in self.commands()[count:]))
+
+    def test_piped_script_preserves_its_input(self):
+        if self.script.suffix != '.sh':
+            self.skipTest('Bash pipe regression')
+        result = subprocess.run(['bash'],input=self.script.read_bytes(),env=self.env,capture_output=True,timeout=40)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual((self.install/'.glosano-install').read_text().strip(),'v0.0.5')
+        self.assertFalse((self.install/'.glosano-update').exists())
+        backup, = self.backups()
+        self.assertTrue((backup/'BACKUP_COMPLETE').exists())
 
     def test_preflight_failures_leave_running_installation(self):
         for failure in ('download','pull','storage','infra','missing','image','external','settings'):

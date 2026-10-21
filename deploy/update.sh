@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Published per release; __VERSION__ selects the matching target image and assets.
+# Parse the whole piped script before Docker can consume its stdin.
+{
 set -euo pipefail
 umask 077
 version=__VERSION__
@@ -154,3 +156,4 @@ printf '%s\n' "$version" > .glosano-install
 printf 'complete\n' > "$backup/status"
 rm .glosano-update
 printf '\nGlosano updated from %s to %s at %s\nBackup retained: %s/%s\n' "$source_version" "$version" "$url" "$PWD" "$backup"
+} </dev/null

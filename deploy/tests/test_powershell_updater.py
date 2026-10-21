@@ -41,4 +41,4 @@ foreach ($name in @('GLOSANO_INSTALL_DIR','GLOSANO_SECRET_KEY','POSTGRES_PASSWOR
         self.env.update(TEST_UPDATER=str(self.script))
 
     def run_update(self, **extra):
-        return subprocess.run([POWERSHELL,'-NoProfile','-ExecutionPolicy','Bypass','-File',str(self.harness)],env=self.env|extra,capture_output=True,text=True,timeout=60)
+        return subprocess.run([POWERSHELL,'-NoProfile','-ExecutionPolicy','Bypass','-File',str(self.harness)],env=self.env|extra,capture_output=True,text=True,stdin=subprocess.DEVNULL,timeout=60)
