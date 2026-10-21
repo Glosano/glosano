@@ -13,8 +13,6 @@ ROOT = Path(__file__).resolve().parents[2]
 FAKE = r'''
 import hashlib, json, os, pathlib, subprocess, sys
 args = sys.argv[1:]
-if args and args[0] == '--bridge':
-    args = json.loads(pathlib.Path(args[1]).read_text(encoding='utf-8-sig'))
 log = pathlib.Path(os.environ['TEST_LOG'])
 with log.open('a') as f: f.write(json.dumps(args)+'\n')
 fail = os.environ.get('TEST_FAIL', '')
@@ -24,7 +22,10 @@ if args[0] == 'inspect':
     print('ghcr.io/glosano/glosano:' + ('v0.0.3' if fail == 'image' else 'v0.0.4')); sys.exit(0)
 if args[0] == 'rm': sys.exit(0)
 if args[0] == 'run':
-    sys.exit(subprocess.run([sys.executable, '-c', args[-1]], input=sys.stdin.read(), text=True).returncode)
+    payload=sys.stdin.read()
+    result=subprocess.run([sys.executable, '-c', args[-1]], input=payload, text=True)
+    if result.returncode: print('Validator input: '+repr(payload[:160]),file=sys.stderr)
+    sys.exit(result.returncode)
 if args[0] == 'cp':
     pathlib.Path(args[-1]).write_bytes(b'\x1f\x8b\x00\xffarchive'); sys.exit(0)
 assert args[0] == 'compose', args

@@ -17,13 +17,6 @@ class PowerShellUpdaterTests(test_updater.UpdaterTests):
         self.harness = self.root/'harness.ps1'
         self.harness.write_text(r'''
 $ErrorActionPreference = 'Stop'
-function docker {
-    $argumentsPath = Join-Path $env:TEST_ASSETS 'arguments.json'
-    [IO.File]::WriteAllText($argumentsPath, (ConvertTo-Json -InputObject @($args) -Compress), (New-Object Text.UTF8Encoding $false))
-    $payload = @($input) -join "`n"
-    $payload | & $env:TEST_PYTHON $env:TEST_DOCKER --bridge $argumentsPath
-    $global:LASTEXITCODE = $LASTEXITCODE
-}
 function Invoke-WebRequest {
     param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing)
     if ($env:TEST_FAIL -eq 'download') { throw 'download failed' }
@@ -42,7 +35,10 @@ foreach ($name in @('GLOSANO_INSTALL_DIR','GLOSANO_SECRET_KEY','POSTGRES_PASSWOR
     if ($before.Contains($name) -ne $after.Contains($name) -or $before[$name] -cne $after[$name]) { throw "Changed caller environment: $name" }
 }
 ''')
-        self.env.update(TEST_UPDATER=str(self.script),TEST_PYTHON=sys.executable,TEST_DOCKER=str(self.bin/'docker'))
+        # Use a native command, so PS5 quoting and stdin behavior are exercised.
+        if os.name == 'nt':
+            (self.bin/'docker.cmd').write_text('@echo off\n"'+sys.executable+'" "'+str(self.bin/'docker')+'" %*\n')
+        self.env.update(TEST_UPDATER=str(self.script))
 
     def run_update(self, **extra):
         return subprocess.run([POWERSHELL,'-NoProfile','-ExecutionPolicy','Bypass','-File',str(self.harness)],env=self.env|extra,capture_output=True,text=True,timeout=60)

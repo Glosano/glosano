@@ -103,7 +103,9 @@
         $oldJson = InvokeDocker -Arguments ($oldCompose + @('config', '--format', 'json')) | Out-String
         $newJson = InvokeDocker -Arguments ($newCompose + @('config', '--format', 'json')) | Out-String
         $payload = '{"source":"' + $sourceVersion + '","target":"' + $version + '","old":' + $oldJson + ',"new":' + $newJson + '}'
-        InvokeDocker -Arguments @('run', '--rm', '--pull', 'never', '-i', '--entrypoint', 'python', "ghcr.io/glosano/glosano:$sourceVersion", '-c', [IO.File]::ReadAllText((Join-Path $staging 'update-check.py'))) -InputText $payload
+        # PS5.1 strips embedded double quotes in native arguments. Pass ASCII code.
+        $checkCode = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $staging 'update-check.py')))
+        InvokeDocker -Arguments @('run', '--rm', '--pull', 'never', '-i', '--entrypoint', 'python', "ghcr.io/glosano/glosano:$sourceVersion", '-c', "exec(__import__('base64').b64decode('$checkCode'))") -InputText $payload
         if ((InvokeDocker -Arguments ($oldCompose + @('ps', '--status', 'running', '-q', 'migrate')) | Out-String).Trim()) { Fail 'A migration is already running.' }
         foreach ($role in @('app-api', 'app-worker', 'postgres', 'redis')) {
             $container = (InvokeDocker -Arguments ($oldCompose + @('ps', '--status', 'running', '-q', $role)) | Out-String).Trim()
