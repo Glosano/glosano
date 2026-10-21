@@ -154,7 +154,8 @@ for line in pathlib.Path(sys.argv[-1]).read_text().splitlines():
         self.assertIn("GLOSANO_LOCAL_HTTP=false", (self.install / ".env").read_text())
 
     def test_local_url_port_sets_default_binding(self):
-        result = self.run_install(GLOSANO_BIND="", GLOSANO_URL="http://127.0.0.1:49179")
+        self.env.pop("GLOSANO_BIND", None)
+        result = self.run_install(GLOSANO_URL="http://127.0.0.1:49179")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("GLOSANO_BIND=127.0.0.1:49179", (self.install / ".env").read_text())
 
