@@ -129,7 +129,7 @@
         } else { Move-Item -LiteralPath $downloadedCompose -Destination $composePath }
         foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED')) {
             $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
-            [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+            Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
         }
         $compose = @('compose', '--project-directory', $installDir, '-f', $composePath, '--env-file', $envPath)
         InvokeDocker -Arguments ($compose + @('config', '--quiet'))
@@ -140,7 +140,13 @@
         if ($ready.status -ne 'ready') { Fail "Services are not ready at $url. Check Docker and the URL, then re-run." }
         Write-Host "`nGlosano $version is ready at $url`nInstallation: $installDir`nChange the initial password in Settings."
     } finally {
-        foreach ($name in $savedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process') }
+        foreach ($name in $savedEnvironment.Keys) {
+            if ($null -eq $savedEnvironment[$name]) {
+                Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+            } else {
+                [Environment]::SetEnvironmentVariable($name, $savedEnvironment[$name], 'Process')
+            }
+        }
         if ($staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
         if ($lock) { Remove-Item -LiteralPath $lock -Force }
     }
