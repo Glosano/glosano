@@ -26,6 +26,11 @@ function docker {
         'info' { if ($env:TEST_FAIL_DOCKER) { $global:LASTEXITCODE = 1 }; return }
         'compose version --short' { if ($env:TEST_COMPOSE_VERSION) { $env:TEST_COMPOSE_VERSION } else { '2.39.0' }; return }
     }
+    if (($args -join ' ') -match 'config --quiet') {
+        foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED')) {
+            if (Test-Path -LiteralPath "Env:$name") { throw "Exported $name would override .env" }
+        }
+    }
     if (($args -join ' ') -match 'up -d' -and $env:TEST_FAIL_UP) { $global:LASTEXITCODE = 1 }
 }
 function Invoke-WebRequest {
@@ -38,7 +43,14 @@ function Invoke-RestMethod {
     if ($env:TEST_FAIL_READY) { return @{ status = 'not_ready' } }
     return @{ status = 'ready' }
 }
+$originalEnvironment = [Environment]::GetEnvironmentVariables('Process')
 & $env:TEST_INSTALLER
+foreach ($name in @('COMPOSE_PROJECT_NAME', 'GLOSANO_VERSION', 'GLOSANO_IMAGE', 'GLOSANO_SECRET_KEY', 'POSTGRES_PASSWORD', 'GLOSANO_BIND', 'GLOSANO_LOCAL_HTTP', 'GLOSANO_ALLOW_PUBLIC_REGISTRATION', 'GLOSANO_LLM_ENABLED')) {
+    $current = [Environment]::GetEnvironmentVariables('Process')
+    if ($originalEnvironment.Contains($name) -ne $current.Contains($name) -or $originalEnvironment[$name] -cne $current[$name]) {
+        throw "Installer changed the caller's environment: $name"
+    }
+}
 ''')
         self.env['TEST_INSTALLER'] = str(self.script)
 
@@ -69,3 +81,10 @@ function Invoke-RestMethod {
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Docker is unavailable', result.stderr)
         self.assertFalse(self.install.exists())
+
+    def test_exported_settings_are_restored_after_install(self):
+        result = self.run_install(GLOSANO_SECRET_KEY='unrelated-exported-secret', POSTGRES_PASSWORD='unrelated-password')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        config = (self.install / '.env').read_text()
+        self.assertNotIn('unrelated-exported-secret', config)
+        self.assertNotIn('unrelated-password', config)
