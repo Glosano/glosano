@@ -78,8 +78,8 @@ function Invoke-WebRequest {
     env.update(PATH=str(bin_dir)+os.pathsep+env['PATH'],TEST_REAL_DOCKER=DOCKER,TEST_REAL_CURL=shutil.which('curl'),TEST_ASSETS=str(assets),GLOSANO_INSTALL_DIR=str(instance))
     def update(version, fail=False):
         target = assets/version/('update.sh' if RUNTIME=='bash' else 'update.ps1')
-        args = ['bash',target] if RUNTIME=='bash' else [RUNTIME,'-NoProfile','-File',harness]
-        result = subprocess.run([str(a) for a in args],env=env|{'TEST_UPDATER':str(target),'TEST_FAIL_MIGRATION':'1' if fail else ''},text=True,capture_output=True)
+        args = ['bash'] if RUNTIME=='bash' else [RUNTIME,'-NoProfile','-File',harness]
+        result = subprocess.run([str(a) for a in args],env=env|{'TEST_UPDATER':str(target),'TEST_FAIL_MIGRATION':'1' if fail else ''},text=True,capture_output=True,input=target.read_text() if RUNTIME=='bash' else None)
         print(result.stdout)
         if result.returncode and not fail: raise RuntimeError(result.stderr)
         return result
