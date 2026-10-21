@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
 
     # Auth (ADR-0008)
+    # Explicit loopback-only HTTP deployment; server installations keep Secure cookies.
+    local_http: bool = False
     allow_public_registration: bool = True
     initial_admin_email: str = ""
     session_ttl_seconds: int = 30 * 24 * 3600  # 30 days
@@ -73,6 +75,10 @@ class Settings(BaseSettings):
     login_window_seconds: int = 15 * 60
     register_max_attempts: int = 10
     register_window_seconds: int = 3600
+
+    @property
+    def secure_cookies(self) -> bool:
+        return self.is_prod and not self.local_http
 
     @property
     def is_dev(self) -> bool:

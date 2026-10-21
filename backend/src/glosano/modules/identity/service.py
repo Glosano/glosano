@@ -42,7 +42,7 @@ def _set_session_cookies(
     persistent: bool,
     secure: bool,
 ) -> None:
-    """Set both session and CSRF cookies. `secure=False` only for dev/test over HTTP."""
+    """Set session and CSRF cookies; local HTTP is restricted to loopback hosts."""
     max_age = int(SESSION_TTL.total_seconds()) if persistent else None
     response.set_cookie(
         SESSION_COOKIE,
@@ -107,7 +107,7 @@ async def login_user(
         session_token=token,
         csrf_token=csrf,
         persistent=remember_me,
-        secure=settings.is_prod,
+        secure=settings.secure_cookies,
     )
     return user
 
@@ -158,7 +158,7 @@ async def register_user(
         session_token=token,
         csrf_token=csrf,
         persistent=True,
-        secure=settings.is_prod,
+        secure=settings.secure_cookies,
     )
     return user
 
