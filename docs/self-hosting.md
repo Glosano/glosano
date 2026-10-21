@@ -318,7 +318,7 @@ The Glosano Importer extension for Chrome and Firefox sends articles, selected t
 
 ## 9. Update to a new version
 
-**Release installations:** follow [the release update and restore procedure](docker-compose-install.md#update-deliberately). Do not re-run a newer installer as an updater.
+**Installer-managed installations:** use the [one-command update and recovery guide](docker-update.md). Custom Compose deployments use the [manual release procedure](docker-compose-install.md#update-deliberately). Do not re-run a newer installer as an updater.
 
 **Source-build installations:**
 

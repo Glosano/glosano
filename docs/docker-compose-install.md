@@ -51,6 +51,11 @@ docker compose logs --tail=100 migrate app-api app-worker
 
 ## Update deliberately
 
+Installed using `install.sh` or `install.ps1`? Use the
+[one-command updater with automatic backups](docker-update.md). The manual procedure
+below is for custom Compose deployments; also snapshot your application files and
+Redis before migrating (see the updater guide for all three stores).
+
 Do not use an unattended container image updater for this stack. Keep a copy
 of the old `.env`, Compose file and version before changing anything. Download
 and inspect the new release's Compose file; retain the same installation

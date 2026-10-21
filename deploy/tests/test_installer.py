@@ -71,6 +71,13 @@ for line in pathlib.Path(sys.argv[-1]).read_text().splitlines():
         return subprocess.run(["bash", str(self.script)], env=self.env | extra,
                               capture_output=True, text=True, timeout=20)
 
+    def test_unfinished_update_is_not_resumed_as_installation(self):
+        self.assertEqual(self.run_install().returncode, 0)
+        (self.install / '.glosano-update').write_text('backups/pending')
+        result = self.run_install()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('unfinished update', result.stderr)
+
     def test_install_and_repeat_preserve_configuration(self):
         result = self.run_install()
         self.assertEqual(result.returncode, 0, result.stderr)
