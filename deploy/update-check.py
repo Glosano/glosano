@@ -30,7 +30,8 @@ def validate(old: dict, new: dict, source: str, target: str) -> None:
 
 if __name__ == "__main__":
     try:
-        payload = json.load(sys.stdin)
+        # Windows PowerShell 5.1 can prefix native stdin with a UTF-8 BOM.
+        payload = json.loads(sys.stdin.buffer.read().decode("utf-8-sig"))
         validate(payload["old"], payload["new"], payload["source"], payload["target"])
     except (ValueError, KeyError, TypeError) as error:
         sys.exit(f"Unsafe automatic update: {error}")

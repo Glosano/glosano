@@ -22,10 +22,7 @@ if args[0] == 'inspect':
     print('ghcr.io/glosano/glosano:' + ('v0.0.3' if fail == 'image' else 'v0.0.4')); sys.exit(0)
 if args[0] == 'rm': sys.exit(0)
 if args[0] == 'run':
-    payload=sys.stdin.read()
-    result=subprocess.run([sys.executable, '-c', args[-1]], input=payload, text=True)
-    if result.returncode: print('Validator input: '+repr(payload[:160]),file=sys.stderr)
-    sys.exit(result.returncode)
+    sys.exit(subprocess.run([sys.executable, '-c', args[-1]], input=sys.stdin.buffer.read()).returncode)
 if args[0] == 'cp':
     pathlib.Path(args[-1]).write_bytes(b'\x1f\x8b\x00\xffarchive'); sys.exit(0)
 assert args[0] == 'compose', args
