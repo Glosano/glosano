@@ -92,7 +92,7 @@ Reader must provide undo for the last bulk-known action.
 - **AI is optional.** Base product must work without an AI provider. Dictionary, reader, personal dict, SRS, and stats all function without AI.
 - **MVP scope:** contextual translation of selected text only. No grammar explanation, no chat, no exercise generation in MVP.
 - **Provider:** a single adapter compatible with the OpenAI Chat Completions API. Covers OpenAI, OpenRouter, vLLM, LM Studio, LocalAI, and Ollama (which exposes an OpenAI-compatible endpoint).
-- **Configuration:** `/admin/ai` (admin only) stores the complete instance configuration in PostgreSQL; changes apply to API and worker without restart. Provider keys are encrypted using `GLOSANO_SECRET_KEY`. Until the first explicit save, these Docker Compose environment variables remain the legacy fallback:
+- **Configuration:** Settings → AI settings (`/settings/ai`, admin only; ADR-0037) stores the complete instance configuration in PostgreSQL; changes apply to API and worker without restart. Provider keys are encrypted using `GLOSANO_SECRET_KEY`. Until the first explicit save, these Docker Compose environment variables remain the legacy fallback:
   ```
   GLOSANO_LLM_BASE_URL=https://api.openai.com/v1
   GLOSANO_LLM_API_KEY=sk-...

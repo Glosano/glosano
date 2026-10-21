@@ -2,8 +2,6 @@ import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi, type AIDraft, type AISettings } from '@/api/admin'
 import { ApiError, getApiErrorMessage } from '@/api/client'
-import { AppTopBar } from '@/components/AppTopBar'
-import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { msg, useTranslation } from '@/lib/i18n'
@@ -289,7 +287,7 @@ function AIForm({ initial }: { initial: AISettings }) {
   )
 }
 
-function AdminContent() {
+export function AISettingsPage() {
   const t = useTranslation()
   const user = useUserStore((state) => state.user)
   const query = useQuery({
@@ -300,28 +298,18 @@ function AdminContent() {
     refetchOnWindowFocus: false,
   })
   return (
-    <div className="min-h-screen bg-background">
-      <AppTopBar />
-      <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-        <h1 className="mb-2 text-2xl font-semibold">{t('AI settings')}</h1>
-        <p className="mb-6 text-sm text-muted-foreground">{t('Administrator')}</p>
-        {user?.role !== 'admin' ? (
-          <p role="alert">{t('You do not have permission for this action.')}</p>
-        ) : query.isPending ? (
-          <p>{t('Loading…')}</p>
-        ) : query.isError ? (
-          <p role="alert">{getApiErrorMessage(query.error)}</p>
-        ) : (
-          <AIForm key={query.dataUpdatedAt} initial={query.data} />
-        )}
-      </main>
-    </div>
-  )
-}
-export function AISettingsPage() {
-  return (
-    <ProtectedRoute>
-      <AdminContent />
-    </ProtectedRoute>
+    <section>
+      <h2 className="mb-2 text-lg font-semibold">{t('AI settings')}</h2>
+      <p className="mb-6 text-sm text-muted-foreground">{t('Administrator')}</p>
+      {user?.role !== 'admin' ? (
+        <p role="alert">{t('You do not have permission for this action.')}</p>
+      ) : query.isPending ? (
+        <p>{t('Loading…')}</p>
+      ) : query.isError ? (
+        <p role="alert">{getApiErrorMessage(query.error)}</p>
+      ) : (
+        <AIForm key={query.dataUpdatedAt} initial={query.data} />
+      )}
+    </section>
   )
 }

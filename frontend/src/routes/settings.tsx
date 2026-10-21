@@ -1,5 +1,6 @@
 import { createRoute, redirect } from '@tanstack/react-router'
 
+import { AISettingsPage } from '@/features/admin/AISettingsPage'
 import { DataSettings } from '@/features/settings/DataSettings'
 import { PreferencesSettings } from '@/features/settings/PreferencesSettings'
 import { ProfileSettings } from '@/features/settings/ProfileSettings'
@@ -32,4 +33,10 @@ export const settingsDataRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: '/data',
   component: DataSettings,
+})
+
+export const settingsAIRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: '/ai',
+  component: AISettingsPage,
 })

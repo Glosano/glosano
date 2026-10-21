@@ -134,8 +134,8 @@ against the same Compose contract in release CI.
 
 ## Configure AI in the browser
 
-After signing in and completing onboarding, open the account menu → **AI settings**
-(`/admin/ai`). Only administrators see this entry. Choose a preset (OpenAI,
+After signing in and completing onboarding, open the account menu → **Settings → AI settings**
+(`/settings/ai`). Only administrators see the AI settings tab. Choose a preset (OpenAI,
 OpenRouter, Ollama, LM Studio or another OpenAI-compatible server), enter the
 server address, API key if needed, and model identifier. **Load models** is optional;
 a server without `/models` still works with a manually entered identifier.

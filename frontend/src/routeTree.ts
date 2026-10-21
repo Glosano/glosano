@@ -19,6 +19,7 @@ import {
   settingsProfileRoute,
   settingsPreferencesRoute,
   settingsDataRoute,
+  settingsAIRoute,
 } from './routes/settings'
 
 export { rootRoute } from './routes/__rootRoute'
@@ -42,6 +43,7 @@ export const routeTree = rootRoute.addChildren([
     settingsProfileRoute,
     settingsPreferencesRoute,
     settingsDataRoute,
+    settingsAIRoute,
   ]),
   learnLangRoute.addChildren([
     learnLibraryRoute,

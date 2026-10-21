@@ -3,9 +3,11 @@ import { Link, Outlet } from '@tanstack/react-router'
 import { AppTopBar } from '@/components/AppTopBar'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useTranslation, msg } from '@/lib/i18n'
+import { useUserStore } from '@/stores/userStore'
 
 export function SettingsLayout() {
   const t = useTranslation()
+  const isAdmin = useUserStore((state) => state.user?.role === 'admin')
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
@@ -19,6 +21,7 @@ export function SettingsLayout() {
                   ['/settings/profile', msg('Profile')],
                   ['/settings/preferences', msg('Preferences')],
                   ['/settings/data', msg('Data')],
+                  ...(isAdmin ? [['/settings/ai', msg('AI settings')] as const] : []),
                 ] as const
               ).map(([to, label]) => (
                 <Link
